@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Optional
 import requests
 
+api_key = os.getenv("OPENAI_API_KEY")
+
 # ========== Agent Client Wrappers ==========
 
 class GeneratorAgentClient:
@@ -80,7 +82,6 @@ def main():
     parser = argparse.ArgumentParser(description="Dual-agent interactive framework")
     parser.add_argument("--mode", choices=["3d", "2d"], required=True, help="Choose 3D (Blender) or 2D (PPTX) mode")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model")
-    parser.add_argument("--api-key", required=True, help="OpenAI API key")
     parser.add_argument("--max-rounds", type=int, default=10, help="Max interaction rounds")
     parser.add_argument("--init-code", required=True, help="Path to initial code file")
     parser.add_argument("--init-image-path", default=None, help="Path to initial images")
@@ -115,7 +116,7 @@ def main():
     # Create sessions
     generator.create_session(
         vision_model=args.vision_model,
-        api_key=args.api_key,
+        api_key=api_key,
         thoughtprocess_save=args.thoughtprocess_save,
         max_rounds=args.max_rounds,
         generator_hints=args.generator_hints,
@@ -126,7 +127,7 @@ def main():
     )
     verifier.create_session(
         vision_model=args.vision_model,
-        api_key=args.api_key,
+        api_key=api_key,
         thoughtprocess_save=args.verifier_thoughtprocess_save,
         max_rounds=args.max_rounds,
         verifier_hints=args.verifier_hints,

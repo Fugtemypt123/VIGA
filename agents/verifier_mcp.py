@@ -12,11 +12,11 @@ import traceback
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
-from mcp import McpServer, ToolResult
 import logging
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from openai import OpenAI
+from mcp.server.fastmcp import FastMCP
 
 @dataclass
 class VerificationSession:
@@ -599,10 +599,10 @@ Focus the tool on the object whose shape or position needs to be adjusted, and a
 
 def main():
     """Main function to run the MCP Verifier Agent as an MCP server."""
-    server = McpServer()
+    mcp = FastMCP("verifier")
     agent = MCPVerifierAgent()
-    
-    @server.tool()
+
+    @mcp.tool()
     def create_verification_session(
         vision_model: str,
         api_key: str,
@@ -611,18 +611,9 @@ def main():
         verifier_hints: str = None,
         target_image_path: str = None,
         blender_save: str = None
-    ) -> ToolResult:
+    ) -> dict:
         """
         Create a new verification session.
-        
-        Args:
-            vision_model: The OpenAI vision model to use
-            api_key: OpenAI API key
-            thoughtprocess_save: Path to save thought process
-            max_rounds: Maximum number of verification rounds
-            verifier_hints: Hints for verification
-            target_image_path: Path to target images
-            blender_save: Path to Blender save file
         """
         try:
             session_id = agent.create_session(
@@ -634,116 +625,125 @@ def main():
                 target_image_path=target_image_path,
                 blender_save=blender_save
             )
-            
-            return ToolResult(result={
+            return {
                 "status": "success",
                 "session_id": session_id,
                 "message": "Verification session created successfully"
-            })
+            }
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def verify_scene(session_id: str, code: str, render_path: str, round_num: int) -> ToolResult:
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def verify_scene(session_id: str, code: str, render_path: str, round_num: int) -> dict:
         """
         Verify a scene against the target.
-        
-        Args:
-            session_id: The session ID
-            code: The code that generated the scene
-            render_path: Path to the rendered images
-            round_num: Current round number
         """
         try:
             result = agent.verify_scene(session_id, code, render_path, round_num)
-            return ToolResult(result=result)
+            return result
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def exec_pil_code(code: str) -> ToolResult:
-        """Execute PIL code for image processing."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def exec_pil_code(code: str) -> dict:
+        """
+        Execute PIL code for image processing.
+        """
         try:
             tool = PILExecutor()
             result = tool.execute(code)
-            return ToolResult(result=result)
+            return result
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def compare_images(path1: str, path2: str, api_key: str) -> ToolResult:
-        """Compare two images and describe differences."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def compare_images(path1: str, path2: str, api_key: str) -> dict:
+        """
+        Compare two images and describe differences.
+        """
         try:
             tool = ImageDifferentiationTool(api_key)
             result = tool.describe_difference(path1, path2)
-            return ToolResult(result={"description": result})
+            return {"description": result}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def save_thought_process(session_id: str) -> ToolResult:
-        """Save the thought process for a session."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def save_thought_process(session_id: str) -> dict:
+        """
+        Save the thought process for a session.
+        """
         try:
             agent.save_thought_process(session_id)
-            return ToolResult(result={
+            return {
                 "status": "success",
                 "message": "Thought process saved successfully"
-            })
+            }
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def get_session_info(session_id: str) -> ToolResult:
-        """Get information about a session."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def get_session_info(session_id: str) -> dict:
+        """
+        Get information about a session.
+        """
         try:
             info = agent.get_session_info(session_id)
-            return ToolResult(result=info)
+            return info
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def get_memory(session_id: str) -> ToolResult:
-        """Get the memory for a session."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def get_memory(session_id: str) -> dict:
+        """
+        Get the memory for a session.
+        """
         try:
             memory = agent.get_memory(session_id)
-            return ToolResult(result={"memory": memory})
+            return {"memory": memory}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def list_sessions() -> ToolResult:
-        """List all active sessions."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def list_sessions() -> dict:
+        """
+        List all active sessions.
+        """
         try:
             sessions = agent.list_sessions()
-            return ToolResult(result={"sessions": sessions})
+            return {"sessions": sessions}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def delete_session(session_id: str) -> ToolResult:
-        """Delete a session."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def delete_session(session_id: str) -> dict:
+        """
+        Delete a session.
+        """
         try:
             agent.delete_session(session_id)
-            return ToolResult(result={
+            return {
                 "status": "success",
                 "message": "Session deleted successfully"
-            })
+            }
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def reset_session_memory(session_id: str) -> ToolResult:
-        """Reset the memory for a session."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def reset_session_memory(session_id: str) -> dict:
+        """
+        Reset the memory for a session.
+        """
         try:
             agent.reset_session_memory(session_id)
-            return ToolResult(result={
+            return {
                 "status": "success",
                 "message": "Session memory reset successfully"
-            })
+            }
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    server.run()
+            return {"status": "error", "error": str(e)}
+
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

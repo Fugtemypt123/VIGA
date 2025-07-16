@@ -5,8 +5,8 @@ import io
 import base64
 from openai import OpenAI
 from typing import Dict, List, Optional, Any
-from mcp import McpServer, ToolResult
 import logging
+from mcp.server.fastmcp import FastMCP
 
 class GeneratorAgent:
     """
@@ -247,9 +247,11 @@ class GeneratorAgent:
 
 def main():
     """Main function to run the Generator Agent as an MCP server."""
-    server = McpServer()
+    mcp = FastMCP("generator")
     
-    @server.tool()
+    agent_holder = {}
+
+    @mcp.tool()
     def initialize_generator(
         vision_model: str,
         api_key: str,
@@ -260,20 +262,9 @@ def main():
         init_image_path: str = None,
         target_image_path: str = None,
         target_description: str = None
-    ) -> ToolResult:
+    ) -> dict:
         """
         Initialize a new Generator Agent.
-        
-        Args:
-            vision_model: The OpenAI vision model to use
-            api_key: OpenAI API key
-            thoughtprocess_save: Path to save thought process
-            max_rounds: Maximum number of generation rounds
-            generator_hints: Hints for code generation
-            init_code: Initial code to modify
-            init_image_path: Path to initial images
-            target_image_path: Path to target images
-            target_description: Description of target
         """
         try:
             agent = GeneratorAgent(
@@ -287,88 +278,80 @@ def main():
                 target_image_path=target_image_path,
                 target_description=target_description
             )
-            
-            # Store agent instance (in a real implementation, you'd use a proper storage mechanism)
-            server._generator_agent = agent
-            
-            return ToolResult(result={
+            agent_holder['agent'] = agent
+            return {
                 "status": "success",
                 "message": "Generator Agent initialized successfully"
-            })
+            }
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def generate_code(feedback: str = None) -> ToolResult:
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def generate_code(feedback: str = None) -> dict:
         """
         Generate code using the initialized Generator Agent.
-        
-        Args:
-            feedback: Optional feedback from verifier or executor
         """
         try:
-            if not hasattr(server, '_generator_agent'):
-                return ToolResult(isError=True, error="Generator Agent not initialized. Call initialize_generator first.")
-            
-            result = server._generator_agent.generate_code(feedback)
-            return ToolResult(result=result)
+            if 'agent' not in agent_holder:
+                return {"status": "error", "error": "Generator Agent not initialized. Call initialize_generator first."}
+            result = agent_holder['agent'].generate_code(feedback)
+            return result
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def add_feedback(feedback: str) -> ToolResult:
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def add_feedback(feedback: str) -> dict:
         """
         Add feedback to the Generator Agent's memory.
-        
-        Args:
-            feedback: Feedback from verifier or executor
         """
         try:
-            if not hasattr(server, '_generator_agent'):
-                return ToolResult(isError=True, error="Generator Agent not initialized. Call initialize_generator first.")
-            
-            server._generator_agent.add_feedback(feedback)
-            return ToolResult(result={"status": "success", "message": "Feedback added successfully"})
+            if 'agent' not in agent_holder:
+                return {"status": "error", "error": "Generator Agent not initialized. Call initialize_generator first."}
+            agent_holder['agent'].add_feedback(feedback)
+            return {"status": "success", "message": "Feedback added successfully"}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def save_thought_process() -> ToolResult:
-        """Save the current thought process to file."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def save_thought_process() -> dict:
+        """
+        Save the current thought process to file.
+        """
         try:
-            if not hasattr(server, '_generator_agent'):
-                return ToolResult(isError=True, error="Generator Agent not initialized. Call initialize_generator first.")
-            
-            server._generator_agent.save_thought_process()
-            return ToolResult(result={"status": "success", "message": "Thought process saved successfully"})
+            if 'agent' not in agent_holder:
+                return {"status": "error", "error": "Generator Agent not initialized. Call initialize_generator first."}
+            agent_holder['agent'].save_thought_process()
+            return {"status": "success", "message": "Thought process saved successfully"}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def get_memory() -> ToolResult:
-        """Get the current memory/conversation history."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def get_memory() -> dict:
+        """
+        Get the current memory/conversation history.
+        """
         try:
-            if not hasattr(server, '_generator_agent'):
-                return ToolResult(isError=True, error="Generator Agent not initialized. Call initialize_generator first.")
-            
-            memory = server._generator_agent.get_memory()
-            return ToolResult(result={"memory": memory})
+            if 'agent' not in agent_holder:
+                return {"status": "error", "error": "Generator Agent not initialized. Call initialize_generator first."}
+            memory = agent_holder['agent'].get_memory()
+            return {"memory": memory}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    @server.tool()
-    def reset_memory() -> ToolResult:
-        """Reset the agent's memory."""
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def reset_memory() -> dict:
+        """
+        Reset the agent's memory.
+        """
         try:
-            if not hasattr(server, '_generator_agent'):
-                return ToolResult(isError=True, error="Generator Agent not initialized. Call initialize_generator first.")
-            
-            server._generator_agent.reset_memory()
-            return ToolResult(result={"status": "success", "message": "Memory reset successfully"})
+            if 'agent' not in agent_holder:
+                return {"status": "error", "error": "Generator Agent not initialized. Call initialize_generator first."}
+            agent_holder['agent'].reset_memory()
+            return {"status": "success", "message": "Memory reset successfully"}
         except Exception as e:
-            return ToolResult(isError=True, error=str(e))
-    
-    server.run()
+            return {"status": "error", "error": str(e)}
+
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
