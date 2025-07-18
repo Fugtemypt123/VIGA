@@ -86,8 +86,8 @@ class VerifierTester:
             render_dir = os.path.join(temp_dir, "renders")
             self.create_test_images(target_dir, render_dir)
             
-            # 1. Create verification session
-            print("Step 1: Creating verification session...")
+            # 1. Create verification session with automatic tool server connection
+            print("Step 1: Creating verification session with tool server connection...")
             session_result = await self.session.call_tool("create_verification_session", {
                 "vision_model": args.vision_model,
                 "api_key": api_key,
@@ -105,6 +105,9 @@ class VerifierTester:
                 print("Failed to create verification session")
                 return
             
+            # Check if tool servers were connected successfully
+            self._check_tool_connection(session_result)
+            
             # Extract session ID
             session_id = self._extract_session_id(session_result)
             if not session_id:
@@ -113,7 +116,7 @@ class VerifierTester:
             
             print(f"Created session: {session_id}")
             
-            # 2. Test PIL code execution
+            # 2. Test PIL code execution (using connected tools)
             print("\nStep 2: Testing PIL code execution...")
             pil_code = """
 from PIL import Image, ImageDraw
@@ -133,8 +136,8 @@ result = img
             })
             print(f"PIL execution result: Success={self._check_pil_success(pil_result)}")
             
-            # 3. Test image comparison (standalone)
-            print("\nStep 3: Testing standalone image comparison...")
+            # 3. Test image comparison (using connected tools)
+            print("\nStep 3: Testing image comparison...")
             compare_result = await self.session.call_tool("compare_images", {
                 "path1": os.path.join(target_dir, 'render1.png'),
                 "path2": os.path.join(render_dir, 'render1.png'),
@@ -230,8 +233,13 @@ else:
             list_result = await self.session.call_tool("list_sessions", {})
             print(f"Active sessions: {self._extract_session_count(list_result)}")
             
-            # 9. Delete the session
-            print("\nStep 9: Deleting session...")
+            # 9. Test cleanup
+            print("\nStep 9: Testing cleanup...")
+            cleanup_result = await self.session.call_tool("cleanup_verifier", {})
+            print(f"Cleanup result: {cleanup_result.content}")
+            
+            # 10. Delete the session
+            print("\nStep 10: Deleting session...")
             delete_result = await self.session.call_tool("delete_session", {
                 "session_id": session_id
             })
@@ -247,6 +255,27 @@ else:
                 content = content_item.text
                 return '"status": "success"' in content or '"status":"success"' in content
         return False
+
+    def _check_tool_connection(self, result):
+        """Check if tool servers were connected successfully."""
+        if result.content and len(result.content) > 0:
+            content_item = result.content[0]
+            if isinstance(content_item, TextContent):
+                content = content_item.text
+                if "Connected to external tool servers" in content:
+                    print("✅ External tool servers connected successfully")
+                elif "tool connection failed" in content:
+                    print("❌ Tool server connection failed")
+                    # Try to extract error details
+                    try:
+                        import json
+                        json_data = json.loads(content)
+                        if 'tool_error' in json_data:
+                            print(f"   Error: {json_data['tool_error']}")
+                    except:
+                        pass
+                elif "partial_success" in content:
+                    print("⚠️  Partial success - session created but tool connection issues")
 
     def _check_pil_success(self, result):
         """Check if PIL execution was successful."""

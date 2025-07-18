@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import asyncio
 from PIL import Image
 import io
 import base64
@@ -45,40 +46,85 @@ class ExternalToolClient:
         self.image_session = None
         self.scene_session = None
         self.exit_stack = AsyncExitStack()
+        self.connection_timeout = 30  # 30 seconds timeout
     
     async def connect_image_server(self, image_server_path: str):
-        """Connect to the image processing MCP server."""
-        server_params = StdioServerParameters(
-            command="python",
-            args=[image_server_path],
-            env=None
-        )
-        
-        stdio_transport = await self.exit_stack.enter_async_context(
-            stdio_client(server_params)
-        )
-        stdio, write = stdio_transport
-        self.image_session = await self.exit_stack.enter_async_context(
-            ClientSession(stdio, write)
-        )
-        await self.image_session.initialize()
+        """Connect to the image processing MCP server with timeout."""
+        try:
+            server_params = StdioServerParameters(
+                command="python",
+                args=[image_server_path],
+                env=None
+            )
+            
+            # Use asyncio.wait_for to add timeout
+            stdio_transport = await asyncio.wait_for(
+                self.exit_stack.enter_async_context(stdio_client(server_params)),
+                timeout=self.connection_timeout
+            )
+            stdio, write = stdio_transport
+            
+            self.image_session = await asyncio.wait_for(
+                self.exit_stack.enter_async_context(ClientSession(stdio, write)),
+                timeout=self.connection_timeout
+            )
+            
+            await asyncio.wait_for(
+                self.image_session.initialize(),
+                timeout=self.connection_timeout
+            )
+            
+            # List available tools
+            response = await asyncio.wait_for(
+                self.image_session.list_tools(),
+                timeout=10  # Shorter timeout for tool listing
+            )
+            tools = response.tools
+            print(f"Connected to Image server with tools: {[tool.name for tool in tools]}")
+            
+        except asyncio.TimeoutError:
+            raise RuntimeError(f"Failed to connect to Image server: Connection timeout after {self.connection_timeout}s")
+        except Exception as e:
+            raise RuntimeError(f"Failed to connect to Image server: {str(e)}")
     
     async def connect_scene_server(self, scene_server_path: str):
-        """Connect to the scene investigation MCP server."""
-        server_params = StdioServerParameters(
-            command="python", 
-            args=[scene_server_path],
-            env=None
-        )
-        
-        stdio_transport = await self.exit_stack.enter_async_context(
-            stdio_client(server_params)
-        )
-        stdio, write = stdio_transport
-        self.scene_session = await self.exit_stack.enter_async_context(
-            ClientSession(stdio, write)
-        )
-        await self.scene_session.initialize()
+        """Connect to the scene investigation MCP server with timeout."""
+        try:
+            server_params = StdioServerParameters(
+                command="python", 
+                args=[scene_server_path],
+                env=None
+            )
+            
+            # Use asyncio.wait_for to add timeout
+            stdio_transport = await asyncio.wait_for(
+                self.exit_stack.enter_async_context(stdio_client(server_params)),
+                timeout=self.connection_timeout
+            )
+            stdio, write = stdio_transport
+            
+            self.scene_session = await asyncio.wait_for(
+                self.exit_stack.enter_async_context(ClientSession(stdio, write)),
+                timeout=self.connection_timeout
+            )
+            
+            await asyncio.wait_for(
+                self.scene_session.initialize(),
+                timeout=self.connection_timeout
+            )
+            
+            # List available tools
+            response = await asyncio.wait_for(
+                self.scene_session.list_tools(),
+                timeout=10  # Shorter timeout for tool listing
+            )
+            tools = response.tools
+            print(f"Connected to Scene server with tools: {[tool.name for tool in tools]}")
+            
+        except asyncio.TimeoutError:
+            raise RuntimeError(f"Failed to connect to Scene server: Connection timeout after {self.connection_timeout}s")
+        except Exception as e:
+            raise RuntimeError(f"Failed to connect to Scene server: {str(e)}")
     
     async def exec_pil_code(self, code: str) -> Dict:
         """Execute PIL code using external server."""
@@ -150,8 +196,13 @@ class ExternalToolClient:
         return content.get("image", "")
     
     async def cleanup(self):
-        """Clean up connections."""
-        await self.exit_stack.aclose()
+        """Clean up connections with timeout."""
+        try:
+            await asyncio.wait_for(self.exit_stack.aclose(), timeout=10)
+        except asyncio.TimeoutError:
+            logging.warning("Cleanup timeout, forcing close")
+        except Exception as e:
+            logging.warning(f"Cleanup error: {e}")
 
 class MCPVerifierAgent:
     """
@@ -168,14 +219,40 @@ class MCPVerifierAgent:
         self.scene_server_path = scene_server_path
         self._tools_connected = False
     
-    async def _ensure_tools_connected(self):
-        """Ensure external tool servers are connected."""
-        if not self._tools_connected:
+    async def connect_tools(self):
+        """Connect to external tool servers."""
+        if self._tools_connected:
+            return {"status": "success", "message": "Tools already connected"}
+        
+        try:
             if self.image_server_path:
                 await self.tool_client.connect_image_server(self.image_server_path)
             if self.scene_server_path:
                 await self.tool_client.connect_scene_server(self.scene_server_path)
             self._tools_connected = True
+            
+            connected_tools = []
+            if self.image_server_path:
+                connected_tools.append("image processing")
+            if self.scene_server_path:
+                connected_tools.append("scene investigation")
+            
+            return {
+                "status": "success", 
+                "message": f"Connected to external tool servers: {', '.join(connected_tools)}"
+            }
+        except Exception as e:
+            return {
+                "status": "error", 
+                "error": str(e)
+            }
+    
+    async def _ensure_tools_connected(self):
+        """Ensure external tool servers are connected."""
+        if not self._tools_connected:
+            result = await self.connect_tools()
+            if result["status"] != "success":
+                raise RuntimeError(f"Failed to connect tools: {result.get('error', 'Unknown error')}")
     
     def create_session(self, 
                       vision_model: str,
@@ -631,7 +708,7 @@ def main():
     agent_instances = {}
     
     @mcp.tool()
-    def create_verification_session(
+    async def create_verification_session(
         vision_model: str,
         api_key: str,
         thoughtprocess_save: str,
@@ -643,7 +720,7 @@ def main():
         scene_server_path: str = "servers/verifier/scene.py"
     ) -> dict:
         """
-        Create a new verification session.
+        Create a new verification session with automatic tool server connection.
         """
         try:
             # Create or get agent instance for these tool server paths
@@ -655,6 +732,10 @@ def main():
                 )
             
             agent = agent_instances[agent_key]
+            
+            # Connect to tool servers if not already connected
+            connect_result = await agent.connect_tools()
+            
             session_id = agent.create_session(
                 vision_model=vision_model,
                 api_key=api_key,
@@ -664,11 +745,20 @@ def main():
                 target_image_path=target_image_path,
                 blender_save=blender_save
             )
-            return {
-                "status": "success",
-                "session_id": session_id,
-                "message": "Verification session created successfully"
-            }
+            
+            if connect_result["status"] == "success":
+                return {
+                    "status": "success",
+                    "session_id": session_id,
+                    "message": f"Verification session created successfully. {connect_result['message']}"
+                }
+            else:
+                return {
+                    "status": "partial_success",
+                    "session_id": session_id,
+                    "message": "Verification session created successfully, but tool connection failed",
+                    "tool_error": connect_result.get("error", "Unknown error")
+                }
         except Exception as e:
             return {"status": "error", "error": str(e)}
     
@@ -682,7 +772,7 @@ def main():
             for agent in agent_instances.values():
                 if session_id in agent.sessions:
                     result = await agent.verify_scene(session_id, code, render_path, round_num)
-            return result
+                    return result
             return {"status": "error", "error": f"Session {session_id} not found"}
         except Exception as e:
             return {"status": "error", "error": str(e)}
@@ -824,6 +914,18 @@ def main():
                         "message": "Session memory reset successfully"
                     }
             return {"status": "error", "error": f"Session {session_id} not found"}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+    
+    @mcp.tool()
+    async def cleanup_verifier() -> dict:
+        """
+        Clean up all verifier agents and their connections.
+        """
+        try:
+            for agent in agent_instances.values():
+                await agent.cleanup()
+            return {"status": "success", "message": "All verifier agents cleaned up successfully"}
         except Exception as e:
             return {"status": "error", "error": str(e)}
     
