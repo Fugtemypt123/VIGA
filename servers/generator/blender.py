@@ -1,8 +1,10 @@
 # blender_executor_server.py
+from optparse import Option
 import os
 import subprocess
 import base64
 import io
+from typing import Optional
 from pathlib import Path
 from PIL import Image
 import logging
@@ -21,7 +23,7 @@ class Executor:
                  blender_script: str,
                  script_save: str,
                  render_save: str,
-                 blender_save: str = None):
+                 blender_save: Optional[str] = None):
         self.blender_command = blender_command
         self.blender_file = blender_file
         self.blender_script = blender_script
@@ -84,7 +86,7 @@ def initialize_executor(blender_command: str,
                        blender_script: str,
                        script_save: str,
                        render_save: str,
-                       blender_save: str = None) -> dict:
+                       blender_save: Optional[str] = None) -> dict:
     """
     初始化 Blender 执行器，设置所有必要的参数。
     """
