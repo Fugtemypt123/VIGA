@@ -1,4 +1,4 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Main entry for dual-agent interactive framework (generator/verifier).
 Supports 3D (Blender) and 2D (PPTX) modes.
@@ -16,6 +16,7 @@ from contextlib import AsyncExitStack
 import requests
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.types import TextContent
 
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -102,6 +103,7 @@ class VerifierAgentClient:
         self.session = None
         self.exit_stack = AsyncExitStack()
         self.initialized = False
+        self.session_id = None
 
     async def connect(self):
         """Connect to the Verifier MCP server."""
@@ -119,24 +121,30 @@ class VerifierAgentClient:
         print(f"Connected to Verifier: {self.script_path}")
 
     async def create_session(self, **kwargs):
-        """Initialize the verifier with session parameters."""
+        """Create a verification session with automatic tool server connection."""
         if not self.session:
             raise RuntimeError("Not connected. Call connect() first.")
         
-        result = await self.session.call_tool("initialize_verifier", kwargs)
+        result = await self.session.call_tool("create_verification_session", kwargs)
         if result.content and len(result.content) > 0:
             content = result.content[0].text
-            if '"status": "success"' in content or '"status":"success"' in content:
-                self.initialized = True
-                return "success"
+            try:
+                json_data = json.loads(content)
+                if json_data.get("status") == "success":
+                    self.initialized = True
+                    self.session_id = json_data.get("session_id")
+                    return "success"
+            except json.JSONDecodeError:
+                pass
         raise RuntimeError(f"Failed to create session: {result.content}")
 
     async def verify_scene(self, code: str, render_path: str, round_num: int):
         """Verify the scene with given parameters."""
-        if not self.initialized:
+        if not self.initialized or not self.session_id:
             raise RuntimeError("Verifier not initialized. Call create_session() first.")
         
         result = await self.session.call_tool("verify_scene", {
+            "session_id": self.session_id,
             "code": code,
             "render_path": render_path,
             "round_num": round_num
@@ -148,10 +156,12 @@ class VerifierAgentClient:
 
     async def save_thought_process(self):
         """Save the thought process."""
-        if not self.initialized:
+        if not self.initialized or not self.session_id:
             raise RuntimeError("Verifier not initialized. Call create_session() first.")
         
-        result = await self.session.call_tool("save_thought_process", {})
+        result = await self.session.call_tool("save_thought_process", {
+            "session_id": self.session_id
+        })
         if not (result.content and len(result.content) > 0 and 
                 ('"status": "success"' in result.content[0].text or '"status":"success"' in result.content[0].text)):
             raise RuntimeError(f"Failed to save thought process: {result.content}")
@@ -199,6 +209,17 @@ async def main():
     parser.add_argument("--verifier-script", default="agents/verifier_mcp.py", help="Verifier MCP script path")
     parser.add_argument("--blender-url", default="http://localhost:8001", help="Blender executor server URL")
     parser.add_argument("--slides-url", default="http://localhost:8002", help="Slides executor server URL")
+    
+    # Blender execution parameters (for generator)
+    parser.add_argument("--blender-command", default="blender", help="Blender command path")
+    parser.add_argument("--blender-file", default="scene.blend", help="Blender template file")
+    parser.add_argument("--blender-script", default="render_script.py", help="Blender execution script")
+    parser.add_argument("--script-save", default="scripts", help="Directory to save generated scripts")
+    
+    # Tool server paths (for verifier)
+    parser.add_argument("--image-server-path", default="servers/verifier/image.py", help="Path to image processing MCP server script")
+    parser.add_argument("--scene-server-path", default="servers/verifier/scene.py", help="Path to scene investigation MCP server script")
+    
     args = parser.parse_args()
 
     # Read initial code
@@ -210,6 +231,8 @@ async def main():
     os.makedirs(args.render_save, exist_ok=True)
     if args.mode == "2d":
         os.makedirs(args.code_save, exist_ok=True)
+    if args.mode == "3d":
+        os.makedirs(args.script_save, exist_ok=True)
 
     # Init agents
     generator = GeneratorAgentClient(args.generator_script)
@@ -220,29 +243,48 @@ async def main():
         await generator.connect()
         await verifier.connect()
 
-        # Create sessions
-        await generator.create_session(
-            vision_model=args.vision_model,
-            api_key=api_key,
-            thoughtprocess_save=args.thoughtprocess_save,
-            max_rounds=args.max_rounds,
-            generator_hints=args.generator_hints,
-            init_code=init_code,
-            init_image_path=args.init_image_path,
-            target_image_path=args.target_image_path,
-            target_description=None
-        )
-        await verifier.create_session(
-            vision_model=args.vision_model,
-            api_key=api_key,
-            thoughtprocess_save=args.verifier_thoughtprocess_save,
-            max_rounds=args.max_rounds,
-            verifier_hints=args.verifier_hints,
-            target_image_path=args.target_image_path,
-            blender_save=args.blender_save
-        )
+        # Create generator session
+        generator_params = {
+            "vision_model": args.vision_model,
+            "api_key": api_key,
+            "thoughtprocess_save": args.thoughtprocess_save,
+            "max_rounds": args.max_rounds,
+            "generator_hints": args.generator_hints,
+            "init_code": init_code,
+            "init_image_path": args.init_image_path,
+            "target_image_path": args.target_image_path,
+            "target_description": None
+        }
+        
+        # Add Blender-specific parameters for 3D mode
+        if args.mode == "3d":
+            generator_params.update({
+                "blender_command": args.blender_command,
+                "blender_file": args.blender_file,
+                "blender_script": args.blender_script,
+                "script_save": args.script_save,
+                "render_save": args.render_save,
+                "blender_save": args.blender_save
+            })
+        
+        await generator.create_session(**generator_params)
+        
+        # Create verifier session
+        verifier_params = {
+            "vision_model": args.vision_model,
+            "api_key": api_key,
+            "thoughtprocess_save": args.verifier_thoughtprocess_save,
+            "max_rounds": args.max_rounds,
+            "verifier_hints": args.verifier_hints,
+            "target_image_path": args.target_image_path,
+            "blender_save": args.blender_save,
+            "image_server_path": args.image_server_path,
+            "scene_server_path": args.scene_server_path
+        }
+        
+        await verifier.create_session(**verifier_params)
 
-        # Init executors (still HTTP-based)
+        # Init executors (still HTTP-based for now)
         if args.mode == "3d":
             executor = BlenderExecutorClient(args.blender_url)
         else:
@@ -253,6 +295,7 @@ async def main():
             print(f"\n=== Round {round_num+1} ===")
             
             # 1. Generator生成代码
+            print("Step 1: Generator generating code...")
             gen_result = await generator.generate_code()
             if gen_result.get("status") == "max_rounds_reached":
                 print("Max rounds reached. Stopping.")
@@ -260,34 +303,59 @@ async def main():
             if gen_result.get("status") == "error":
                 print(f"Generator error: {gen_result['error']}")
                 break
-            code = gen_result["code"]
+            
+            # Extract code from result
+            code = gen_result.get("code") or gen_result.get("current_code") or gen_result.get("generated_code")
+            if not code:
+                print("No code generated")
+                break
+                
             print(f"Generated code (truncated):\n{code[:200]}...")
             
-            # 2. 执行代码
-            if args.mode == "3d":
-                exec_result = executor.execute(
-                    code=code,
-                    round_num=round_num,
-                    blender_command="blender",
-                    blender_file="scene.blend",
-                    blender_script="render_script.py",
-                    script_save="scripts",
-                    render_save=args.render_save,
-                    blender_save=args.blender_save
-                )
+            # Check if automatic execution happened (for 3D mode)
+            if args.mode == "3d" and gen_result.get("execution_result"):
+                exec_result = gen_result["execution_result"]
+                if exec_result.get("status") == "success":
+                    print("✅ Automatic Blender execution completed!")
+                    blender_result = exec_result.get("result", {})
+                    if blender_result.get("status") == "success":
+                        print("   - Image rendering successful")
+                    else:
+                        print(f"   - Image rendering failed: {blender_result.get('output', 'Unknown error')}")
+                        await generator.add_feedback(f"Execution error: {blender_result.get('output')}")
+                        continue
+                else:
+                    print(f"   - Blender execution failed: {exec_result.get('error', 'Unknown error')}")
+                    await generator.add_feedback(f"Execution error: {exec_result.get('error')}")
+                    continue
             else:
-                exec_result = executor.execute(
-                    code=code,
-                    round_num=round_num,
-                    code_save=args.code_save
-                )
-            
-            if exec_result.get("status") != "success":
-                print(f"Execution failed: {exec_result.get('output')}")
-                await generator.add_feedback(f"Execution error: {exec_result.get('output')}")
-                continue
+                # 2. Manual execution (for 2D mode or when automatic execution is not available)
+                print("Step 2: Executing code...")
+                if args.mode == "3d":
+                    exec_result = executor.execute(
+                        code=code,
+                        round_num=round_num,
+                        blender_command=args.blender_command,
+                        blender_file=args.blender_file,
+                        blender_script=args.blender_script,
+                        script_save=args.script_save,
+                        render_save=args.render_save,
+                        blender_save=args.blender_save
+                    )
+                else:
+                    exec_result = executor.execute(
+                        code=code,
+                        round_num=round_num,
+                        code_save=args.code_save
+                    )
+                
+                if exec_result.get("status") != "success":
+                    print(f"Execution failed: {exec_result.get('output')}")
+                    await generator.add_feedback(f"Execution error: {exec_result.get('output')}")
+                    continue
             
             # 3. Verifier验证
+            print("Step 3: Verifier analyzing scene...")
             if args.mode == "3d":
                 verify_result = await verifier.verify_scene(
                     code=code,
@@ -315,14 +383,18 @@ async def main():
                 break
             
             # 4. 保存思考过程
+            print("Step 4: Saving thought processes...")
             await generator.save_thought_process()
             await verifier.save_thought_process()
             await asyncio.sleep(1)
             
     except Exception as e:
         print(f"Error in main loop: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         # Cleanup
+        print("Cleaning up...")
         await generator.cleanup()
         await verifier.cleanup()
     

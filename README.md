@@ -11,6 +11,186 @@ AgenticVerifier is a multi-agent system for iterative code generation and verifi
 - MCP stdio-based agent communication (no manual server setup required)
 - Extensible agent and executor server architecture
 
+## System Architecture
+
+### Overall Architecture
+
+```
+┌───────────────────────────────────────────────────────────────-──┐
+│                    Dual-Agent Interactive System                 │
+├───────────────────────────────────────────────────────────────-──┤
+│                                                                  │
+│                         ┌─────────────┐                          │
+│                         │    Client   │                          │
+│                         │ (Controller)│                          │
+│                         └─────┬───────┘                          │
+│                               │                                  │
+│                               ▼                                  │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                      MCP Agent Layer                        │ │
+│  │                                                             │ │
+│  │     ┌─────────────┐                  ┌───────────────┐      │ │
+│  │     │  Generator  │◄────────────────►│    Verifier   │      │ │
+│  │     │    Agent    │                  │     Agent     │      │ │
+│  │     │   (MCP)     │                  │     (MCP)     │      │ │
+│  │     └─────┬───────┘                  └───────────────┘      │ │
+│  │           │                            │           │        │ │
+│  │           ▼                            ▼           ▼        │ │
+│  │   ┌─────────────┐          ┌─────────────┐  ┌─────────────┐ │ │
+│  │   │   Blender   │          │    Image    │  │   Scene     │ │ │
+│  │   │   Server    │          │   Server    │  │   Server    │ │ │
+│  │   │   (MCP)     │          │   (MCP)     │  │   (MCP)     │ │ │
+│  │   └─────────────┘          └─────────────┘  └─────────────┘ │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+└─────────────────────────-────────────────────────────────────────┘
+```
+
+## Core Components
+
+### 1. Generator Agent
+
+The Generator Agent is responsible for creating and iteratively improving code based on feedback from the Verifier Agent.
+
+#### Key Features
+
+- **Code Generation**: Generates code based on initial requirements and feedback
+- **Memory Management**: Maintains conversation history and context
+- **Automatic Execution**: Can automatically execute generated code (3D mode)
+- **Feedback Integration**: Incorporates verifier feedback into next generation
+- **Session Management**: Handles multiple generation sessions
+
+#### Workflow
+
+1. **Initialization**: Set up with target images, hints, and initial code
+2. **Code Generation**: Generate code using vision model and context
+3. **Execution**: Execute code (automatic or manual)
+4. **Feedback Processing**: Receive feedback from verifier
+5. **Iteration**: Generate improved code based on feedback
+
+#### Usage Example
+
+```python
+# Initialize generator
+generator = GeneratorAgentClient("agents/generator_mcp.py")
+await generator.connect()
+
+# Create session
+await generator.create_session(
+    vision_model="gpt-4o",
+    api_key=api_key,
+    thoughtprocess_save="generator_thought.json",
+    max_rounds=10,
+    generator_hints="Focus on realistic lighting",
+    init_code=initial_code,
+    target_image_path="target_images",
+    # Blender-specific parameters for 3D mode
+    blender_command="blender",
+    blender_file="scene.blend",
+    render_save="renders"
+)
+
+# Generate code
+result = await generator.generate_code()
+code = result.get("code")
+
+# Add feedback and generate again
+await generator.add_feedback("Make the lighting more dramatic")
+result = await generator.generate_code()
+```
+
+### 2. Verifier Agent
+
+The Verifier Agent analyzes generated scenes and provides feedback for improvement.
+
+#### Key Features
+
+- **Visual Analysis**: Compares current scenes with target images
+- **3D Scene Investigation**: Focuses camera, zooms, and moves around objects
+- **Image Comparison**: Uses AI to identify visual differences
+- **Feedback Generation**: Provides specific improvement suggestions
+- **Tool Integration**: Uses specialized tools for detailed analysis
+
+#### Available Tools
+
+1. **Image Comparison Tool**
+   - Compares two images and highlights differences
+   - Provides detailed descriptions of visual changes
+   - Uses AI vision model for analysis
+
+2. **3D Scene Investigation Tool**
+   - **Focus**: Set camera to track specific objects
+   - **Zoom**: Adjust camera distance (in/out)
+   - **Move**: Move camera around objects (up/down/left/right)
+
+#### Workflow
+
+1. **Session Creation**: Initialize with target images and hints
+2. **Scene Analysis**: Analyze current scene against target
+3. **Tool Usage**: Use specialized tools for detailed investigation
+4. **Feedback Generation**: Generate improvement suggestions
+5. **Status Determination**: Decide if scene matches target
+
+#### Usage Example
+
+```python
+# Initialize verifier
+verifier = VerifierAgentClient("agents/verifier_mcp.py")
+await verifier.connect()
+
+# Create session with tool servers
+await verifier.create_session(
+    vision_model="gpt-4o",
+    api_key=api_key,
+    thoughtprocess_save="verifier_thought.json",
+    max_rounds=10,
+    verifier_hints="Check for proper object placement",
+    target_image_path="target_images",
+    image_server_path="servers/verifier/image.py",
+    scene_server_path="servers/verifier/scene.py"
+)
+
+# Verify scene
+result = await verifier.verify_scene(
+    code=generated_code,
+    render_path="renders",
+    round_num=1
+)
+
+# Check result
+if result.get("status") == "end":
+    print("Scene matches target!")
+elif result.get("status") == "continue":
+    feedback = result["output"]
+    print(f"Feedback: {feedback}")
+```
+
+### 3. Dual-Agent Interaction
+
+The dual-agent system creates an iterative feedback loop between generation and verification.
+
+#### Detailed Process
+
+1. **Initialization Phase**
+   - Load initial code and target images
+   - Set up generator and verifier sessions
+   - Configure tool servers and executors
+
+2. **Generation Phase**
+   - Generator creates code based on requirements and feedback
+   - Code is automatically executed (3D mode) or manually executed
+   - Rendered images are saved for analysis
+
+3. **Verification Phase**
+   - Verifier compares current scene with target images
+   - Uses specialized tools for detailed analysis
+   - Generates specific feedback for improvements
+
+4. **Feedback Integration**
+   - Feedback is passed back to generator
+   - Generator incorporates feedback into next iteration
+   - Process continues until success or max rounds reached
+
 ## Requirements
 
 - Python >= 3.8
@@ -201,6 +381,57 @@ python examples/generator_mcp_usage.py --mode blender --init-code path/to/init.p
 python examples/verifier_mcp_usage.py --target-image-path path/to/target/images
 ```
 
+## Advanced Usage
+
+### Custom Agent Development
+
+You can extend the system by creating custom agents:
+
+```python
+from agents.generator_mcp import MCPGeneratorAgent
+from agents.verifier_mcp import MCPVerifierAgent
+
+# Custom generator with specialized logic
+class CustomGenerator(MCPGeneratorAgent):
+    async def generate_code(self, context):
+        # Custom generation logic
+        pass
+
+# Custom verifier with specialized analysis
+class CustomVerifier(MCPVerifierAgent):
+    async def analyze_scene(self, scene_data):
+        # Custom analysis logic
+        pass
+```
+
+### Tool Server Integration
+
+Add custom tool servers to extend functionality:
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+@mcp.tool()
+async def custom_tool(param: str) -> dict:
+    """Custom tool for specialized operations."""
+    # Tool implementation
+    return {"result": "success"}
+```
+
+### Session Management
+
+The system supports multiple concurrent sessions:
+
+```python
+# Create multiple sessions
+session1 = await verifier.create_session(...)
+session2 = await verifier.create_session(...)
+
+# Work with different sessions
+await verifier.verify_scene(session_id=session1, ...)
+await verifier.verify_scene(session_id=session2, ...)
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -229,6 +460,27 @@ python examples/verifier_mcp_usage.py --target-image-path path/to/target/images
 
 6. **Executor Server Issues**: Note that Blender and Slides executors still require separate HTTP servers. Make sure they're running before starting the main script.
 
+7. **Tool Server Connection Issues**: If verifier tools aren't working, check that the tool server paths are correct:
+   ```bash
+   ls servers/verifier/image.py servers/verifier/scene.py
+   ```
+
+### Debug Mode
+
+Enable debug logging for troubleshooting:
+
+```bash
+export PYTHONPATH=.
+python -u main.py --mode 3d --init-code path/to/init.py 2>&1 | tee debug.log
+```
+
+### Performance Optimization
+
+- Use `--max-rounds` to limit iterations
+- Set appropriate `--vision-model` for your use case
+- Monitor API usage and costs
+- Use local caching for repeated operations
+
 ## Migration from HTTP to MCP
 
 If you're upgrading from the old HTTP-based approach:
@@ -248,6 +500,7 @@ If you're upgrading from the old HTTP-based approach:
 - Start with individual component testing before running the full system
 - Agent communication is now handled via MCP stdio (no HTTP servers needed for agents)
 - Executor servers (Blender, Slides) still use HTTP and need to be started separately
+- Tool servers (Image, Scene) are automatically connected via MCP
 
 ## Contributing
 
