@@ -58,10 +58,10 @@ def load_autopresent_dataset(base_path: str, task_name: str, task_id: str) -> Li
         if not target_description_file.exists():
             print(f"Warning: target_description.txt not found in {task_dir}")
             continue
-        
+            
         # Read target description
         with open(target_description_file, 'r') as f:
-            target_description = f.read().strip()
+                target_description = f.read().strip()
             
         task_config = {
             "task_name": task_name,

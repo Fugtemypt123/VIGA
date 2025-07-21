@@ -16,9 +16,12 @@ blendergym_verifier_hints = {
     "blendshape": blendshape.verifier_hints,
 }
 
-blendergym_system_prompt = """
-You are a BlenderGym agent. Your task is to generate code to transform an initial 3D scene into a target scene following the target image provided. After each code edit, your code will be passed to a validator, which will provide feedback on the result. Based on this feedback, you must iteratively refine your code edits. This process will continue across multiple rounds of dialogue. In each round, you must adhere to a fixed output format.
-"""
+blendergym_generator_system = """You are a Blender coding agent. Your task is to generate code to transform an initial 3D scene into a target scene following the target image provided. After each code edit, your code will be passed to a validator, which will provide feedback on the result. Based on this feedback, you must iteratively refine your code edits. This process will continue across multiple rounds of dialogue. In each round, you must adhere to a fixed output format."""
+
+blendergym_verifier_system = """You're a 3D visual feedback assistant tasked with providing revision suggestions to a 3D scene designer. At the beginning, you will be given several images that describe the target 3D scene. In each subsequent interaction, you will receive a few images of the current 3D scene along with the code that generated it.
+Your responsibilities include:
+1. **Visual Difference Identification**: Identify differences between the target scene and the current scene. You may use visual tools to assist in this process and should pay close attention to detail. Only answer the most obvious 1-2 differences at a time, don't answer too many.
+2. **Code Localization**: Pinpoint locations in the code that could be modified to reduce or eliminate these differences. This may require counterfactual reasoning and inference from the visual discrepancies."""
 
 blendergym_generator_format = """After each code edit, your code will be passed to a validator, which will provide feedback on the result. Based on this feedback, you must iteratively refine your code edits. This process will continue across multiple rounds of dialogue. In each round, you must follow a fixed output format. Output Format (keep this format for each round):
 1. Thought: Analyze the current state and provide a clear plan for the required changes.

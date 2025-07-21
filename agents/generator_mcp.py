@@ -62,22 +62,17 @@ class ExternalToolClient:
         session = self.sessions.get(server_type)
         if not session:
             raise RuntimeError(f"{server_type.capitalize()} server not connected")
-        tool_name = "initialize_executor" if server_type == "blender" else "exec_pptx"  # slides doesn't need explicit init
-        if server_type == "blender":
-            try:
-                result = await asyncio.wait_for(
-                    session.call_tool(tool_name, kwargs),
-                    timeout=30
-                )
-                content = json.loads(result.content[0].text) if result.content else {}
-                return content
-            except asyncio.TimeoutError:
-                raise RuntimeError(f"{server_type.capitalize()} executor initialization timeout after 30s")
-            except Exception as e:
-                raise RuntimeError(f"{server_type.capitalize()} executor initialization failed: {str(e)}")
-        else:
-            # slides: treat as always success
-            return {"status": "success", "message": "Slides executor configured"}
+        try:
+            result = await asyncio.wait_for(
+                session.call_tool("initialize_executor", kwargs),
+                timeout=30
+            )
+            content = json.loads(result.content[0].text) if result.content else {}
+            return content
+        except asyncio.TimeoutError:
+            raise RuntimeError(f"{server_type.capitalize()} executor initialization timeout after 30s")
+        except Exception as e:
+            raise RuntimeError(f"{server_type.capitalize()} executor initialization failed: {str(e)}")
     
     async def exec_script(self, server_type: str, code: str, round_num: int, **kwargs) -> Dict:
         """Execute script using external server with timeout."""
@@ -141,13 +136,10 @@ class GeneratorAgent:
         self.client = OpenAI(api_key=self.api_key)
         self.thought_save = thought_save
         self.max_rounds = max_rounds
-        self.memory = []
         self.current_round = 0
         self.tool_client = ExternalToolClient()
-        self.server_type = None  # "blender" or "slides"
-        self.server_path = None
-        self.executor_config = {}
         self._server_connected = False
+        
         # Decide which server to use
         if mode == "blendergym":
             self.server_type = "blender"
@@ -171,7 +163,6 @@ class GeneratorAgent:
     
     async def setup_executor(self, **kwargs):
         await self._ensure_server_connected()
-        self.executor_config = kwargs
         result = await self.tool_client.initialize_executor(self.server_type, **kwargs)
         return result
     
@@ -189,7 +180,7 @@ class GeneratorAgent:
         # Add system prompt
         full_prompt.append({
             "role": "system",
-            "content": prompts_dict[mode]['system_prompt']
+            "content": prompts_dict[mode]['system']['generator']
         })
         
         # Add initial code & code analysis
@@ -279,16 +270,16 @@ class GeneratorAgent:
             })
         
         # Add hints 
-        if prompts_dict[mode]['generator_hints'][task_name] is not None:
+        if prompts_dict[mode]['hints']['generator'][task_name] is not None:
             user_content.append({
                 "type": "text",
-                "text": f"Hints:\n{prompts_dict[mode]['generator_hints'][task_name]}"
+                "text": f"Hints:\n{prompts_dict[mode]['hints']['generator'][task_name]}"
             })
         
         # Add output format
         user_content.append({
             "type": "text",
-            "text": prompts_dict[mode]['generator_format']
+            "text": prompts_dict[mode]['format']['generator']
         })
         
         # Add all user content
