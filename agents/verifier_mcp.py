@@ -49,6 +49,22 @@ class ExternalToolClient:
         except Exception as e:
             raise RuntimeError(f"Failed to connect to {server_type} server: {str(e)}")
         
+    async def initialize_executor(self, server_type: str, **kwargs) -> dict:
+        session = self.sessions.get(server_type)
+        if not session:
+            raise RuntimeError(f"{server_type.capitalize()} server not connected")
+        try:
+            result = await asyncio.wait_for(
+                session.call_tool("initialize_executor", kwargs),
+                timeout=10
+            )
+            content = json.loads(result.content[0].text) if result.content else {}
+            return content
+        except asyncio.TimeoutError:
+            raise RuntimeError(f"{server_type.capitalize()} executor initialization timeout after 10s")
+        except Exception as e:
+            raise RuntimeError(f"{server_type.capitalize()} executor initialization failed: {str(e)}")
+        
     async def call_tool(self, server_type: str, tool_name: str, tool_args: dict, timeout: int = 60) -> Any:
         session = self.sessions.get(server_type)
         if not session:
@@ -161,6 +177,14 @@ class VerifierAgent:
                 await self.tool_client.connect_server("scene", self.server_path)
             self._tools_connected = True
             
+    async def setup_executor(self, **kwargs):
+        await self._ensure_tools_connected()
+        if self.server_type == "image":
+            result = await self.tool_client.initialize_executor("image", **kwargs)
+            return result
+        # No initialization needed for scene server 
+        return {"status": "success", "message": "No executor setup needed for this mode."}
+        
     async def verify_scene(self, code: str, render_path: str, round_num: int) -> Dict[str, Any]:
         await self._ensure_tools_connected()
         
@@ -317,17 +341,19 @@ class VerifierAgent:
 def main():
     mcp = FastMCP("verifier")
     agent_holder = {}
+    
     @mcp.tool()
     async def initialize_verifier(
         mode: str,
         vision_model: str,
         api_key: str,
         thought_save: str,
+        task_name: str,
         max_rounds: int = 10,
         target_image_path: str = None,
         target_descirption: str = None,
-        image_server_path: str = "servers/verifier/image.py",
-        scene_server_path: str = "servers/verifier/scene.py"
+        image_server_path: str = None,
+        scene_server_path: str = None
     ) -> dict:
         
         try:
@@ -336,6 +362,7 @@ def main():
                 vision_model=vision_model,
                 api_key=api_key,
                 thought_save=thought_save,
+                task_name=task_name,
                 max_rounds=max_rounds,
                 target_image_path=target_image_path,
                 target_descirption=target_descirption,
@@ -343,6 +370,11 @@ def main():
                 scene_server_path=scene_server_path
             )
             agent_holder['agent'] = agent
+            # Initialize image server executor
+            if mode == "blendergym" or mode == "autopresent":
+                setup_result = await agent.setup_executor(api_key=api_key)
+                if setup_result.get("status") != "success":
+                    return {"status": "error", "error": f"Image server setup failed: {setup_result.get('error', setup_result)}"}
             await agent._ensure_tools_connected()
             return {"status": "success", "message": "Verifier Agent initialized and tool servers connected"}
         except Exception as e:

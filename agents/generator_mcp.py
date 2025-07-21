@@ -509,8 +509,6 @@ def main():
         except Exception as e:
             return {"status": "error", "error": str(e)}
     
-
-    
     @mcp.tool()
     async def generate_code(feedback: str = None) -> dict:
         """

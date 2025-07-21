@@ -120,6 +120,18 @@ def main():
     server = FastMCP("image-server")
 
     @server.tool()
+    def initialize_executor(api_key: str) -> dict:
+        """
+        初始化ImageDifferentiationTool，设置api_key。
+        """
+        try:
+            global _image_tool
+            _image_tool = ImageDifferentiationTool(api_key=api_key)
+            return {"status": "success", "message": "ImageDifferentiationTool initialized with api_key."}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+    @server.tool()
     def exec_pil_code(code: str) -> dict:
         tool = PILExecutor()
         return tool.execute(code)
@@ -127,8 +139,10 @@ def main():
     @server.tool()
     def compare_images(path1: str, path2: str) -> dict:
         try:
-            tool = ImageDifferentiationTool()
-            result = tool.describe_difference(path1, path2)
+            global _image_tool
+            if '_image_tool' not in globals() or _image_tool is None:
+                raise RuntimeError("ImageDifferentiationTool not initialized. Call initialize_executor first.")
+            result = _image_tool.describe_difference(path1, path2)
             return {"description": result}
         except Exception as e:
             logging.error(f"Comparison failed: {e}")
