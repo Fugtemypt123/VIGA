@@ -77,8 +77,7 @@ class Executor:
         success, stdout, stderr = self._execute_blender(str(script_file), str(render_file))
         if not success or not os.path.exists(render_file):
             return {"status": "failure", "output": stderr or stdout}
-        img_b64 = self._encode_image(str(render_file))
-        return {"status": "success", "output": img_b64, "stdout": stdout, "stderr": stderr}
+        return {"status": "success", "output": str(render_file), "stdout": stdout, "stderr": stderr}
 
 @mcp.tool()
 def initialize_executor(blender_command: str,

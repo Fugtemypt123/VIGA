@@ -69,12 +69,10 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: str) -> Lis
         task_config = {
             "task_name": task_name,
             "task_dir": task_dir,
-            "init_code": start_code_path,
+            "init_code_path": start_code_path,
             "init_image_path": start_renders_dir,
             "target_image_path": goal_renders_dir,
             "blender_file": blender_file,
-            "generator_hints": blender_generator_hints[task_name],
-            "verifier_hints": blender_verifier_hints[task_name],
         }
         tasks.append(task_config)
         print(f"Found task: {task_name}/{task_dir.name}")
@@ -98,37 +96,35 @@ def run_blendergym_task(task_config: Dict, args) -> bool:
     
     # Prepare output directories
     output_base = Path(args.output_dir) / task_config['task_dir'].name
-    render_save = output_base / "renders"
-    generator_thought_save = output_base / "generator_thought.json"
-    verifier_thought_save = output_base / "verifier_thought.json"
+    # render_save = output_base / "renders"
+    # generator_thought_save = output_base / "generator_thought.json"
+    # verifier_thought_save = output_base / "verifier_thought.json"
     
     # Create directories
-    render_save.mkdir(parents=True, exist_ok=True)
+    output_base.mkdir(parents=True, exist_ok=True)
     
     # Build main.py command
     cmd = [
         sys.executable, "main.py",
-        "--mode", "3d",
-        "--init-code", str(task_config["init_code"]),
-        "--init-image-path", str(task_config["init_image_path"]),
-        "--target-image-path", str(task_config["target_image_path"]),
-        "--max-rounds", str(args.max_rounds),
-        "--render-save", str(render_save),
-        "--generator-thought", str(generator_thought_save),
-        "--verifier-thought", str(verifier_thought_save),
+        "--mode", "blendergym",
         "--vision-model", args.vision_model,
         "--api-key", api_key,
-        "--generator-hints", task_config["generator_hints"],
-        "--verifier-hints", task_config["verifier_hints"],
+        "--max-rounds", str(args.max_rounds),
+        "--task-name", task_config["task_name"],
+        "--init-code-path", str(task_config["init_code_path"]),
+        "--init-image-path", str(task_config["init_image_path"]),
+        "--target-image-path", str(task_config["target_image_path"]),
         "--blender-file", str(task_config["blender_file"]),
+        "--blender-server-path", args.blender_server_path,
         "--blender-command", args.blender_command,
         "--blender-script", args.blender_script,
-        "--script-save", str(output_base / "scripts"),
-        "--blender-save", str(args.blender_save) if args.blender_save else "",
-        "--slides-server-path", "none",  # Not used for BlenderGym
         "--image-server-path", args.image_server_path,
         "--scene-server-path", args.scene_server_path,
+        "--output-dir", str(output_base),
     ]
+    
+    if args.blender_file_save:
+        cmd.append("--save-blender-file")
     
     print(f"Command: {' '.join(cmd)}")
     
@@ -146,37 +142,26 @@ def main():
     parser = argparse.ArgumentParser(description="BlenderGym Runner for AgenticVerifier")
     
     # Dataset parameters
-    parser.add_argument("--dataset-path", default="data/blendergym", 
-                       help="Path to BlenderGym dataset root directory")
-    parser.add_argument("--output-dir", default=f"output/blendergym/{time.strftime('%Y%m%d_%H%M%S')}",
-                       help="Output directory for results")
+    parser.add_argument("--dataset-path", default="data/blendergym", help="Path to BlenderGym dataset root directory")
+    parser.add_argument("--output-dir", default=f"output/blendergym/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
     
     # Task selection
     parser.add_argument("--task", choices=['all', 'blendshape', 'geometry', 'lighting', 'material', 'placement'], default='all', help="Specific task to run")
     parser.add_argument("--task-id", default=None, help="Specific task id to run (e.g., '1')")
     
     # Main.py parameters
-    parser.add_argument("--max-rounds", type=int, default=10,
-                       help="Maximum number of interaction rounds")
-    parser.add_argument("--vision-model", default="gpt-4o",
-                       help="OpenAI vision model to use")
+    parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
+    parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
     
     # Blender parameters
-    parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender",
-                       help="Blender command path")
-    parser.add_argument("--blender-script", default="data/blendergym/pipeline_render_script.py",
-                       help="Blender execution script")
-    parser.add_argument("--script-save", default="scripts",
-                       help="Directory to save generated scripts")
-    parser.add_argument("--blender-save", 
-                       help="Blender save path")
+    parser.add_argument("--blender-server-path", default="servers/generator/blender.py", help="Path to Blender MCP server script")
+    parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
+    parser.add_argument("--blender-script", default="data/blendergym/pipeline_render_script.py", help="Blender execution script")
+    parser.add_argument("--save-blender-file", action="store_true", help="Blender save path")
     
     # Tool server paths
-    parser.add_argument("--image-server-path", default="servers/verifier/image.py",
-                       help="Path to image processing MCP server script")
-    parser.add_argument("--scene-server-path", default="servers/verifier/scene.py",
-                       help="Path to scene investigation MCP server script")
-    
+    parser.add_argument("--image-server-path", default="servers/verifier/image.py", help="Path to image processing MCP server script")
+    parser.add_argument("--scene-server-path", default="servers/verifier/scene.py", help="Path to scene investigation MCP server script")
     
     args = parser.parse_args()
     

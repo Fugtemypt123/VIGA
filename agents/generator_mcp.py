@@ -186,7 +186,7 @@ class GeneratorAgent:
     def __init__(self, 
                  vision_model: str,
                  api_key: str,
-                 thoughtprocess_save: str,
+                 thought_save: str,
                  max_rounds: int = 10,
                  generator_hints: Optional[str] = None,
                  init_code: Optional[str] = None,
@@ -201,7 +201,7 @@ class GeneratorAgent:
         Args:
             vision_model: The OpenAI vision model to use
             api_key: OpenAI API key
-            thoughtprocess_save: Path to save thought process
+            thought_save: Path to save thought process
             max_rounds: Maximum number of generation rounds
             generator_hints: Hints for code generation
             init_code: Initial code to modify
@@ -214,15 +214,13 @@ class GeneratorAgent:
         self.model = vision_model
         self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
-        self.thoughtprocess_save = thoughtprocess_save
+        self.thought_save = thought_save
         self.max_rounds = max_rounds
         self.memory = []
         self.current_round = 0
         
         # Tool execution setup
         self.tool_client = ExternalToolClient()
-        self.blender_server_path = blender_server_path
-        self.slides_server_path = slides_server_path
         self._blender_connected = False
         self._slides_connected = False
         self.blender_config = {}
@@ -247,11 +245,16 @@ class GeneratorAgent:
             await self.tool_client.connect_slides_server(self.slides_server_path)
             self._slides_connected = True
     
-    async def setup_blender_executor(self, blender_command: str, blender_file: str,
-                                   blender_script: str, script_save: str,
-                                   render_save: str, blender_save: Optional[str] = None):
+    async def setup_blender_executor(self, 
+                                     blender_server_path: str, 
+                                     blender_command: str, 
+                                     blender_file: str,
+                                     blender_script: str, 
+                                     script_save: str,
+                                     render_save: str, 
+                                     blender_save: Optional[str] = None):
         """Setup the Blender executor with configuration."""
-        await self._ensure_blender_connected()
+        await self._ensure_blender_connected(blender_server_path)
         
         self.blender_config = {
             "blender_command": blender_command,
@@ -480,7 +483,7 @@ class GeneratorAgent:
     def save_thought_process(self) -> None:
         """Save the current thought process to file."""
         try:
-            with open(self.thoughtprocess_save, "w") as f:
+            with open(self.thought_save, "w") as f:
                 json.dump(self.memory, f, indent=4, ensure_ascii=False)
         except Exception as e:
             logging.error(f"Failed to save thought process: {e}")
@@ -509,24 +512,25 @@ def main():
     async def initialize_generator(
         vision_model: str,
         api_key: str,
-        thoughtprocess_save: str,
+        thought_save: str,
+        task_name: str,
         max_rounds: int = 10,
-        generator_hints: str = None,
-        init_code: str = None,
+        init_code_path: str = None,
         init_image_path: str = None,
         target_image_path: str = None,
         target_description: str = None,
-        blender_server_path: str = "servers/generator/blender.py",
-        slides_server_path: str = "servers/generator/slides.py",
         # Blender executor parameters
+        blender_server_path: str = None,
         blender_command: str = None,
         blender_file: str = None,
         blender_script: str = None,
         script_save: str = None,
         render_save: str = None,
-        blender_save: Optional[str] = None,
+        blender_save: str = None,
         # Slides executor parameters
+        slides_server_path: str = None,
         code_save: str = None
+        
     ) -> dict:
         """
         Initialize a new Generator Agent with optional Blender or Slides executor setup.
@@ -535,10 +539,10 @@ def main():
             agent = GeneratorAgent(
                 vision_model=vision_model,
                 api_key=api_key,
-                thoughtprocess_save=thoughtprocess_save,
+                thought_save=thought_save,
+                task_name=task_name,
                 max_rounds=max_rounds,
-                generator_hints=generator_hints,
-                init_code=init_code,
+                init_code_path=init_code_path,
                 init_image_path=init_image_path,
                 target_image_path=target_image_path,
                 target_description=target_description,

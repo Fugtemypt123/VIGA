@@ -171,29 +171,27 @@ class VerifierAgentClient:
 
 async def main():
     parser = argparse.ArgumentParser(description="Dual-agent interactive framework")
-    parser.add_argument("--mode", choices=["3d", "2d"], required=True, help="Choose 3D (Blender) or 2D (PPTX) mode")
+    parser.add_argument("--mode", choices=["blendergym", "autopresent", "blendergym-hard", "demo"], required=True, help="Choose 3D (Blender) or 2D (PPTX) mode")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
     parser.add_argument("--max-rounds", type=int, default=10, help="Max interaction rounds")
-    parser.add_argument("--init-code", required=True, help="Path to initial code file")
-    parser.add_argument("--init-image-path", default=None, help="Path to initial images")
-    parser.add_argument("--target-image-path", default=None, help="Path to target images")
+    parser.add_argument("--init-code-path", default="data/blendergym/blendshape1/start.py", help="Path to initial code file")
+    parser.add_argument("--init-image-path", default="data/blendergym/blendshape1/renders/start", help="Path to initial images")
+    parser.add_argument("--target-image-path", default="data/blendergym/blendshape1/renders/goal", help="Path to target images")
     parser.add_argument("--target-description", default=None, help="Target description for 2D mode")
-    parser.add_argument("--generator-hints", default=None, help="Hints for generator agent")
-    parser.add_argument("--verifier-hints", default=None, help="Hints for verifier agent")
-    parser.add_argument("--generator-thought", default="thought_process.json", help="Path to save generator thought process")
-    parser.add_argument("--verifier-thought", default="verifier_thought_process.json", help="Path to save verifier thought process")
-    parser.add_argument("--render-save", default="renders", help="Render save directory")
-    parser.add_argument("--code-save", default="slides_code", help="Slides code save directory (2D mode)")
-    parser.add_argument("--blender-save", default=None, help="Blender save path (3D mode)")
+    parser.add_argument("--output-dir", default="output", help="Output directory")
+    parser.add_argument("--task-name", default="blendershape", help="Task name for hints extraction")
+    
+    # Agent server paths 
     parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
     parser.add_argument("--verifier-script", default="agents/verifier_mcp.py", help="Verifier MCP script path")
     
     # Blender execution parameters (for generator)
-    parser.add_argument("--blender-command", default="blender", help="Blender command path")
-    parser.add_argument("--blender-file", default="scene.blend", help="Blender template file")
-    parser.add_argument("--blender-script", default="render_script.py", help="Blender execution script")
-    parser.add_argument("--script-save", default="scripts", help="Directory to save generated scripts")
+    parser.add_argument("--blender-server-path", default="servers/generator/blender.py", help="Path to Blender MCP server script")
+    parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
+    parser.add_argument("--blender-file", default="data/blendergym/blendshape1/blender_file.blend", help="Blender template file")
+    parser.add_argument("--blender-script", default="data/blendergym/pipeline_render_script.py", help="Blender execution script")
+    parser.add_argument("--save-blender-file", action="store_true", help="Save blender file")
     
     # Slides execution parameters (for generator)
     parser.add_argument("--slides-server-path", default="servers/generator/slides.py", help="Path to Slides MCP server script")
@@ -204,17 +202,8 @@ async def main():
     
     args = parser.parse_args()
 
-    # Read initial code
-    with open(args.init_code, 'r') as f:
-        init_code = f.read()
-
     # Prepare output dirs
-    os.makedirs("output", exist_ok=True)
-    os.makedirs(args.render_save, exist_ok=True)
-    if args.mode == "2d":
-        os.makedirs(args.code_save, exist_ok=True)
-    if args.mode == "3d":
-        os.makedirs(args.script_save, exist_ok=True)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # Init agents
     generator = GeneratorAgentClient(args.generator_script)
@@ -229,31 +218,35 @@ async def main():
         generator_params = {
             "vision_model": args.vision_model,
             "api_key": args.api_key,
-            "generator_thought": args.generator_thought,
+            "task_name": args.task_name,
             "max_rounds": args.max_rounds,
-            "generator_hints": args.generator_hints,
-            "init_code": init_code,
+            "init_code_path": args.init_code_path,
             "init_image_path": args.init_image_path,
             "target_image_path": args.target_image_path,
             "target_description": args.target_description,
-            "blender_server_path": "servers/generator/blender.py" if args.mode == "3d" else None,
-            "slides_server_path": "servers/generator/slides.py" if args.mode == "2d" else None
+            "thought_save" : args.output_dir / "thoughts"
         }
         
         # Add mode-specific parameters
-        if args.mode == "3d":
+        if args.mode == "blendergym":
             generator_params.update({
+                "blender_server_path": args.blender_server_path,
                 "blender_command": args.blender_command,
                 "blender_file": args.blender_file,
                 "blender_script": args.blender_script,
-                "script_save": args.script_save,
-                "render_save": args.render_save,
-                "blender_save": args.blender_save
+                "render_save": args.output_dir / "renders",
+                "script_save": args.output_dir / "scripts",
+                "blender_save": args.output_dir / "blender_file.blend" if args.save_blender_file else None
             })
-        elif args.mode == "2d":
+        elif args.mode == "autopresent":
             generator_params.update({
-                "code_save": args.code_save
+                "slides_server_path": args.slides_server_path,
+                "code_save": args.output_dir / "scripts",
+                "image_save": args.output_dir / "images",
+                "slide_save": args.output_dir / "slides",
             })
+        else:
+            raise NotImplementedError("Mode not implemented")
         
         await generator.create_session(**generator_params)
         
@@ -261,14 +254,21 @@ async def main():
         verifier_params = {
             "vision_model": args.vision_model,
             "api_key": args.api_key,
-            "verifier_thought": args.verifier_thought,
             "max_rounds": args.max_rounds,
-            "verifier_hints": args.verifier_hints,
+            "task_name": args.task_name,
             "target_image_path": args.target_image_path,
-            "blender_save": args.blender_save,
-            "image_server_path": args.image_server_path,
-            "scene_server_path": args.scene_server_path
+            "target_description": args.target_description,
+            "thought_save": args.output_dir / "thoughts"
         }
+        
+        # Add mode-specific parameters
+        if args.mode == "blendergym" or args.mode == "autopresent":
+            verifier_params.update({
+                "image_server_path": args.image_server_path,
+                "scene_server_path": None
+            })
+        else:
+            raise NotImplementedError("Mode not implemented")
         
         await verifier.create_session(**verifier_params)
 
@@ -276,7 +276,6 @@ async def main():
         for round_num in range(args.max_rounds):
             print(f"\n=== Round {round_num+1} ===")
             
-            # 1. Generator生成代码
             print("Step 1: Generator generating code...")
             gen_result = await generator.generate_code()
             if gen_result.get("status") == "max_rounds_reached":
@@ -298,48 +297,30 @@ async def main():
             if gen_result.get("execution_result"):
                 exec_result = gen_result["execution_result"]
                 if exec_result.get("status") == "success":
-                    if args.mode == "3d":
-                        print("✅ Automatic Blender execution completed!")
-                        blender_result = exec_result.get("result", {})
-                        if blender_result.get("status") == "success":
-                            print("   - Image rendering successful")
-                        else:
-                            print(f"   - Image rendering failed: {blender_result.get('output', 'Unknown error')}")
-                            await generator.add_feedback(f"Execution error: {blender_result.get('output')}")
-                            continue
-                    elif args.mode == "2d":
-                        print("✅ Automatic Slides execution completed!")
-                        slides_result = exec_result.get("result", {})
-                        if slides_result.get("status") == "success":
-                            print("   - Slides generation successful")
-                        else:
-                            print(f"   - Slides generation failed: {slides_result.get('output', 'Unknown error')}")
-                            await generator.add_feedback(f"Execution error: {slides_result.get('output')}")
-                            continue
+                    print("✅ Automatic execution completed!")
+                    result = exec_result.get("result", {})
+                    if result.get("status") == "success":
+                        print("   - Generation successful")
+                    else:
+                        print(f"   - Generation failed: {result.get('output', 'Unknown error')}")
+                        await generator.add_feedback(f"Execution error: {result.get('output')}")
+                        continue
                 else:
                     print(f"   - Execution failed: {exec_result.get('error', 'Unknown error')}")
                     await generator.add_feedback(f"Execution error: {exec_result.get('error')}")
                     continue
             else:
                 # Manual execution (when automatic execution is not available)
-                print("Step 2: Executing code...")
-                print("   - Execution handled by generator agent internally")
+                # print("Step 2: Executing code...")
+                # print("   - Execution handled by generator agent internally")
+                raise ValueError("Unknown error in automatic execution")
             
-            # 3. Verifier验证
             print("Step 3: Verifier analyzing scene...")
-            if args.mode == "3d":
-                verify_result = await verifier.verify_scene(
-                    code=code,
-                    render_path=args.render_save,
-                    round_num=round_num
-                )
-            else:
-                # 2D模式可扩展为pptx图片路径
-                verify_result = await verifier.verify_scene(
-                    code=code,
-                    render_path=args.code_save,
-                    round_num=round_num
-                )
+            verify_result = await verifier.verify_scene(
+                code=code,
+                render_path=result,
+                round_num=round_num
+            )
             
             print(f"Verifier result: {verify_result.get('status')}")
             if verify_result.get("status") == "end":
@@ -353,7 +334,6 @@ async def main():
                 print(f"Verifier error: {verify_result.get('error')}")
                 break
             
-            # 4. 保存思考过程
             print("Step 4: Saving thought processes...")
             await generator.save_thought_process()
             await verifier.save_thought_process()
