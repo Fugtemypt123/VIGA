@@ -19,7 +19,7 @@ _investigator = None
 
 class GetSceneInfo:
     def __init__(self, blender_path: str):
-        bpy.ops.wm.open_mainfile(filepath=blender_path)
+        bpy.ops.wm.open_mainfile(filepath=str(blender_path))
 
     def get_info(self) -> dict:
         try:
@@ -84,13 +84,24 @@ class GetSceneInfo:
 
 class Investigator3D:
     def __init__(self, thoughtprocess_save: str, blender_path: str, round_num: int):
-        bpy.ops.wm.open_mainfile(filepath=blender_path)
+        self.blender_path = blender_path
+        self.thoughtprocess_save = thoughtprocess_save
+        self.round_num = round_num
+        self._load_blender_file()
         self.base = Path(thoughtprocess_save) / f"investigator_{round_num}"
         self.base.mkdir(parents=True, exist_ok=True)
         self.cam = self._get_or_create_cam()
         self.target = None
-        self.radius = self.theta = self.phi = 0.0
+        self.radius = 5.0
+        self.theta = 0.0
+        self.phi = 0.0
         self.count = 0
+
+    def _load_blender_file(self):
+        """加载 Blender 文件，如果已经加载了相同的文件则跳过"""
+        current_file = bpy.data.filepath
+        if current_file != self.blender_path:
+            bpy.ops.wm.open_mainfile(filepath=str(self.blender_path))
 
     def _get_or_create_cam(self):
         if "InvestigatorCamera" in bpy.data.objects:
@@ -99,6 +110,9 @@ class Investigator3D:
         cam = bpy.context.active_object
         cam.name = "InvestigatorCamera"
         # optional: copy from existing Camera1
+        if 'Camera1' in bpy.data.objects:
+            cam.matrix_world.translation = bpy.data.objects['Camera1'].matrix_world.translation.copy()
+            print("Copy from Camera1!")
         return cam
 
     def _render(self):
@@ -162,7 +176,7 @@ def get_scene_info(blender_path: str) -> dict:
     获取 Blender 场景信息，包括对象、材质、灯光、相机和渲染设置。
     """
     try:
-        info = GetSceneInfo(Path(blender_path)).get_info()
+        info = GetSceneInfo(blender_path).get_info()
         return {"status": "success", "info": info}
     except Exception as e:
         logging.error(f"Failed to get scene info: {e}")
@@ -175,7 +189,7 @@ def initialize_investigator(thoughtprocess_save: str, blender_path: str, round_n
     """
     global _investigator
     try:
-        _investigator = Investigator3D(thoughtprocess_save, blender_path, round_num)
+        _investigator = Investigator3D(thoughtprocess_save, str(blender_path), round_num)
         return {"status": "success", "message": "Investigator3D initialized successfully"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -190,8 +204,13 @@ def focus(blender_path: str, save_dir: str, round_num: int, object_name: str) ->
         return {"status": "error", "error": "Investigator3D not initialized. Call initialize_investigator first."}
     
     try:
+        # 检查目标对象是否存在
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            return {"status": "error", "error": f"Object '{object_name}' not found in scene"}
+        
         img = _investigator.focus_on_object(object_name)
-        return {"status": "success", "image": img}
+        return {"status": "success", "image": str(img)}
     except Exception as e:
         logging.error(f"Focus failed: {e}")
         return {"status": "error", "error": str(e)}
@@ -206,8 +225,12 @@ def zoom(save_dir: str, direction: str) -> dict:
         return {"status": "error", "error": "Investigator3D not initialized. Call initialize_investigator first."}
     
     try:
+        # 检查是否有目标对象
+        if _investigator.target is None:
+            return {"status": "error", "error": "No target object set. Call focus first."}
+        
         img = _investigator.zoom(direction)
-        return {"status": "success", "image": img}
+        return {"status": "success", "image": str(img)}
     except Exception as e:
         logging.error(f"Zoom failed: {e}")
         return {"status": "error", "error": str(e)}
@@ -222,8 +245,12 @@ def move(save_dir: str, direction: str) -> dict:
         return {"status": "error", "error": "Investigator3D not initialized. Call initialize_investigator first."}
     
     try:
+        # 检查是否有目标对象
+        if _investigator.target is None:
+            return {"status": "error", "error": "No target object set. Call focus first."}
+        
         img = _investigator.move_camera(direction)
-        return {"status": "success", "image": img}
+        return {"status": "success", "image": str(img)}
     except Exception as e:
         logging.error(f"Move failed: {e}")
         return {"status": "error", "error": str(e)}
@@ -243,16 +270,106 @@ def test_tools():
     print("Testing Scene Tools")
     print("=" * 50)
     
-    # 注意：由于这些工具需要 Blender 环境，测试可能需要实际的 .blend 文件
-    print("\n⚠ Note: These tools require Blender environment and .blend files")
-    print("To test properly, you need:")
-    print("1. Blender installed and accessible")
-    print("2. A valid .blend file")
-    print("3. Proper file paths")
+    # 设置测试路径
+    blender_file = "data/blendergym/_hard1/blender_file.blend"
+    test_save_dir = "output/scene_test"
+    test_round = 1
+    
+    # 检查 blender 文件是否存在
+    if not os.path.exists(blender_file):
+        print(f"⚠ Blender file not found: {blender_file}")
+        print("Skipping all tests.")
+        return
+    
+    print(f"✓ Using blender file: {blender_file}")
+    
+    # 测试 1: 获取场景信息
+    print("\n1. Testing get_scene_info...")
+    try:
+        result = get_scene_info(blender_file)
+        print(f"Result: {result}")
+        if result.get("status") == "success":
+            print("✓ get_scene_info passed")
+            info = result.get("info", {})
+            print(f"  - Objects: {len(info.get('objects', []))}")
+            print(f"  - Materials: {len(info.get('materials', []))}")
+            print(f"  - Lights: {len(info.get('lights', []))}")
+            print(f"  - Cameras: {len(info.get('cameras', []))}")
+            
+            # 获取第一个对象名称用于后续测试
+            objects = info.get("objects", [])
+            if not objects:
+                print("⚠ No objects found in scene, skipping camera tests")
+                return
+            first_object = objects[0]["name"]
+            print(f"  - Will focus on: {first_object}")
+        else:
+            print("✗ get_scene_info failed")
+            return
+    except Exception as e:
+        print(f"✗ get_scene_info failed with exception: {e}")
+        return
+    
+    # 测试 2: 初始化调查工具
+    print("\n2. Testing initialize_investigator...")
+    try:
+        result = initialize_investigator(test_save_dir, blender_file, test_round)
+        print(f"Result: {result}")
+        if result.get("status") == "success":
+            print("✓ initialize_investigator passed")
+        else:
+            print("✗ initialize_investigator failed")
+            return
+    except Exception as e:
+        print(f"✗ initialize_investigator failed with exception: {e}")
+        return
+    
+    # 测试 3: 聚焦对象
+    print("\n3. Testing focus...")
+    try:
+        result = focus(blender_file, test_save_dir, test_round, first_object)
+        print(f"Result: {result}")
+        if result.get("status") == "success":
+            print("✓ focus passed")
+            print(f"  - Focused on: {first_object}")
+            print(f"  - Image saved: {result.get('image', 'N/A')}")
+        else:
+            print("✗ focus failed")
+            return
+    except Exception as e:
+        print(f"✗ focus failed with exception: {e}")
+        return
+    
+    # 测试 4: 缩放功能
+    print("\n4. Testing zoom...")
+    try:
+        result = zoom(test_save_dir, "in")
+        print(f"Result: {result}")
+        if result.get("status") == "success":
+            print("✓ zoom passed")
+            print(f"  - Image saved: {result.get('image', 'N/A')}")
+        else:
+            print("✗ zoom failed")
+    except Exception as e:
+        print(f"✗ zoom failed with exception: {e}")
+    
+    # 测试 5: 移动功能
+    print("\n5. Testing move...")
+    try:
+        result = move(test_save_dir, "up")
+        print(f"Result: {result}")
+        if result.get("status") == "success":
+            print("✓ move passed")
+            print(f"  - Image saved: {result.get('image', 'N/A')}")
+        else:
+            print("✗ move failed")
+    except Exception as e:
+        print(f"✗ move failed with exception: {e}")
     
     print("\n" + "=" * 50)
     print("Test completed!")
     print("=" * 50)
+    print(f"\nTest files saved to: {test_save_dir}")
     print("\nTo run the MCP server normally, use:")
     print("python scene.py")
     print("\nTo run tests, use:")
