@@ -17,13 +17,12 @@ class ExternalToolClient:
     """Client for connecting to external MCP tool servers (blender/slides)."""
     
     def __init__(self):
-        self.sessions = {}  # server_type -> session
         self.mcp_sessions = {}  # server_type -> McpSession
         self.connection_timeout = 30  # 30 seconds timeout
     
     async def connect_server(self, server_type: str, server_path: str):
         """Connect to the specified MCP server with timeout in a background task."""
-        if server_type in self.sessions:
+        if server_type in self.mcp_sessions:
             return  # Already connected
             
         ready_event = asyncio.Event()
@@ -78,7 +77,6 @@ class ExternalToolClient:
                 )
                 tools = response.tools
                 print(f"Connected to {server_type.capitalize()} server with tools: {[tool.name for tool in tools]}")
-                self.sessions[server_type] = session
                 
                 # Wait for the stop event
                 await stop_event.wait()
@@ -105,12 +103,12 @@ class ExternalToolClient:
     
     async def initialize_executor(self, server_type: str, **kwargs) -> Dict:
         """Initialize the executor using external server with timeout."""
-        session = self.sessions.get(server_type)
+        session = self.mcp_sessions.get(server_type)
         if not session:
             raise RuntimeError(f"{server_type.capitalize()} server not connected")
         try:
             result = await asyncio.wait_for(
-                session.call_tool("initialize_executor", kwargs),
+                session.client.call_tool("initialize_executor", kwargs),
                 timeout=30
             )
             content = json.loads(result.content[0].text) if result.content else {}
@@ -122,7 +120,7 @@ class ExternalToolClient:
     
     async def exec_script(self, server_type: str, code: str, round_num: int, **kwargs) -> Dict:
         """Execute script using external server with timeout."""
-        session = self.sessions.get(server_type)
+        session = self.mcp_sessions.get(server_type)
         if not session:
             raise RuntimeError(f"{server_type.capitalize()} server not connected")
         if server_type == "blender":
@@ -135,7 +133,7 @@ class ExternalToolClient:
             raise ValueError(f"Unknown server_type: {server_type}")
         try:
             result = await asyncio.wait_for(
-                session.call_tool(tool_name, tool_args),
+                session.client.call_tool(tool_name, tool_args),
                 timeout=60
             )
             content = json.loads(result.content[0].text) if result.content else {}

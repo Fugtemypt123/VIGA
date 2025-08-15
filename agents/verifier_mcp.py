@@ -16,13 +16,12 @@ from prompts import prompts_dict
 class ExternalToolClient:
     """Client for connecting to external MCP tool servers (image/scene)."""
     def __init__(self):
-        self.sessions = {}  # server_type -> session
         self.mcp_sessions = {}  # server_type -> McpSession
         self.connection_timeout = 30
         
     async def connect_server(self, server_type: str, server_path: str, api_key: str = None):
         """Connect to the specified MCP server with timeout in a background task."""
-        if server_type in self.sessions:
+        if server_type in self.mcp_sessions:
             return  # Already connected
             
         ready_event = asyncio.Event()
@@ -71,7 +70,6 @@ class ExternalToolClient:
                 response = await asyncio.wait_for(session.list_tools(), timeout=10)
                 tools = response.tools
                 print(f"Connected to {server_type.capitalize()} server with tools: {[tool.name for tool in tools]}")
-                self.sessions[server_type] = session
                 
                 # Wait for the stop event
                 await stop_event.wait()
@@ -97,12 +95,12 @@ class ExternalToolClient:
         print(f"{server_type} MCP connection is ready")
         
     async def initialize_executor(self, server_type: str, **kwargs) -> dict:
-        session = self.sessions.get(server_type)
+        session = self.mcp_sessions.get(server_type)
         if not session:
             raise RuntimeError(f"{server_type.capitalize()} server not connected")
         try:
             result = await asyncio.wait_for(
-                session.call_tool("initialize_executor", kwargs),
+                session.client.call_tool("initialize_executor", kwargs),
                 timeout=10
             )
             content = json.loads(result.content[0].text) if result.content else {}
@@ -113,11 +111,11 @@ class ExternalToolClient:
             raise RuntimeError(f"{server_type.capitalize()} executor initialization failed: {str(e)}")
         
     async def call_tool(self, server_type: str, tool_name: str, tool_args: dict, timeout: int = 60) -> Any:
-        session = self.sessions.get(server_type)
+        session = self.mcp_sessions.get(server_type)
         if not session:
             raise RuntimeError(f"{server_type.capitalize()} server not connected")
         try:
-            result = await asyncio.wait_for(session.call_tool(tool_name, tool_args), timeout=timeout)
+            result = await asyncio.wait_for(session.client.call_tool(tool_name, tool_args), timeout=timeout)
             content = json.loads(result.content[0].text) if result.content else {}
             return content
         except asyncio.TimeoutError:
