@@ -92,7 +92,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('test_id', type=str, help='Test ID (e.g., 20250815_150016)')
     parser.add_argument("--slide_name", type=str, default='all', choices=['all', 'art_photos', 'business', 'design', 'entrepreneur', 'environment', 'food', 'marketing', 'social_media', 'technology'])
-    parser.add_argument("--max_workers", type=int, default=1, help="Max number of parallel workers (default: min(8, cpu_count))")
+    parser.add_argument("--max_workers", type=int, default=None, help="Max number of parallel workers (default: min(8, cpu_count))")
 
     args = parser.parse_args()
 
