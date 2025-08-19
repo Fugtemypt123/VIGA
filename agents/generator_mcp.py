@@ -188,14 +188,19 @@ class GeneratorAgent:
                  target_description: Optional[str] = None,
                  blender_server_path: Optional[str] = None,
                  slides_server_path: Optional[str] = None,
-                 output_dir: Optional[str] = None):
+                 output_dir: Optional[str] = None,
+                 api_base_url: Optional[str] = None):
         """
         Initialize the Generator Agent.
         """
         self.mode = mode
         self.model = vision_model
         self.api_key = api_key
-        self.client = OpenAI(api_key=self.api_key)
+        # Support custom OpenAI-compatible base URL
+        client_kwargs = {"api_key": self.api_key}
+        if api_base_url or os.getenv("OPENAI_BASE_URL"):
+            client_kwargs["base_url"] = api_base_url or os.getenv("OPENAI_BASE_URL")
+        self.client = OpenAI(**client_kwargs)
         self.thought_save = thought_save
         self.max_rounds = max_rounds
         self.current_round = 0
@@ -566,6 +571,7 @@ def main():
         # Slides executor parameters
         slides_server_path: str = None,
         output_dir: str = None,
+        api_base_url: Optional[str] = None,
     ) -> dict:
         """
         Initialize a new Generator Agent with optional Blender or Slides executor setup.
@@ -584,7 +590,8 @@ def main():
                 target_description=target_description,
                 blender_server_path=blender_server_path,
                 slides_server_path=slides_server_path,
-                output_dir=output_dir
+                output_dir=output_dir,
+                api_base_url=api_base_url
             )
             agent_holder['agent'] = agent
             

@@ -65,11 +65,19 @@ class PILExecutor:
             sys.stdout, sys.stderr = old_stdout, old_stderr
 
 class ImageDifferentiationTool:
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, api_base_url: str = None):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OpenAI API key must be provided.")
         openai.api_key = self.api_key
+        # Allow overriding OpenAI-compatible base URL (e.g., Azure, local proxy)
+        self.api_base_url = api_base_url or os.getenv("OPENAI_BASE_URL")
+        if self.api_base_url:
+            try:
+                # For openai>=1.0 clients, base_url is set on client, but the legacy interface can respect env var
+                openai.base_url = self.api_base_url
+            except Exception:
+                pass
 
     def pil_to_base64(self, image: Image.Image) -> str:
         buf = io.BytesIO()
@@ -124,13 +132,13 @@ class ImageDifferentiationTool:
         return response.choices[0].message.content
 
 @mcp.tool()
-def initialize_executor(api_key: str) -> dict:
+def initialize_executor(api_key: str, api_base_url: str = None) -> dict:
     """
     初始化ImageDifferentiationTool，设置api_key。
     """
     global _image_tool
     try:
-        _image_tool = ImageDifferentiationTool(api_key=api_key)
+        _image_tool = ImageDifferentiationTool(api_key=api_key, api_base_url=api_base_url)
         return {"status": "success", "message": "ImageDifferentiationTool initialized with api_key."}
     except Exception as e:
         return {"status": "error", "error": str(e)}

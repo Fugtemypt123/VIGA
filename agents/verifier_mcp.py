@@ -161,11 +161,16 @@ class VerifierAgent:
                  target_image_path: Optional[str] = None,
                  target_descirption: Optional[str] = None,
                  image_server_path: Optional[str] = None,
-                 scene_server_path: Optional[str] = None):
+                 scene_server_path: Optional[str] = None,
+                 api_base_url: Optional[str] = None):
         self.mode = mode
         self.vision_model = vision_model
         self.api_key = api_key
-        self.client = OpenAI(api_key=self.api_key)
+        # Support custom OpenAI-compatible base URL
+        client_kwargs = {"api_key": self.api_key}
+        if api_base_url or os.getenv("OPENAI_BASE_URL"):
+            client_kwargs["base_url"] = api_base_url or os.getenv("OPENAI_BASE_URL")
+        self.client = OpenAI(**client_kwargs)
         self.thought_save = thought_save
         os.makedirs(self.thought_save, exist_ok=True)
         self.max_rounds = max_rounds
@@ -456,6 +461,7 @@ def main():
         image_server_path: Optional[str] = None,
         scene_server_path: Optional[str] = None,
         blender_save: Optional[str] = None,
+        api_base_url: Optional[str] = None,
     ) -> dict:
         
         try:
@@ -469,7 +475,8 @@ def main():
                 target_image_path=target_image_path,
                 target_descirption=target_descirption,
                 image_server_path=image_server_path,
-                scene_server_path=scene_server_path
+                scene_server_path=scene_server_path,
+                api_base_url=api_base_url
             )
             agent_holder['agent'] = agent
             # Initialize server executor

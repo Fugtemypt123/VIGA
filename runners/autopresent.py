@@ -103,6 +103,7 @@ def run_autopresent_task(task_config: Dict, args) -> tuple:
         "--mode", "autopresent",
         "--vision-model", args.vision_model,
         "--api-key", api_key,
+        "--openai-base-url", args.openai_base_url,
         "--max-rounds", str(args.max_rounds),
         "--task-name", task_config["task_name"],
         "--init-code-path", str(task_config["init_code_path"]),
@@ -205,6 +206,7 @@ def main():
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
+    parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     
     # Slides parameters
     parser.add_argument("--slides-server-path", default="servers/generator/slides.py", help="Path to Slides MCP server script")

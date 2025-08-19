@@ -316,6 +316,7 @@ async def main():
     parser.add_argument("--mode", choices=["blendergym", "autopresent", "blendergym-hard", "demo"], default="blendergym", help="Choose 3D (Blender) or 2D (PPTX) mode")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
+    parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--max-rounds", type=int, default=10, help="Max interaction rounds")
     parser.add_argument("--init-code-path", default="data/blendergym/blendshape1/start.py", help="Path to initial code file")
     parser.add_argument("--init-image-path", default="data/blendergym/blendshape1/renders/start", help="Path to initial images")
@@ -374,6 +375,7 @@ async def main():
             "init_image_path": args.init_image_path,
             "target_image_path": args.target_image_path,
             "target_description": target_description,
+            "api_base_url": args.openai_base_url,
             "thought_save" : args.output_dir + "/generator_thoughts.json"
         }
         
@@ -408,6 +410,7 @@ async def main():
             "target_image_path": args.target_image_path,
             "target_description": target_description,
             "thought_save": args.output_dir + "/verifier_thoughts",
+            "api_base_url": args.openai_base_url,
         }
         
         # Add mode-specific parameters
