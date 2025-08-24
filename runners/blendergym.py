@@ -16,7 +16,75 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
-api_key = os.getenv("OPENAI_API_KEY")
+def check_failed_tasks(test_output_dir: str) -> List[Dict]:
+    """
+    Check for failed tasks in a test output directory.
+    A task is considered failed if:
+    1. The task directory doesn't exist
+    2. The task directory is empty
+    3. The task directory doesn't contain generator_thoughts.json
+    
+    Args:
+        test_output_dir: Path to the test output directory
+        
+    Returns:
+        List of failed task configurations
+    """
+    failed_tasks = []
+    test_output_path = Path(test_output_dir)
+    
+    if not test_output_path.exists():
+        print(f"Error: Test output directory does not exist: {test_output_dir}")
+        return failed_tasks
+    
+    print(f"Checking for failed tasks in: {test_output_dir}")
+    
+    # Look for task directories
+    for task_dir in test_output_path.iterdir():
+        if not task_dir.is_dir():
+            continue
+            
+        task_name = task_dir.name
+        generator_thoughts_file = task_dir / "generator_thoughts.json"
+        
+        # Check if task failed
+        failed = False
+        failure_reason = ""
+        
+        if not task_dir.exists():
+            failed = True
+            failure_reason = "Task directory does not exist"
+        elif not any(task_dir.iterdir()):
+            failed = True
+            failure_reason = "Task directory is empty"
+        elif not generator_thoughts_file.exists():
+            failed = True
+            failure_reason = "generator_thoughts.json not found"
+        
+        if failed:
+            print(f"❌ Found failed task: {task_name} - {failure_reason}")
+            # Try to reconstruct task config from task name
+            # Task name format is typically like "blendshape1", "geometry2", etc.
+            task_type = None
+            task_id = None
+            
+            for task_type_name in ['blendshape', 'geometry', 'lighting', 'material', 'placement']:
+                if task_name.startswith(task_type_name):
+                    task_type = task_type_name
+                    task_id = task_name[len(task_type_name):]
+                    break
+            
+            if task_type and task_id:
+                failed_tasks.append({
+                    "task_name": task_type,
+                    "task_id": task_id,
+                    "failure_reason": failure_reason
+                })
+            else:
+                print(f"Warning: Could not parse task name: {task_name}")
+    
+    print(f"Found {len(failed_tasks)} failed tasks")
+    return failed_tasks
 
 def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[str] = None) -> List[Dict]:
     """
@@ -109,7 +177,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         sys.executable, "main.py",
         "--mode", "blendergym",
         "--vision-model", args.vision_model,
-        "--api-key", api_key,
+        "--api-key", args.api_key,
         "--openai-base-url", args.openai_base_url,
         "--max-rounds", str(args.max_rounds),
         "--task-name", task_config["task_name"],
@@ -216,11 +284,13 @@ def main():
     # Task selection
     parser.add_argument("--task", choices=['all', 'blendshape', 'geometry', 'lighting', 'material', 'placement'], default='all', help="Specific task to run")
     parser.add_argument("--task-id", default=None, help="Specific task id to run (e.g., '1')")
+    parser.add_argument("--test-id", default=None, help="Test ID to check for failed cases and retest them")
     
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
+    parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
     
     # Blender parameters
     parser.add_argument("--blender-server-path", default="servers/generator/blender.py", help="Path to Blender MCP server script")
@@ -240,26 +310,56 @@ def main():
     
     args = parser.parse_args()
     
-    # Load dataset
-    print(f"Loading BlenderGym dataset from: {args.dataset_path}")
-    tasks = load_blendergym_dataset(args.dataset_path, args.task, args.task_id)
-    
-    if not tasks:
-        print("No valid tasks found in dataset!")
-        sys.exit(1)
-    
-    print(f"Found {len(tasks)} tasks")
-    
-    # Filter tasks if specific task specified
-    if args.task != 'all':
-        tasks = [t for t in tasks if t["task_name"] == args.task]
-        print(f"Filtered to {len(tasks)} tasks for task: {args.task}")
-    
-    if not tasks:
-        print("No tasks match the specified filters!")
-        sys.exit(1)
+    # Handle test-id logic
+    if args.test_id is not None:
+        # Check for failed tasks in the specified test output directory
+        test_output_dir = f"output/blendergym/{args.test_id}"
+        failed_task_configs = check_failed_tasks(test_output_dir)
+        
+        if not failed_task_configs:
+            print("No failed tasks found to retest!")
+            sys.exit(0)
+        
+        print(f"Found {len(failed_task_configs)} failed tasks to retest")
+        
+        # Convert failed task configs to task configs for retesting
+        tasks = []
+        for failed_config in failed_task_configs:
+            # Load the specific task from dataset
+            retest_tasks = load_blendergym_dataset(args.dataset_path, failed_config["task_name"], failed_config["task_id"])
+            if retest_tasks:
+                tasks.extend(retest_tasks)
+                print(f"Will retest: {failed_config['task_name']}{failed_config['task_id']}")
+        
+        if not tasks:
+            print("No valid tasks found for retesting!")
+            sys.exit(1)
+    else:
+        # Normal execution - load dataset
+        print(f"Loading BlenderGym dataset from: {args.dataset_path}")
+        tasks = load_blendergym_dataset(args.dataset_path, args.task, args.task_id)
+        
+        if not tasks:
+            print("No valid tasks found in dataset!")
+            sys.exit(1)
+        
+        print(f"Found {len(tasks)} tasks")
+        
+        # Filter tasks if specific task specified
+        if args.task != 'all':
+            tasks = [t for t in tasks if t["task_name"] == args.task]
+            print(f"Filtered to {len(tasks)} tasks for task: {args.task}")
+        
+        if not tasks:
+            print("No tasks match the specified filters!")
+            sys.exit(1)
     
     # Create output directory
+    if args.test_id is not None:
+        # For retesting, create a new output directory with retest suffix
+        args.output_dir = f"output/blendergym/{args.test_id}_retest_{time.strftime('%Y%m%d_%H%M%S')}"
+        print(f"Retesting failed tasks. New output directory: {args.output_dir}")
+    
     os.makedirs(args.output_dir, exist_ok=True)
     
     # Save args to json
