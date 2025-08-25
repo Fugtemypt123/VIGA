@@ -66,10 +66,10 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
             if failed:
                 print(f"❌ Found failed task: {task_name} - {failure_reason}")
                 # Try to reconstruct task config from task name
-                # Task name format is typically like "business/slides_1", "design/slides_2", etc.
+                # Task name format is typically like "business/slide_1", "design/slide_2", etc.
                 slides_part = task_name
-                if slides_part.startswith('slides_'):
-                    task_id = slides_part[7:]  # Remove 'slides_' prefix
+                if slides_part.startswith('slide_'):
+                    task_id = int(slides_part[6:])  # Remove 'slide_' prefix
                     failed_tasks.append({
                         "task_name": task_type,
                         "task_id": task_id,
@@ -105,7 +105,7 @@ def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[s
         
     # If task_id is not None, only run the task_id
     if task_id is not None:
-        task_dirs = [(base_path / task_name / f"slides_{task_id}", task_name)]
+        task_dirs = [(base_path / task_name / f"slide_{task_id}", task_name)]
     # Otherwise, run all tasks in the task_list
     else:
         task_dirs = []
@@ -306,7 +306,7 @@ def main():
             retest_tasks = load_autopresent_dataset(args.dataset_path, failed_config["task_name"], failed_config["task_id"])
             if retest_tasks:
                 tasks.extend(retest_tasks)
-                print(f"Will retest: {failed_config['task_name']}/slides_{failed_config['task_id']}")
+                print(f"Will retest: {failed_config['task_name']}/slide_{failed_config['task_id']}")
         
         if not tasks:
             print("No valid tasks found for retesting!")
