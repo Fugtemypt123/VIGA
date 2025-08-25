@@ -22,7 +22,7 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     A task is considered failed if:
     1. The task directory doesn't exist
     2. The task directory is empty
-    3. The task directory doesn't contain generator_thoughts.json
+    3. The task directory doesn't contain verifier_thoughts
     
     Args:
         test_output_dir: Path to the test output directory
@@ -32,6 +32,7 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     """
     failed_tasks = []
     test_output_path = Path(test_output_dir)
+    task_list = ['art_photos', 'business', 'design', 'entrepreneur', 'environment', 'food', 'marketing', 'social_media', 'technology']
     
     if not test_output_path.exists():
         print(f"Error: Test output directory does not exist: {test_output_dir}")
@@ -40,47 +41,48 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     print(f"Checking for failed tasks in: {test_output_dir}")
     
     # Look for task directories
-    for task_dir in test_output_path.iterdir():
-        if not task_dir.is_dir():
-            continue
+    for task_category in task_list:
+        for task_dir in (test_output_path / task_category).iterdir():
+            if not task_dir.is_dir():
+                continue
+                
+            task_name = task_dir.name
+            verifier_thoughts_file = task_dir / "verifier_thoughts"
             
-        task_name = task_dir.name
-        generator_thoughts_file = task_dir / "generator_thoughts.json"
-        
-        # Check if task failed
-        failed = False
-        failure_reason = ""
-        
-        if not task_dir.exists():
-            failed = True
-            failure_reason = "Task directory does not exist"
-        elif not any(task_dir.iterdir()):
-            failed = True
-            failure_reason = "Task directory is empty"
-        elif not generator_thoughts_file.exists():
-            failed = True
-            failure_reason = "generator_thoughts.json not found"
-        
-        if failed:
-            print(f"❌ Found failed task: {task_name} - {failure_reason}")
-            # Try to reconstruct task config from task name
-            # Task name format is typically like "business/slides_1", "design/slides_2", etc.
-            parts = task_name.split('/')
-            if len(parts) == 2:
-                task_type = parts[0]
-                slides_part = parts[1]
-                if slides_part.startswith('slides_'):
-                    task_id = slides_part[7:]  # Remove 'slides_' prefix
-                    failed_tasks.append({
-                        "task_name": task_type,
-                        "task_id": task_id,
-                        "failure_reason": failure_reason
-                    })
+            # Check if task failed
+            failed = False
+            failure_reason = ""
+            
+            if not task_dir.exists():
+                failed = True
+                failure_reason = "Task directory does not exist"
+            elif not any(task_dir.iterdir()):
+                failed = True
+                failure_reason = "Task directory is empty"
+            elif not any(verifier_thoughts_file.iterdir()):
+                failed = True
+                failure_reason = "verifier_thoughts not found"
+            
+            if failed:
+                print(f"❌ Found failed task: {task_name} - {failure_reason}")
+                # Try to reconstruct task config from task name
+                # Task name format is typically like "business/slides_1", "design/slides_2", etc.
+                parts = task_name.split('/')
+                if len(parts) == 2:
+                    task_type = parts[0]
+                    slides_part = parts[1]
+                    if slides_part.startswith('slides_'):
+                        task_id = slides_part[7:]  # Remove 'slides_' prefix
+                        failed_tasks.append({
+                            "task_name": task_type,
+                            "task_id": task_id,
+                            "failure_reason": failure_reason
+                        })
+                    else:
+                        print(f"Warning: Could not parse slides part: {slides_part}")
                 else:
-                    print(f"Warning: Could not parse slides part: {slides_part}")
-            else:
-                print(f"Warning: Could not parse task name: {task_name}")
-    
+                    print(f"Warning: Could not parse task name: {task_name}")
+        
     print(f"Found {len(failed_tasks)} failed tasks")
     return failed_tasks
 
@@ -169,7 +171,7 @@ def run_autopresent_task(task_config: Dict, args) -> tuple:
         "--mode", "autopresent",
         "--vision-model", args.vision_model,
         "--api-key", args.api_key,
-        "--openai-base-url", args.openai_base_url,
+        "--openai-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
         "--max-rounds", str(args.max_rounds),
         "--task-name", task_config["task_name"],
         "--init-code-path", str(task_config["init_code_path"]),
@@ -337,8 +339,8 @@ def main():
     # Create output directory
     if args.test_id is not None:
         # For retesting, create a new output directory with retest suffix
-        args.output_dir = f"output/autopresent/{args.test_id}_retest_{time.strftime('%Y%m%d_%H%M%S')}"
-        print(f"Retesting failed tasks. New output directory: {args.output_dir}")
+        args.output_dir = f"output/autopresent/{args.test_id}"
+        print(f"Retesting failed tasks. Use original output directory: {args.output_dir}")
     
     os.makedirs(args.output_dir, exist_ok=True)
     
