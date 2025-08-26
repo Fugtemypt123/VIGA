@@ -39,12 +39,7 @@ pip install --upgrade vllm
 # 激活虚拟环境
 source .venv/bin/activate
 # 启动 vLLM 的 OpenAI 兼容服务（监听 0.0.0.0:8000）
-python models/server.py --host 0.0.0.0 --port 8000 \
-  --model Qwen/Qwen2-VL-7B-Instruct \   # 指定 HF 模型名或本地路径
-  --served-model-name Qwen2-VL-7B-Instruct \   # 对外暴露的模型名（OpenAI 客户端使用）
-  --tensor-parallel-size 1 \   # 张量并行切分数（多卡可调大）
-  --gpu-memory-utilization 0.90 \   # GPU 显存利用率上限（0~1）
-  --max-model-len 32768            # 最大上下文长度
+python models/server.py --host 0.0.0.0 --port 8000 --model Qwen/Qwen2-VL-7B-Instruct --served-model-name Qwen2-VL-7B-Instruct --tensor-parallel-size 1 --gpu-memory-utilization 0.90 --max-model-len 32768
 ```
 
 服务将暴露 OpenAI 兼容端点：`http://<host>:<port>/v1`

@@ -3,3 +3,4 @@ references
 _*/
 *.json
 output
+.venv
