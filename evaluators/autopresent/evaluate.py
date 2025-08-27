@@ -37,18 +37,18 @@ def evaluate_single_slide(slide_dirs: str, index: int) -> int:
         ref_eval_path = os.path.join(os.path.dirname(pptx_path), "ref_based.txt")
         if os.path.exists(ref_eval_path):
             print(f"Ref-based evaluation already exists: {ref_eval_path}")
-            continue
-        
-        command = [
-            "python", "evaluators/autopresent/page_eval.py",
-            "--reference_pptx", f"data/autopresent/examples/{slide_name}/{slide_name}.pptx",
-            "--generated_pptx", pptx_path,
-            "--reference_page", str(index),
-            "--output_path", ref_eval_path,
-        ]
-        process = subprocess.Popen(command)
-        process.wait()
-        print(f"Finished ref-based evaluation: {ref_eval_path}")
+        else:
+            print(f"Running ref-based evaluation: {ref_eval_path}")
+            command = [
+                "python", "evaluators/autopresent/page_eval.py",
+                "--reference_pptx", f"data/autopresent/examples/{slide_name}/{slide_name}.pptx",
+                "--generated_pptx", pptx_path,
+                "--reference_page", str(index),
+                "--output_path", ref_eval_path,
+            ]
+            process = subprocess.Popen(command)
+            process.wait()
+            print(f"Finished ref-based evaluation: {ref_eval_path}")
 
         # ref-free evaluation
         jpg_path = pptx_path.replace(".pptx", ".jpg")
@@ -61,16 +61,16 @@ def evaluate_single_slide(slide_dirs: str, index: int) -> int:
         
         if os.path.exists(ref_free_eval_path):
             print(f"Ref-free evaluation already exists: {ref_free_eval_path}")
-            continue
-        
-        command = [
-            "python", "evaluators/autopresent/reference_free_eval.py",
-            "--image_path", jpg_path,
-            "--response_path", ref_free_eval_path,
-        ]
-        process = subprocess.Popen(command)
-        process.wait()
-        print(f"Finished ref-free evaluation: {ref_free_eval_path}")
+        else:
+            print(f"Running ref-free evaluation: {ref_free_eval_path}")
+            command = [
+                "python", "evaluators/autopresent/reference_free_eval.py",
+                "--image_path", jpg_path,
+                "--response_path", ref_free_eval_path,
+            ]
+            process = subprocess.Popen(command)
+            process.wait()
+            print(f"Finished ref-free evaluation: {ref_free_eval_path}")
 
     print(f"Finish evaluating slide {index} !")
     return index
