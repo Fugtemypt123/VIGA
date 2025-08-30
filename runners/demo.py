@@ -109,7 +109,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[st
         return tasks
     
     if task_name == 'all':
-        task_list = ['level1', 'level2', 'level3']
+        task_list = ['level4']
     else:
         task_list = [task_name]
         
@@ -122,8 +122,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[st
         for task in task_list:
             task_path = base_path / task
             for task_dir in task_path.glob("*"):
-                task_name = task + '-' + str(task_dir.name.split('/')[-1][-1])
-                task_dirs.append((task_dir, task_name))
+                task_dirs.append((task_dir, task))
     
     for task_dir, task_name in task_dirs:
         # Check for required files
@@ -153,7 +152,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[st
             "blender_file": str(blender_file),
         }
         tasks.append(task_config)
-        print(f"Found task: {task_name}")
+        print(f"Found task: {task_name}/{task_dir.name}")
     
     return tasks
 
@@ -182,7 +181,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     # Build main.py command
     cmd = [
         sys.executable, "main.py",
-        "--mode", "blendergym-hard",
+        "--mode", "demo",
         "--vision-model", args.vision_model,
         "--api-key", args.api_key,
         "--openai-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
@@ -376,8 +375,6 @@ def main():
     # Save task list for reference
     with open(os.path.join(args.output_dir, "tasks.json"), "w") as f:
         json.dump(tasks, f, indent=2)
-        
-    raise ValueError("Not implemented")
     
     # Run tasks
     start_time = time.time()

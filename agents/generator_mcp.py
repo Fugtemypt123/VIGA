@@ -143,6 +143,23 @@ class ExternalToolClient:
         except Exception as e:
             raise RuntimeError(f"{server_type.capitalize()} script execution failed: {str(e)}")
     
+    async def call_tool(self, server_type: str, tool_name: str, tool_args: dict, timeout: int = 120) -> Any:
+        """Call a specific tool on the external server with timeout."""
+        session = self.mcp_sessions.get(server_type)
+        if not session:
+            raise RuntimeError(f"{server_type.capitalize()} server not connected")
+        try:
+            result = await asyncio.wait_for(
+                session.client.call_tool(tool_name, tool_args),
+                timeout=timeout
+            )
+            content = json.loads(result.content[0].text) if result.content else {}
+            return content
+        except asyncio.TimeoutError:
+            raise RuntimeError(f"{server_type.capitalize()} tool call timeout after {timeout}s")
+        except Exception as e:
+            raise RuntimeError(f"{server_type.capitalize()} tool call failed: {str(e)}")
+    
     async def cleanup(self):
         """Clean up connections by closing all MCP sessions."""
         for server_type, mcp_session in self.mcp_sessions.items():
@@ -208,9 +225,11 @@ class GeneratorAgent:
         self._server_connected = False
         self.output_dir = output_dir
         # Decide which server to use
-        if mode == "blendergym" or mode == "blendergym-hard":
+        if mode == "blendergym" or mode == "blendergym-hard" or mode == "demo":
             self.server_type = "blender"
             self.server_path = blender_server_path
+            # Store blender file path for Meshy asset generation
+            self.blender_file_path = None  # Will be set during executor setup
         elif mode == "autopresent":
             self.server_type = "slides"
             self.server_path = slides_server_path
@@ -226,7 +245,7 @@ class GeneratorAgent:
             self.memory = self._build_autopresent_system_prompt(
                 mode, init_code_path, init_image_path, target_description
             )
-        elif mode == "blendergym-hard":
+        elif mode == "blendergym-hard" or mode == "demo":
             self.memory = self._build_blendergym_hard_system_prompt(
                 mode, task_name, init_code_path, init_image_path, target_image_path
             )
@@ -241,6 +260,11 @@ class GeneratorAgent:
     async def setup_executor(self, **kwargs):
         await self._ensure_server_connected()
         result = await self.tool_client.initialize_executor(self.server_type, **kwargs)
+        
+        # Store blender file path for Meshy asset generation
+        if self.server_type == "blender" and "blender_file" in kwargs:
+            self.blender_file_path = kwargs["blender_file"]
+        
         return result
     
     def _build_blendergym_hard_system_prompt(self, 
@@ -311,11 +335,18 @@ class GeneratorAgent:
             logging.error(f"Target image {target_image_path_1} does not exist!")
         
         # Add hints 
-        if prompts_dict[mode]['hints']['generator'][task_name] is not None:
+        if mode == 'blendergym-hard':
             user_content.append({
                 "type": "text",
-                "text": f"Hints:\n{prompts_dict[mode]['hints']['generator'][task_name]}"
+                "text": f"Hints:\n{prompts_dict[mode]['hints'][task_name.split('-')[0]][task_name.split('-')[1]]}"
             })
+        elif mode == 'demo':
+            user_content.append({
+                "type": "text",
+                "text": f"Hints:\n{prompts_dict[mode]['hints']}"
+            })
+        else:
+            raise NotImplementedError("Mode not implemented")
         
         # Add output format
         user_content.append({
@@ -588,6 +619,79 @@ class GeneratorAgent:
         
         return None, None, full
     
+    def _get_tools(self) -> List[Dict]:
+        """Get available tools for the generator agent."""
+        if self.mode == "blendergym" or self.mode == "blendergym-hard" or self.mode == "demo":
+            return [{
+                "type": "function",
+                "function": {
+                    "name": "generate_3d_asset",
+                    "description": "Generate and import a 3D asset into the Blender scene using Meshy Text-to-3D API. This tool can create objects based on text descriptions and automatically import them into the current scene.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "description": {
+                                "type": "string", 
+                                "description": "Text description of the 3D asset to generate (e.g., 'a wooden chair', 'a modern table', 'a decorative plant')"
+                            },
+                            "location": {
+                                "type": "string", 
+                                "description": "Position where to place the asset in the scene, format: 'x,y,z' (e.g., '2,0,0')",
+                                "default": "0,0,0"
+                            },
+                            "scale": {
+                                "type": "number", 
+                                "description": "Scale factor for the asset (e.g., 1.0 for normal size, 2.0 for double size)",
+                                "default": 1.0
+                            },
+                            "refine": {
+                                "type": "boolean", 
+                                "description": "Whether to apply texture refinement after initial generation (takes longer but produces better quality)",
+                                "default": True
+                            }
+                        },
+                        "required": ["description"]
+                    }
+                }
+            }]
+        else:
+            return []
+    
+    async def _handle_tool_call(self, tool_call) -> Dict[str, Any]:
+        """Handle tool calls from the generator agent."""
+        function_name = tool_call.function.name
+        function_args = json.loads(tool_call.function.arguments)
+        
+        try:
+            if function_name == "generate_3d_asset":
+                if self.server_type != "blender":
+                    return {'text': "Error: 3D asset generation is only available for Blender mode", 'success': False}
+                
+                # Call the Meshy asset generation tool
+                result = await self.tool_client.call_tool("blender", "add_meshy_asset", {
+                    "description": function_args.get("description", ""),
+                    "blender_path": self.blender_file_path if hasattr(self, 'blender_file_path') else None,
+                    "location": function_args.get("location", "0,0,0"),
+                    "scale": function_args.get("scale", 1.0),
+                    "refine": function_args.get("refine", True)
+                })
+                
+                if result.get("status") == "success":
+                    return {
+                        'text': f"Successfully generated and imported 3D asset: {function_args.get('description')}. Object name: {result.get('object_name', 'Unknown')}. Location: {result.get('location', 'Unknown')}. Scale: {result.get('scale', 'Unknown')}",
+                        'success': True,
+                        'asset_info': result
+                    }
+                else:
+                    return {
+                        'text': f"Failed to generate 3D asset: {result.get('error', 'Unknown error')}",
+                        'success': False
+                    }
+            else:
+                return {'text': f"Unknown tool: {function_name}", 'success': False}
+        except Exception as e:
+            return {'text': f"Error executing tool: {str(e)}", 'success': False}
+
     async def generate_code(self, feedback: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate code based on current memory and optional feedback.
@@ -602,13 +706,60 @@ class GeneratorAgent:
             self.memory.append({"role": "user", "content": feedback})
         
         try:
-            generate_response = self.client.chat.completions.create(
-                model=self.model, 
-                messages=self.memory
-            ).choices[0].message.content
+            # Check if we need to use tools
+            use_tools = self.mode in ["blendergym", "blendergym-hard", "demo"] and self._server_connected
+            
+            if use_tools:
+                # Use tools-enabled generation
+                response = self.client.chat.completions.create(
+                    model=self.model, 
+                    messages=self.memory,
+                    tools=self._get_tools(),
+                    tool_choice="auto"
+                )
+                message = response.choices[0].message
+                self.memory.append(message.model_dump())
+                
+                # Handle tool calls
+                if message.tool_calls:
+                    for tool_call in message.tool_calls:
+                        tool_response = await self._handle_tool_call(tool_call)
+                        self.memory.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_call.function.name,
+                            "content": tool_response['text']
+                        })
+                        
+                        # If tool was successful, add success message
+                        if tool_response.get('success'):
+                            self.memory.append({
+                                "role": "user",
+                                "content": f"Tool execution successful: {tool_response['text']}. Please continue with code generation."
+                            })
+                        else:
+                            self.memory.append({
+                                "role": "user",
+                                "content": f"Tool execution failed: {tool_response['text']}. Please continue with code generation without using this tool."
+                            })
+                    
+                    # Continue generation after tool calls
+                    continue_response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=self.memory
+                    )
+                    generate_response = continue_response.choices[0].message.content
+                    self.memory.append({"role": "assistant", "content": generate_response})
+                else:
+                    generate_response = message.content
+            else:
+                # Standard generation without tools
+                generate_response = self.client.chat.completions.create(
+                    model=self.model, 
+                    messages=self.memory
+                ).choices[0].message.content
             
             _, _, full_code = self._parse_generate_response(generate_response)
-            self.memory.append({"role": "assistant", "content": generate_response})
             
             self.current_round += 1
             
@@ -728,7 +879,7 @@ def main():
             setup_results = []
             
             # Setup Blender executor if parameters are provided
-            if mode == "blendergym" or mode == "blendergym-hard":
+            if mode == "blendergym" or mode == "blendergym-hard" or mode == "demo":
                 try:
                     setup_result = await agent.setup_executor(
                         blender_command=blender_command,

@@ -183,7 +183,7 @@ class VerifierAgent:
         if mode == "blendergym" or mode == "autopresent":
             self.server_type = "image"
             self.server_path = image_server_path
-        elif mode == "blendergym-hard":
+        elif mode == "blendergym-hard" or mode == "demo":
             self.server_type = "scene"
             self.server_path = scene_server_path
         else:
@@ -197,7 +197,7 @@ class VerifierAgent:
             self.memory = self._build_autopresent_system_prompt(
                 mode, target_descirption
             )
-        elif mode == "blendergym-hard":
+        elif mode == "blendergym-hard" or mode == "demo":
             self.memory = self._build_blendergym_hard_system_prompt(
                 mode, task_name, target_image_path
             )
@@ -271,8 +271,12 @@ class VerifierAgent:
             ])
 
         # Add hints
-        if prompts_dict[mode]['hints'] is not None:
+        if mode == 'blendergym-hard':
+            user_content.append({"type": "text", "text": f"Hints:\n{prompts_dict[mode]['hints'][task_name.split('-')[0]][task_name.split('-')[1]]}"})
+        elif mode == 'demo':
             user_content.append({"type": "text", "text": f"Hints:\n{prompts_dict[mode]['hints']}"})
+        else:
+            raise NotImplementedError("Mode not implemented")
             
         full_prompt.append({"role": "user", "content": user_content})
         return full_prompt
@@ -398,7 +402,7 @@ class VerifierAgent:
                 verify_message["content"].append({"type": "image_url", "image_url": {"url": self._get_image_base64(render_path)}})
             verify_message["content"].append({"type": "text", "text": prompts_dict[self.mode]['format']['verifier']})
             self.memory.append(verify_message)
-        elif self.mode == "blendergym-hard":
+        elif self.mode == "blendergym-hard" or self.mode == "demo":
             pass
         else:
             raise NotImplementedError("Mode not implemented")
@@ -454,7 +458,7 @@ class VerifierAgent:
                     "description": "A tool for comparing current images and the target images, and identifying their visual differences. This tool will automatically select suitable images for comparison, please always call this tool first."
                 }
             }]
-        elif self.mode == "blendergym-hard":
+        elif self.mode == "blendergym-hard" or self.mode == "demo":
             return [{
                 "type": "function",
                 "function": {

@@ -1,6 +1,7 @@
 from .autopresent import *
 from .blendergym import *
 from .blendergym_hard import *
+from .demo import *
 
 prompts_dict = {
     'blendergym': {
@@ -31,5 +32,8 @@ prompts_dict = {
     },
     'blendergym-hard': {
         'hints': blendergym_hard_hints
+    },
+    'demo': {
+        'hints': demo_hints
     }
 }
