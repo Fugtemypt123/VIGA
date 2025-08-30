@@ -225,7 +225,7 @@ class GeneratorAgent:
         self._server_connected = False
         self.output_dir = output_dir
         # Decide which server to use
-        if mode == "blendergym" or mode == "blendergym-hard" or mode == "demo":
+        if mode == "blendergym" or mode == "blendergym-hard":
             self.server_type = "blender"
             self.server_path = blender_server_path
             # Store blender file path for Meshy asset generation
@@ -238,17 +238,11 @@ class GeneratorAgent:
         
         # Initialize memory if initial parameters are provided
         if mode == "blendergym":
-            self.memory = self._build_blendergym_system_prompt(
-                mode, task_name, init_code_path, init_image_path, target_image_path
-            )
+            self.memory = self._build_blendergym_system_prompt(mode, task_name, init_code_path, init_image_path, target_image_path)
         elif mode == "autopresent":
-            self.memory = self._build_autopresent_system_prompt(
-                mode, init_code_path, init_image_path, target_description
-            )
-        elif mode == "blendergym-hard" or mode == "demo":
-            self.memory = self._build_blendergym_hard_system_prompt(
-                mode, task_name, init_code_path, init_image_path, target_image_path
-            )
+            self.memory = self._build_autopresent_system_prompt(mode, init_code_path, init_image_path, target_description)
+        elif mode == "blendergym-hard":
+            self.memory = self._build_blendergym_hard_system_prompt(mode, task_name, init_code_path, init_image_path, target_image_path)
         else:
             raise NotImplementedError("Mode not implemented")
     
@@ -265,8 +259,8 @@ class GeneratorAgent:
         if self.server_type == "blender" and "blender_file" in kwargs:
             self.blender_file_path = kwargs["blender_file"]
             
-            # Initialize investigator for blendergym-hard and demo modes
-            if self.mode in ["blendergym-hard", "demo"] and "thought_save" in kwargs:
+            # Initialize investigator for blendergym-hard
+            if self.mode == "blendergym-hard" and "thought_save" in kwargs:
                 try:
                     investigator_result = await self.tool_client.call_tool("blender", "initialize_investigator", {
                         "thoughtprocess_save": kwargs["thought_save"],
@@ -292,17 +286,11 @@ class GeneratorAgent:
         """
         full_prompt = []
         # Add system prompt
-        full_prompt.append({
-            "role": "system",
-            "content": prompts_dict[mode]['system']['generator']
-        })
+        full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['generator']})
         
         # Add initial code & code analysis
         init_code = open(init_code_path, 'r').read()
-        user_content = [{
-            "type": "text",
-            "text": f"Initial Code:\n```python\n{init_code}\n```"
-        }]
+        user_content = [{"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"}]
         
         # Add code analysis
         code_analysis = self.client.chat.completions.create(
@@ -314,22 +302,13 @@ class GeneratorAgent:
             ]
         )
         code_analysis = code_analysis.choices[0].message.content
-        user_content.append({
-            "type": "text",
-            "text": f"Code Analysis:\n{code_analysis}"
-        })
+        user_content.append({"type": "text", "text": f"Code Analysis:\n{code_analysis}"})
         
         # Add initial images
         init_image_path_1 = os.path.join(init_image_path, 'render1.png')
         if os.path.exists(init_image_path_1):
-            user_content.append({
-                "type": "text",
-                "text": "Initial Image (View 1):"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(init_image_path_1)}
-            })
+            user_content.append({"type": "text", "text": "Initial Image (View 1):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(init_image_path_1)}})
         else:
             # At least we need one initial image
             raise ValueError(f"Initial image {init_image_path_1} does not exist!")
@@ -337,42 +316,17 @@ class GeneratorAgent:
         # Add target images (for mode `blendergym`)
         target_image_path_1 = os.path.join(target_image_path, 'visprompt1.png')
         if os.path.exists(target_image_path_1):
-            user_content.append({
-                "type": "text",
-                "text": "Target Image (View 1):"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(target_image_path_1)}
-            })
+            user_content.append({"type": "text", "text": "Target Image (View 1):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_1)}})
         else:
             logging.error(f"Target image {target_image_path_1} does not exist!")
         
         # Add hints 
-        if mode == 'blendergym-hard':
-            user_content.append({
-                "type": "text",
-                "text": f"Your task: {prompts_dict[mode]['hints'][task_name.split('-')[0]][task_name.split('-')[1]]}"
-            })
-        elif mode == 'demo':
-            user_content.append({
-                "type": "text",
-                "text": f"Your task: {prompts_dict[mode]['hints']}"
-            })
-        else:
-            raise NotImplementedError("Mode not implemented")
-        
+        user_content.append({"type": "text", "text": f"Your task: {prompts_dict[mode]['hints'][task_name.split('-')[0]][task_name.split('-')[1]]}"})
         # Add output format
-        user_content.append({
-            "type": "text",
-            "text": prompts_dict[mode]['format']['generator']
-        })
-        
+        user_content.append({"type": "text", "text": prompts_dict[mode]['format']['generator']})
         # Add all user content
-        full_prompt.append({
-            "role": "user",
-            "content": user_content
-        })
+        full_prompt.append({"role": "user", "content": user_content})
         return full_prompt
         
     def _build_blendergym_system_prompt(self, 
@@ -386,17 +340,11 @@ class GeneratorAgent:
         """
         full_prompt = []
         # Add system prompt
-        full_prompt.append({
-            "role": "system",
-            "content": prompts_dict[mode]['system']['generator']
-        })
+        full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['generator']})
         
         # Add initial code & code analysis
         init_code = open(init_code_path, 'r').read()
-        user_content = [{
-            "type": "text",
-            "text": f"Initial Code:\n```python\n{init_code}\n```"
-        }]
+        user_content = [{"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"}]
         
         # Add code analysis
         code_analysis = self.client.chat.completions.create(
@@ -408,80 +356,42 @@ class GeneratorAgent:
             ]
         )
         code_analysis = code_analysis.choices[0].message.content
-        user_content.append({
-            "type": "text",
-            "text": f"Code Analysis:\n{code_analysis}"
-        })
+        user_content.append({"type": "text", "text": f"Code Analysis:\n{code_analysis}"})
         
         # Add initial images
         init_image_path_1 = os.path.join(init_image_path, 'render1.png')
         if os.path.exists(init_image_path_1):
-            user_content.append({
-                "type": "text",
-                "text": "Initial Image (View 1):"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(init_image_path_1)}
-            })
+            user_content.append({"type": "text", "text": "Initial Image (View 1):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(init_image_path_1)}})
         else:
             # At least we need one initial image
             raise ValueError(f"Initial image {init_image_path_1} does not exist!")
         
         init_image_path_2 = os.path.join(init_image_path, 'render2.png')
         if os.path.exists(init_image_path_2):
-            user_content.append({
-                "type": "text",
-                "text": "Initial Image (View 2):"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(init_image_path_2)}
-            })
+            user_content.append({"type": "text", "text": "Initial Image (View 2):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(init_image_path_2)}})
         
         # Add target images (for mode `blendergym`)
         target_image_path_1 = os.path.join(target_image_path, 'render1.png')
         if os.path.exists(target_image_path_1):
-            user_content.append({
-                "type": "text",
-                "text": "Target Image (View 1):"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(target_image_path_1)}
-            })
+            user_content.append({"type": "text", "text": "Target Image (View 1):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_1)}})
         else:
             logging.error(f"Target image {target_image_path_1} does not exist!")
         
         target_image_path_2 = os.path.join(target_image_path, 'render2.png')
         if os.path.exists(target_image_path_2):
-            user_content.append({
-                "type": "text",
-                "text": "Target Image (View 2):"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(target_image_path_2)}
-            })
+            user_content.append({"type": "text", "text": "Target Image (View 2):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_2)}})
         
         # Add hints 
         if prompts_dict[mode]['hints']['generator'][task_name] is not None:
-            user_content.append({
-                "type": "text",
-                "text": f"Hints:\n{prompts_dict[mode]['hints']['generator'][task_name]}"
-            })
-        
+            user_content.append({"type": "text", "text": f"Hints:\n{prompts_dict[mode]['hints']['generator'][task_name]}"})
         # Add output format
-        user_content.append({
-            "type": "text",
-            "text": prompts_dict[mode]['format']['generator']
-        })
-        
+        user_content.append({"type": "text", "text": prompts_dict[mode]['format']['generator']})
         # Add all user content
-        full_prompt.append({
-            "role": "user",
-            "content": user_content
-        })
+        full_prompt.append({"role": "user", "content": user_content})
         return full_prompt
     
     def _build_autopresent_system_prompt(self, 
@@ -491,82 +401,40 @@ class GeneratorAgent:
                              target_description: str = None) -> List[Dict]:
         full_prompt = []
         # Add system prompt
-        full_prompt.append({
-            "role": "system",
-            "content": prompts_dict[mode]['system']['generator'] + '\n\n' + prompts_dict[mode]['api_library']
-        })
+        full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['generator'] + '\n\n' + prompts_dict[mode]['api_library']})
         
         # Add user input
         user_content = []
-        user_content.append({
-            "type": "text",
-            "text": f"Now, here is the task package, which includes the initial code, a screenshot of the initial slides, the provided images with filenames used in the slides, and my instruction:"
-        })
+        user_content.append({"type": "text", "text": f"Now, here is the task package, which includes the initial code, a screenshot of the initial slides, the provided images with filenames used in the slides, and my instruction:"})
         
         # Add initial code
         init_code = open(init_code_path, 'r').read()
-        user_content.append({
-            "type": "text",
-            "text": f"Initial Code:\n```python\n{init_code}\n```"
-        })
+        user_content.append({"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"})
         
         # Add initial images
         if os.path.exists(init_image_path):
-            user_content.append({
-                "type": "text",
-                "text": "Initial Slide Screenshot:"
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": self._get_image_base64(init_image_path)}
-            })
+            user_content.append({"type": "text", "text": "Initial Slide Screenshot:"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(init_image_path)}})
         else:
-            user_content.append({
-                "type": "text",
-                "text": "Initial code cannot be executed, please check the code and fix the errors."
-            })
+            user_content.append({"type": "text", "text": "Initial code cannot be executed, please check the code and fix the errors."})
             
         # Add used images
-        user_content.append({
-            "type": "text",
-            "text": "Provided Images (they might already appear in the code):"
-        })
+        user_content.append({"type": "text", "text": "Provided Images (they might already appear in the code):"})
         used_image_dir = os.path.join(os.path.dirname(init_image_path), 'media')
         used_images = os.listdir(used_image_dir)
         for image in used_images:
             if image.endswith('.jpg') or image.endswith('.png') or image.endswith('.jpeg'):
-                user_content.append({
-                    "type": "text",
-                    "text": f"Path: {os.path.join('media', image)}"
-                })
-                user_content.append({
-                    "type": "image_url",
-                    "image_url": {"url": self._get_image_base64(os.path.join(used_image_dir, image))}
-                })
+                user_content.append({"type": "text", "text": f"Path: {os.path.join('media', image)}"})
+                user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(os.path.join(used_image_dir, image))}})
         
         # Add target description
-        user_content.append({
-            "type": "text",
-            "text": f"Instruction:\n{target_description}"
-        })
-        
+        user_content.append({"type": "text", "text": f"Instruction:\n{target_description}"})
         # Add hints
-        user_content.append({
-            "type": "text",
-            "text": f"Hints:\n{prompts_dict[mode]['hints']}"
-        })
-        
+        user_content.append({"type": "text", "text": f"Hints:\n{prompts_dict[mode]['hints']}"})
         # Add output format
-        user_content.append({
-            "type": "text",
-            "text": prompts_dict[mode]['format']['generator']
-        })
-        
+        user_content.append({"type": "text", "text": prompts_dict[mode]['format']['generator']})
         # Add all user content
-        full_prompt.append({
-            "role": "user",
-            "content": user_content
-        })
+        full_prompt.append({"role": "user", "content": user_content})
         return full_prompt
     
     def _get_image_base64(self, image_path: str) -> str:
@@ -635,7 +503,7 @@ class GeneratorAgent:
     
     def _get_tools(self) -> List[Dict]:
         """Get available tools for the generator agent."""
-        if self.mode == "blendergym" or self.mode == "blendergym-hard" or self.mode == "demo":
+        if self.mode == "blendergym" or self.mode == "blendergym-hard":
             tools = [{
                 "type": "function",
                 "function": {
@@ -669,8 +537,8 @@ class GeneratorAgent:
                 }
             }]
             
-            # Add investigator tools for blendergym-hard and demo modes
-            if self.mode == "blendergym-hard" or self.mode == "demo":
+            # Add investigator tools for blendergym-hard
+            if self.mode == "blendergym-hard":
                 tools.append({
                     "type": "function",
                     "function": {
@@ -797,7 +665,7 @@ class GeneratorAgent:
         
         try:
             # Check if we need to use tools
-            use_tools = self.mode in ["blendergym", "blendergym-hard", "demo"] and self._server_connected
+            use_tools = self.mode in ["blendergym", "blendergym-hard"] and self._server_connected
             
             if use_tools:
                 # Use tools-enabled generation
@@ -980,7 +848,7 @@ def main():
             setup_results = []
             
             # Setup Blender executor if parameters are provided
-            if mode == "blendergym" or mode == "blendergym-hard" or mode == "demo":
+            if mode == "blendergym" or mode == "blendergym-hard":
                 try:
                     setup_result = await agent.setup_executor(
                         blender_command=blender_command,
