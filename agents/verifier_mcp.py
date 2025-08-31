@@ -6,11 +6,11 @@ import logging
 from openai import OpenAI
 from mcp.server.fastmcp import FastMCP
 from prompts import prompts_dict
-from .external_tool_client import ExternalToolClient
-from .prompt_builder import PromptBuilder
-from .tool_manager import ToolManager
-from .tool_handler import ToolHandler
-from .utils import save_thought_process
+from agents.external_tool_client import ExternalToolClient
+from agents.prompt_builder import PromptBuilder
+from agents.tool_manager import ToolManager
+from agents.tool_handler import ToolHandler
+from agents.utils import save_thought_process
 
 class VerifierAgent:
     def __init__(self, 

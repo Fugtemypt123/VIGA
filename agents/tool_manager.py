@@ -6,41 +6,7 @@ class ToolManager:
     @staticmethod
     def get_generator_tools(mode: str, task_name: str) -> List[Dict]:
         """Get available tools for the generator agent based on mode and task."""
-        if mode == "blendergym":
-            # For blendergym mode, provide all tools (original behavior)
-            return [{
-                "type": "function",
-                "function": {
-                    "name": "generate_3d_asset",
-                    "description": "Generate and import a 3D asset into the Blender scene using Meshy Text-to-3D API. This tool can create objects based on text descriptions and automatically import them into the current scene.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "description": {
-                                "type": "string", 
-                                "description": "Text description of the 3D asset to generate (e.g., 'a wooden chair', 'a modern table', 'a decorative plant')"
-                            },
-                            "location": {
-                                "type": "string", 
-                                "description": "Position where to place the asset in the scene, format: 'x,y,z' (e.g., '2,0,0')",
-                                "default": "0,0,0"
-                            },
-                            "scale": {
-                                "type": "number", 
-                                "description": "Scale factor for the asset (e.g., 1.0 for normal size, 2.0 for double size)",
-                                "default": 1.0
-                            },
-                            "refine": {
-                                "type": "boolean", 
-                                "description": "Whether to apply texture refinement after initial generation (takes longer but produces better quality)",
-                                "default": True
-                            }
-                        },
-                        "required": ["description"]
-                    }
-                }
-            }]
-        elif mode == "blendergym-hard":
+        if mode == "blendergym-hard":
             # For blendergym-hard mode, determine tools based on level
             level = task_name.split('-')[0]
             tools = []
@@ -96,40 +62,19 @@ class ToolManager:
                 }
             }
             
-            # Define exec_script tool
-            exec_script_tool = {
-                "type": "function",
-                "function": {
-                    "name": "exec_script",
-                    "description": "Execute Blender Python code to modify the 3D scene. This tool allows you to write and execute Python code that can modify objects, lighting, materials, and other scene properties in Blender.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "code": {
-                                "type": "string",
-                                "description": "The Blender Python code to execute. This should be valid Python code that can modify the Blender scene."
-                            }
-                        },
-                        "required": ["code"]
-                    }
-                }
-            }
-            
             # Add tools based on level
             if level == "level1":
                 # Only investigator tool (tool 3)
                 tools.append(investigator_tool)
             elif level == "level2":
-                # Only blender code executor (tool 2)
-                tools.append(exec_script_tool)
+                # Only blender code executor (tool 2) - no tools needed as it's handled by exec_script
+                pass
             elif level == "level3":
                 # Blender code executor (tool 2) + investigator tool (tool 3)
-                tools.append(exec_script_tool)
                 tools.append(investigator_tool)
             elif level == "level4":
                 # All tools: meshy (tool 1) + blender code executor (tool 2) + investigator tool (tool 3)
                 tools.append(meshy_tool)
-                tools.append(exec_script_tool)
                 tools.append(investigator_tool)
             
             return tools

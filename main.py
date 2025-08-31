@@ -451,6 +451,8 @@ async def main():
                 
             print(f"Generated code (truncated):\n{code[:200]}...")
             
+            print(f"Gen Result: {gen_result}")
+            
             # Check if automatic execution happened
             if gen_result.get("execution_result"):
                 exec_result = gen_result["execution_result"]

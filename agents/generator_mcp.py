@@ -6,11 +6,11 @@ from typing import Dict, List, Optional, Any
 import logging
 from mcp.server.fastmcp import FastMCP
 from prompts import prompts_dict
-from .external_tool_client import ExternalToolClient
-from .prompt_builder import PromptBuilder
-from .tool_manager import ToolManager
-from .tool_handler import ToolHandler
-from .utils import parse_generate_response, get_blendergym_hard_level, save_thought_process
+from agents.external_tool_client import ExternalToolClient
+from agents.prompt_builder import PromptBuilder
+from agents.tool_manager import ToolManager
+from agents.tool_handler import ToolHandler
+from agents.utils import parse_generate_response, get_blendergym_hard_level, save_thought_process
 
 class GeneratorAgent:
     """
@@ -203,11 +203,31 @@ class GeneratorAgent:
             else:
                 full_code = None
             
+            # Auto-execute code if it contains "Full Code" and we're in a mode that supports code execution
+            execution_result = None
+            if (full_code and 
+                "Full Code" in generate_response and 
+                self.mode in ["blendergym", "blendergym-hard"] and 
+                self._server_connected and
+                self.task_name.split('-')[0] != "level1"):  # level1 doesn't generate code
+                
+                try:
+                    self.current_round += 1
+                    execution_result = await self.tool_handler.execute_script(
+                        code=full_code,
+                        round_num=self.current_round,
+                    )
+                    logging.info(f"Auto-executed code for round {self.current_round}")
+                except Exception as e:
+                    logging.error(f"Failed to auto-execute code: {e}")
+                    execution_result = {"status": "error", "error": str(e)}
+            
             return {
                 "status": "success",
                 "code": full_code,
                 "response": generate_response,
-                "round": self.current_round
+                "round": self.current_round,
+                "execution_result": execution_result
             }
         except Exception as e:
             logging.error(f"Code generation failed: {e}")

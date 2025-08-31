@@ -40,28 +40,7 @@ class ToolHandler:
                         'text': f"Failed to generate 3D asset: {result.get('error', 'Unknown error')}",
                         'success': False
                     }
-            elif function_name == "exec_script":
-                if self.server_type != "blender":
-                    return {'text': "Error: Blender code execution is only available for Blender mode", 'success': False}
-                
-                # Execute the Blender Python code
-                result = await self.tool_client.exec_script(
-                    server_type=self.server_type,
-                    code=function_args.get("code", ""),
-                    round_num=function_args.get("round_num", 1),
-                )
-                
-                if result.get("status") == "success":
-                    return {
-                        'text': f"Successfully executed Blender Python code.",
-                        'success': True,
-                        'execution_result': result
-                    }
-                else:
-                    return {
-                        'text': f"Failed to execute Blender code: {result.get('error', 'Unknown error')}",
-                        'success': False
-                    }
+
             elif function_name == "investigate_3d":
                 if self.server_type != "blender":
                     return {'text': "Error: 3D investigation is only available for Blender mode", 'success': False}
@@ -121,6 +100,33 @@ class ToolHandler:
                 return {'text': f"Unknown tool: {function_name}", 'success': False}
         except Exception as e:
             return {'text': f"Error executing tool: {str(e)}", 'success': False}
+    
+    async def execute_script(self, code: str, round_num: int = None) -> Dict[str, Any]:
+        """Execute Blender Python code directly (not as a tool call)."""
+        try:
+            if self.server_type != "blender":
+                return {'text': "Error: Blender code execution is only available for Blender mode", 'success': False}
+            
+            # Execute the Blender Python code
+            result = await self.tool_client.exec_script(
+                server_type=self.server_type,
+                code=code,
+                round_num=round_num or 1,
+            )
+            
+            if result.get("status") == "success":
+                return {
+                    'text': f"Successfully executed Blender Python code.",
+                    'success': True,
+                    'execution_result': result
+                }
+            else:
+                return {
+                    'text': f"Failed to execute Blender code: {result.get('error', 'Unknown error')}",
+                    'success': False
+                }
+        except Exception as e:
+            return {'text': f"Error executing script: {str(e)}", 'success': False}
     
     async def handle_verifier_tool_call(self, tool_call, current_image_path: str = None, target_image_path: str = None) -> Dict[str, Any]:
         """Handle tool calls from the verifier agent."""
