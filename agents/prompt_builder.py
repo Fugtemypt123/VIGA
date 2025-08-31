@@ -10,8 +10,9 @@ from prompts import prompts_dict
 class PromptBuilder:
     """Helper class for building system prompts for generator and verifier agents."""
     
-    def __init__(self, client: OpenAI):
+    def __init__(self, client: OpenAI, model: str):
         self.client = client
+        self.model = model
     
     def _get_image_base64(self, image_path: str) -> str:
         """Return a full data URL for the image, preserving original jpg/png format."""
@@ -77,12 +78,6 @@ class PromptBuilder:
         if level != 'level1':
             init_code = open(init_code_path, 'r').read()
             user_content = [{"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"}]
-        else:
-            # add investigator tool description
-            user_content = [{"type": "text", "text": "You have access to a 3D scene investigation tool that allows you to:"}]
-            user_content.append({"type": "text", "text": "1. Focus the camera on specific objects in the scene"})
-            user_content.append({"type": "text", "text": "2. Zoom in/out to get better views"})
-            user_content.append({"type": "text", "text": "3. Move the camera around to explore different angles"})
         
         # Add initial images
         init_image_path = os.path.join(init_image_path, 'render1.png')
@@ -128,7 +123,7 @@ class PromptBuilder:
         
         # Add code analysis
         code_analysis = self.client.chat.completions.create(
-            model="gpt-4o",  # Use a default model for code analysis
+            model=self.model,  # Use a default model for code analysis
             messages=[
                 {"role": "system", "content": "You are a Blender Python code analysis expert."},
                 {"role": "user", "content": f"Please analyze the following Blender Python code line by line, \

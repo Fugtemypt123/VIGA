@@ -20,7 +20,7 @@ You have access to a 3D scene investigation tool that allows you to:
 
 Your goal is to use these investigation tools to position the camera at the correct viewing angle that matches the target image. You do NOT need to modify any Blender Python code - your task is purely to adjust the camera perspective through the investigation tools.
 
-After each investigation action, the scene will be rendered and passed to a validator, which will provide feedback on whether the camera angle matches the target. Based on this feedback, you must iteratively refine your camera positioning. This process will continue across multiple rounds of dialogue. In each round, you must adhere to a fixed output format."""
+After each investigation action, the scene will be rendered and passed to a validator, which will provide feedback on whether the camera angle matches the target. Based on this feedback, you must iteratively refine your camera positioning. This process will continue across multiple rounds of dialogue. In each round of dialogue, you must call the investigator tool through the tool_calls interface."""
 
 blendergym_hard_generator_system_level2 = """You are a Blender coding agent. Your task is to generate code to transform an initial 3D scene into a target scene following the target image provided. 
 
@@ -97,13 +97,7 @@ blendergym_hard_verifier_system_dict = {
 }
 
 # Generator formats for different levels
-blendergym_hard_generator_format_level1 = """After each investigation action, the scene will be rendered and passed to a validator, which will provide feedback on whether the camera angle matches the target. Based on this feedback, you must iteratively refine your camera positioning. This process will continue across multiple rounds of dialogue. In each round, you must follow a fixed output format. Output Format (keep this format for each round):
-1. Thought: Analyze the current camera view and provide a clear plan for adjusting the camera angle to match the target image.
-2. Investigation Actions: Use the 3D scene investigation tools to adjust the camera view:
-   - Focus on specific objects to position the camera correctly
-   - Zoom in/out to match the target image's perspective
-   - Move the camera to achieve the desired viewing angle
-3. Summary: Briefly describe what camera adjustments you made and why they should help match the target image."""
+blendergym_hard_generator_format_level1 = """After each investigation action, the scene will be rendered and passed to a validator, which will provide feedback on whether the camera angle matches the target. Based on this feedback, you must iteratively refine your camera positioning. This process will continue across multiple rounds of dialogue. In each round of dialogue, you must (1) Analyze the current camera view and provide a clear plan for adjusting the camera angle to match the target image; and (2) Call the investigator tool through the tool_calls interface."""
 
 blendergym_hard_generator_format_level2 = """After each code edit, your code will be passed to a validator, which will provide feedback on the result. Based on this feedback, you must iteratively refine your code edits. This process will continue across multiple rounds of dialogue. In each round, you must follow a fixed output format. Output Format (keep this format for each round):
 1. Thought: Analyze the current state and provide a clear plan for the required changes.

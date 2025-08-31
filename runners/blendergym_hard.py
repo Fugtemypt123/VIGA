@@ -170,6 +170,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         Tuple of (task_name, success: bool, error_message: str)
     """
     task_name = task_config['task_dir'].split('/')[-1]
+    level = task_name.split('-')[0]
     print(f"\n{'='*60}")
     print(f"Running task: {task_name}")
     print(f"{'='*60}")
@@ -203,7 +204,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         "--blender-server-path", args.blender_server_path,
         "--blender-command", args.blender_command,
         "--blender-file", str(output_base / "blender_file.blend"),
-        "--blender-script", args.blender_script,
+        "--blender-script", f'data/blendergym_hard/{level}/pipeline_render_script.py',
         # Tool server paths (for verifier)
         "--image-server-path", args.image_server_path,
         "--scene-server-path", args.scene_server_path,

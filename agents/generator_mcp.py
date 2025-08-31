@@ -40,6 +40,10 @@ class GeneratorAgent:
         self.model = vision_model
         self.api_key = api_key
         self.task_name = task_name  # Store task_name for blendergym-hard level detection
+        if self.mode == "blendergym-hard":
+            self.level = get_blendergym_hard_level(self.task_name)
+        else:
+            self.level = None
         # Support custom OpenAI-compatible base URL
         client_kwargs = {"api_key": self.api_key}
         if api_base_url or os.getenv("OPENAI_BASE_URL"):
@@ -51,6 +55,7 @@ class GeneratorAgent:
         self.tool_client = ExternalToolClient()
         self._server_connected = False
         self.output_dir = output_dir
+        self.init_code_path = init_code_path
         # Decide which server to use
         if mode == "blendergym" or mode == "blendergym-hard":
             self.server_type = "blender"
@@ -62,7 +67,7 @@ class GeneratorAgent:
             raise NotImplementedError("Mode not implemented")
         
         # Initialize prompt builder and tool handler
-        self.prompt_builder = PromptBuilder(self.client)
+        self.prompt_builder = PromptBuilder(self.client, self.model)
         self.tool_handler = ToolHandler(self.tool_client, self.server_type)
         
         # Initialize memory if initial parameters are provided
@@ -193,10 +198,11 @@ class GeneratorAgent:
                 ).choices[0].message.content
             
             # Parse the response to extract code if needed (only for modes that generate code)
-            try:
-                _, _, full_code = parse_generate_response(generate_response)
-            except:
-                full_code = ""
+            _, _, full_code = parse_generate_response(generate_response)
+                
+            # If the full code is None, just copy the init code
+            if full_code is None:
+                full_code = open(self.init_code_path).read()
             
             # Auto-execute code if it contains "Full Code" and we're in a mode that supports code execution
             execution_result = None

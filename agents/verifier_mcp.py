@@ -56,7 +56,7 @@ class VerifierAgent:
             raise NotImplementedError("Mode not implemented")
         
         # Initialize prompt builder and tool handler
-        self.prompt_builder = PromptBuilder(self.client)
+        self.prompt_builder = PromptBuilder(self.client, self.vision_model)
         self.tool_handler = ToolHandler(self.tool_client, self.server_type)
         
         if mode == "blendergym":

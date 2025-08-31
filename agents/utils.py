@@ -64,8 +64,10 @@ def parse_generate_response(response: str) -> tuple:
     # Remove the ```python and ``` from the full code
     if "```python" in full:
         full = full.split("```python")[1].split("```")[0].strip()
-    else:
+    elif "```" in full:
         full = full.split("```")[0].strip()
+    else:
+        full = None
     
     return None, None, full
 

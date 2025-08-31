@@ -136,10 +136,10 @@ class Investigator3D:
         bpy.ops.object.camera_add()
         cam = bpy.context.active_object
         cam.name = "InvestigatorCamera"
-        # optional: copy from existing Camera2
-        if 'Camera2' in bpy.data.objects:
-            cam.matrix_world.translation = bpy.data.objects['Camera2'].matrix_world.translation.copy()
-            print("Copy from Camera2!")
+        # optional: copy from existing Camera1
+        if 'Camera1' in bpy.data.objects:
+            cam.matrix_world.translation = bpy.data.objects['Camera1'].matrix_world.translation.copy()
+            print("Copy from Camera1!")
         return cam
 
     def _save_blender_file(self):
