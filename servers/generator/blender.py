@@ -115,25 +115,20 @@ class MeshyAPI:
 # ======================
 
 class Investigator3D:
-    def __init__(self, thoughtprocess_save: str, blender_path: str):
+    def __init__(self, blender_path: str):
         self.blender_path = blender_path          # 先保存路径
         self._load_blender_file()                 # 再加载文件
-        self.base = Path(thoughtprocess_save) / "investigator"
-        self.base.mkdir(parents=True, exist_ok=True)
         self.cam = self._get_or_create_cam()
         self.target = None
         self.radius = 5.0
         self.theta = 0.0
         self.phi = 0.0
-        self.count = 0
 
     def _load_blender_file(self):
         """加载 Blender 文件，如果已经加载了相同的文件则跳过"""
         current_file = bpy.data.filepath
         if current_file != self.blender_path:
             bpy.ops.wm.open_mainfile(filepath=str(self.blender_path))
-            # Ensure the filepath is set correctly for future saves
-            bpy.data.filepath = str(self.blender_path)
 
     def _get_or_create_cam(self):
         if "InvestigatorCamera" in bpy.data.objects:
@@ -147,22 +142,13 @@ class Investigator3D:
             print("Copy from Camera2!")
         return cam
 
-    def _render(self):
-        bpy.context.scene.camera = self.cam
-        bpy.context.scene.render.engine = 'CYCLES'
-        bpy.context.scene.render.filepath = str(self.base / f"{self.count+1}.png")
-        bpy.ops.render.render(write_still=True)
-        out = bpy.context.scene.render.filepath
-        self.count += 1
-
-        # Save the blender file after each operation
+    def _save_blender_file(self):
+        """保存 Blender 文件"""
         try:
             bpy.ops.wm.save_mainfile(filepath=self.blender_path)
             print(f"Blender file saved to: {self.blender_path}")
         except Exception as e:
             print(f"Warning: Failed to save blender file: {e}")
-
-        return out
 
     def focus_on_object(self, object_name: str) -> str:
         obj = bpy.data.objects.get(object_name)
@@ -183,14 +169,15 @@ class Investigator3D:
         self.radius = (self.cam.matrix_world.translation - obj.matrix_world.translation).length
         self.theta = math.atan2(*(self.cam.matrix_world.translation[i] - obj.matrix_world.translation[i] for i in (1,0)))
         self.phi = math.asin((self.cam.matrix_world.translation.z - obj.matrix_world.translation.z)/self.radius)
-        return self._render()
+        self._save_blender_file()
+        return "Camera focused on object and Blender file saved"
 
     def zoom(self, direction: str) -> str:
         if direction == 'in':
             self.radius = max(1, self.radius-3)
         elif direction == 'out':
             self.radius += 3
-        return self._update_and_render()
+        return self._update_and_save()
 
     def move_camera(self, direction: str) -> str:
         step = self.radius
@@ -200,15 +187,16 @@ class Investigator3D:
         elif direction=='down': self.phi = max(-math.pi/2+0.1, self.phi-phi_step)
         elif direction=='left': self.theta -= theta_step
         elif direction=='right': self.theta += theta_step
-        return self._update_and_render()
+        return self._update_and_save()
 
-    def _update_and_render(self) -> str:
+    def _update_and_save(self) -> str:
         t = self.target.matrix_world.translation
         x = self.radius*math.cos(self.phi)*math.cos(self.theta)
         y = self.radius*math.cos(self.phi)*math.sin(self.theta)
         z = self.radius*math.sin(self.phi)
         self.cam.matrix_world.translation = (t.x+x, t.y+y, t.z+z)
-        return self._render()
+        self._save_blender_file()
+        return "Camera position updated and Blender file saved"
 
 class AssetImporter:
     """3D资产导入器，支持多种格式"""
@@ -503,13 +491,13 @@ def add_meshy_asset(
         return {"status": "error", "error": str(e)}
 
 @mcp.tool()
-def initialize_investigator(thoughtprocess_save: str, blender_path: str) -> dict:
+def initialize_investigator(blender_path: str) -> dict:
     """
     初始化 3D 场景调查工具。
     """
     global _investigator
     try:
-        _investigator = Investigator3D(thoughtprocess_save, str(blender_path))
+        _investigator = Investigator3D(str(blender_path))
         return {"status": "success", "message": "Investigator3D initialized successfully"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -529,8 +517,8 @@ def focus(object_name: str) -> dict:
         if not obj:
             return {"status": "error", "error": f"Object '{object_name}' not found in scene"}
 
-        img = _investigator.focus_on_object(object_name)
-        return {"status": "success", "image": str(img)}
+        result = _investigator.focus_on_object(object_name)
+        return {"status": "success", "message": result}
     except Exception as e:
         logging.error(f"Focus failed: {e}")
         return {"status": "error", "error": str(e)}
@@ -549,8 +537,8 @@ def zoom(direction: str) -> dict:
         if _investigator.target is None:
             return {"status": "error", "error": "No target object set. Call focus first."}
 
-        img = _investigator.zoom(direction)
-        return {"status": "success", "image": str(img)}
+        result = _investigator.zoom(direction)
+        return {"status": "success", "message": result}
     except Exception as e:
         logging.error(f"Zoom failed: {e}")
         return {"status": "error", "error": str(e)}
@@ -569,8 +557,8 @@ def move(direction: str) -> dict:
         if _investigator.target is None:
             return {"status": "error", "error": "No target object set. Call focus first."}
 
-        img = _investigator.move_camera(direction)
-        return {"status": "success", "image": str(img)}
+        result = _investigator.move_camera(direction)
+        return {"status": "success", "message": result}
     except Exception as e:
         logging.error(f"Move failed: {e}")
         return {"status": "error", "error": str(e)}

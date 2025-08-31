@@ -91,12 +91,9 @@ class GeneratorAgent:
             self.tool_handler.blender_file_path = self.blender_file_path
             
             # Initialize investigator for blendergym-hard
-            if self.mode == "blendergym-hard" and "thought_save" in kwargs:
+            if self.mode == "blendergym-hard":
                 try:
-                    investigator_result = await self.tool_client.call_tool("blender", "initialize_investigator", {
-                        "thoughtprocess_save": kwargs["thought_save"],
-                        "blender_path": kwargs["blender_file"]
-                    })
+                    investigator_result = await self.tool_client.call_tool("blender", "initialize_investigator", {"blender_path": kwargs["blender_file"]})
                     if investigator_result.get("status") == "success":
                         logging.info("Investigator initialized successfully")
                     else:

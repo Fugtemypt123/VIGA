@@ -67,7 +67,9 @@ class PromptBuilder:
                                              target_image_path: str = None) -> List[Dict]:
         """Build the system prompt for the generator for blendergym-hard mode."""
         level = task_name.split('-')[0]
+        idx = int(task_name.split('-')[1])
         full_prompt = []
+        
         # Add system prompt
         full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['generator'][level]})
         user_content = []
@@ -81,23 +83,28 @@ class PromptBuilder:
             user_content.append({"type": "text", "text": "1. Focus the camera on specific objects in the scene"})
             user_content.append({"type": "text", "text": "2. Zoom in/out to get better views"})
             user_content.append({"type": "text", "text": "3. Move the camera around to explore different angles"})
+        
         # Add initial images
-        init_image_path_1 = os.path.join(init_image_path, 'render1.png')
-        if os.path.exists(init_image_path_1):
+        init_image_path = os.path.join(init_image_path, 'render1.png')
+        if os.path.exists(init_image_path):
             user_content.append({"type": "text", "text": "Initial Image (View 1):"})
-            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(init_image_path_1)}})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(init_image_path)}})
         else:
             # At least we need one initial image
-            raise ValueError(f"Initial image {init_image_path_1} does not exist!")
+            raise ValueError(f"Initial image {init_image_path} does not exist!")
         # Add target images (for mode `blendergym`)
-        target_image_path_1 = os.path.join(target_image_path, 'visprompt1.png')
-        if os.path.exists(target_image_path_1):
-            user_content.append({"type": "text", "text": "Target Image (View 1):"})
-            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_1)}})
+        if level == 'level1':
+            target_image_path = os.path.join(target_image_path, 'style1.png')
         else:
-            raise ValueError(f"Target image {target_image_path_1} does not exist!")
+            target_image_path = os.path.join(target_image_path, 'visprompt1.png')
+        if os.path.exists(target_image_path):
+            user_content.append({"type": "text", "text": "Target Image (View 1):"})
+            user_content.append({"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path)}})
+        else:
+            raise ValueError(f"Target image {target_image_path} does not exist!") 
+        
         # Add hints 
-        user_content.append({"type": "text", "text": f"Your task: {prompts_dict[mode]['hints'][task_name.split('-')[0]][task_name.split('-')[1]]}"})
+        user_content.append({"type": "text", "text": f"Your task: {prompts_dict[mode]['hints'][level][idx]}"})
         # Add output format
         user_content.append({"type": "text", "text": prompts_dict[mode]['format']['generator'][level]})
         # Add all user content
@@ -217,20 +224,24 @@ class PromptBuilder:
                                             target_image_path: str) -> List[Dict]:
         """Build the system prompt for the verifier for blendergym-hard mode."""
         level = task_name.split('-')[0]
+        idx = int(task_name.split('-')[1])
         full_prompt = []
         # System prompt
         full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['verifier'][level]})
         user_content = []
         # Add target image/description
-        target_image_path_1 = os.path.join(target_image_path, 'visprompt1.png')
-        if os.path.exists(target_image_path_1):
+        if level == 'level1':
+            target_image_path = os.path.join(target_image_path, 'style1.png')
+        else:
+            target_image_path = os.path.join(target_image_path, 'visprompt1.png')
+        if os.path.exists(target_image_path):
             user_content.extend([
                 {"type": "text", "text": "Target Image (View 1):"},
-                {"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_1)}}
+                {"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path)}}
             ])
         else:
-            raise ValueError(f"Target image {target_image_path_1} does not exist!")
-        user_content.append({"type": "text", "text": f"Your task: {prompts_dict[mode]['hints'][task_name.split('-')[0]][task_name.split('-')[1]]}"})
+            raise ValueError(f"Target image {target_image_path} does not exist!")
+        user_content.append({"type": "text", "text": f"Your task: {prompts_dict[mode]['hints'][level][idx]}"})
         full_prompt.append({"role": "user", "content": user_content})
         return full_prompt
     

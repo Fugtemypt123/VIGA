@@ -110,8 +110,6 @@ class Investigator3D:
         current_file = bpy.data.filepath
         if current_file != self.blender_path:
             bpy.ops.wm.open_mainfile(filepath=str(self.blender_path))
-            # Ensure the filepath is set correctly for future saves
-            bpy.data.filepath = str(self.blender_path)
 
     def _get_or_create_cam(self):
         if "InvestigatorCamera" in bpy.data.objects:

@@ -11,6 +11,7 @@ import argparse
 import subprocess
 import asyncio
 import signal
+import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -179,6 +180,9 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     # Create directories
     output_base.mkdir(parents=True, exist_ok=True)
     
+    # copy blender file to output directory
+    shutil.copy(task_config["blender_file"], output_base / "blender_file.blend")
+    
     # Build main.py command
     cmd = [
         sys.executable, "main.py",
@@ -198,7 +202,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         # Blender execution parameters (for generator)
         "--blender-server-path", args.blender_server_path,
         "--blender-command", args.blender_command,
-        "--blender-file", str(task_config["blender_file"]),
+        "--blender-file", str(output_base / "blender_file.blend"),
         "--blender-script", args.blender_script,
         # Tool server paths (for verifier)
         "--image-server-path", args.image_server_path,
@@ -377,7 +381,7 @@ def main():
     with open(os.path.join(args.output_dir, "tasks.json"), "w") as f:
         json.dump(tasks, f, indent=2)
         
-    tasks = tasks[:2]
+    tasks = tasks[:1]
     
     # Run tasks
     start_time = time.time()
