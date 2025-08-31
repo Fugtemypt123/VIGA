@@ -553,19 +553,40 @@ class GeneratorAgent:
                 }
             }
             
+            # Define exec_script tool
+            exec_script_tool = {
+                "type": "function",
+                "function": {
+                    "name": "exec_script",
+                    "description": "Execute Blender Python code to modify the 3D scene. This tool allows you to write and execute Python code that can modify objects, lighting, materials, and other scene properties in Blender.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                                "description": "The Blender Python code to execute. This should be valid Python code that can modify the Blender scene."
+                            }
+                        },
+                        "required": ["code"]
+                    }
+                }
+            }
+            
             # Add tools based on level
             if level == "level1":
                 # Only investigator tool (tool 3)
                 tools.append(investigator_tool)
             elif level == "level2":
-                # Only blender code executor (tool 2) - no tools needed as it's handled by exec_script
-                pass
+                # Only blender code executor (tool 2)
+                tools.append(exec_script_tool)
             elif level == "level3":
                 # Blender code executor (tool 2) + investigator tool (tool 3)
+                tools.append(exec_script_tool)
                 tools.append(investigator_tool)
             elif level == "level4":
                 # All tools: meshy (tool 1) + blender code executor (tool 2) + investigator tool (tool 3)
                 tools.append(meshy_tool)
+                tools.append(exec_script_tool)
                 tools.append(investigator_tool)
             
             return tools
@@ -600,6 +621,29 @@ class GeneratorAgent:
                 else:
                     return {
                         'text': f"Failed to generate 3D asset: {result.get('error', 'Unknown error')}",
+                        'success': False
+                    }
+            elif function_name == "exec_script":
+                if self.server_type != "blender":
+                    return {'text': "Error: Blender code execution is only available for Blender mode", 'success': False}
+                
+                # Execute the Blender Python code
+                self.current_round += 1
+                result = await self.tool_client.exec_script(
+                    server_type=self.server_type,
+                    code=function_args.get("code", ""),
+                    round_num=self.current_round,
+                )
+                
+                if result.get("status") == "success":
+                    return {
+                        'text': f"Successfully executed Blender Python code. Round: {self.current_round}",
+                        'success': True,
+                        'execution_result': result
+                    }
+                else:
+                    return {
+                        'text': f"Failed to execute Blender code: {result.get('error', 'Unknown error')}",
                         'success': False
                     }
             elif function_name == "investigate_3d":
@@ -683,20 +727,13 @@ class GeneratorAgent:
                 # Get available tools
                 available_tools = self._get_tools()
                 
-                # Use tools-enabled generation only if tools are available
-                if available_tools:
-                    response = self.client.chat.completions.create(
-                        model=self.model, 
-                        messages=self.memory,
-                        tools=available_tools,
-                        tool_choice="auto"
-                    )
-                else:
-                    # For blendergym-hard level2 (no tools), use standard generation
-                    response = self.client.chat.completions.create(
-                        model=self.model, 
-                        messages=self.memory
-                    )
+                # Use tools-enabled generation
+                response = self.client.chat.completions.create(
+                    model=self.model, 
+                    messages=self.memory,
+                    tools=available_tools,
+                    tool_choice="auto"
+                )
                 message = response.choices[0].message
                 self.memory.append(message.model_dump())
                 
@@ -750,30 +787,17 @@ class GeneratorAgent:
                     messages=self.memory
                 ).choices[0].message.content
             
-            _, _, full_code = self._parse_generate_response(generate_response)
-            
-            self.current_round += 1
-            
-            # Automatically execute the generated code with configured executor
-            execution_result = None
-            if self._server_connected:
-                try:
-                    execution_result = await self.tool_client.exec_script(
-                        server_type=self.server_type,
-                        code=full_code,
-                        round_num=self.current_round,
-                    )
-                    logging.info(f"{self.server_type.capitalize()} execution completed for round {self.current_round}")
-                except Exception as e:
-                    logging.error(f"{self.server_type.capitalize()} execution failed: {e}")
-                    execution_result = {"status": "error", "error": str(e)}
+            # Parse the response to extract code if needed (only for modes that generate code)
+            if self.mode == "blendergym" or (self.mode == "blendergym-hard" and self.task_name.split('-')[0] != "level1"):
+                _, _, full_code = self._parse_generate_response(generate_response)
+            else:
+                full_code = None
             
             return {
                 "status": "success",
                 "code": full_code,
                 "response": generate_response,
-                "round": self.current_round,
-                "execution_result": execution_result
+                "round": self.current_round
             }
         except Exception as e:
             logging.error(f"Code generation failed: {e}")
