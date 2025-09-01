@@ -52,9 +52,8 @@ class ToolHandler:
                     })
                     if result.get("status") == "success":
                         return {
-                            'text': f"Focused camera on object: {function_args.get('object_name', '')}",
-                            'success': True,
-                            'image': result.get('image')
+                            'text': f"Focused camera on object: {function_args.get('object_name', '')}. {result.get('message', '')}",
+                            'success': True
                         }
                     else:
                         return {
@@ -67,9 +66,8 @@ class ToolHandler:
                     })
                     if result.get("status") == "success":
                         return {
-                            'text': f"Zoomed {function_args.get('direction', '')}",
-                            'success': True,
-                            'image': result.get('image')
+                            'text': f"Zoomed {function_args.get('direction', '')}. {result.get('message', '')}",
+                            'success': True
                         }
                     else:
                         return {
@@ -82,9 +80,8 @@ class ToolHandler:
                     })
                     if result.get("status") == "success":
                         return {
-                            'text': f"Moved camera {function_args.get('direction', '')}",
-                            'success': True,
-                            'image': result.get('image')
+                            'text': f"Moved camera {function_args.get('direction', '')}. {result.get('message', '')}",
+                            'success': True
                         }
                     else:
                         return {

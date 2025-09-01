@@ -145,41 +145,39 @@ class GeneratorAgent:
                     tool_choice="auto"
                 )
                 message = response.choices[0].message
-                self.memory.append(message.model_dump())
+                # Convert message to proper format for memory
+                message_dict = {
+                    "role": "assistant",
+                    "content": message.content,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
+                        }
+                        for tool_call in (message.tool_calls or [])
+                    ]
+                }
+                self.memory.append(message_dict)
                 
                 # Handle tool calls
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     for tool_call in message.tool_calls:
                         tool_response = await self._handle_tool_call(tool_call)
+                        # Ensure tool response is a string
+                        content = tool_response.get('text', str(tool_response))
+                        if not isinstance(content, str):
+                            content = json.dumps(content)
+                        
                         self.memory.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": tool_call.function.name,
-                            "content": tool_response['text']
+                            "content": content
                         })
-                        
-                        # If tool was successful, add success message
-                        if tool_response.get('success'):
-                            # Add the tool response text
-                            self.memory.append({
-                                "role": "user",
-                                "content": f"Tool execution successful: {tool_response['text']}. Please continue with code generation."
-                            })
-                            
-                            # If there's an image from investigator tool, add it to memory
-                            if tool_response.get('image'):
-                                self.memory.append({
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Generated investigation image:"},
-                                        {"type": "image_url", "image_url": {"url": self.prompt_builder._get_image_base64(tool_response['image'])}}
-                                    ]
-                                })
-                        else:
-                            self.memory.append({
-                                "role": "user",
-                                "content": f"Tool execution failed: {tool_response['text']}. Please continue with code generation without using this tool."
-                            })
                     
                     # Continue generation after tool calls
                     continue_response = self.client.chat.completions.create(
