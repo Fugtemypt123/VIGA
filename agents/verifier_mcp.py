@@ -149,17 +149,44 @@ class VerifierAgent:
                     tool_choice="auto"
                 )
                 message = response.choices[0].message
-                self.memory.append(message.model_dump())
+                
+                # Convert message to proper format for memory
+                message_dict = {
+                    "role": "assistant",
+                    "content": message.content,
+                }
+                # Only include tool_calls if there are any (avoid empty array which causes API error)
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    message_dict["tool_calls"] = [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
+                        }
+                        for tool_call in message.tool_calls
+                    ]
+                
+                self.memory.append(message_dict)
+                
                 # Handle tool calls
-                if message.tool_calls:
+                if hasattr(message, 'tool_calls') and message.tool_calls:
                     for tool_call in message.tool_calls:
                         tool_response = await self._handle_tool_call(tool_call)
+                        # Ensure tool response is a string
+                        content = tool_response.get('text', str(tool_response))
+                        if not isinstance(content, str):
+                            content = json.dumps(content)
+                        
                         self.memory.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": tool_call.function.name,
-                            "content": tool_response['text']
+                            "content": content
                         })
+                        
                         if tool_response.get('image'):
                             self.memory.append({
                                 "role": "user",
@@ -168,7 +195,23 @@ class VerifierAgent:
                                     {"type": "image_url", "image_url": {"url": self.prompt_builder._get_image_base64(tool_response['image'])}}
                                 ]
                             })
+                    
+                    # Continue verification after tool calls
+                    continue_response = self.client.chat.completions.create(
+                        model=self.vision_model,
+                        messages=self.memory
+                    )
+                    continue_message = continue_response.choices[0].message
+                    self.memory.append({"role": "assistant", "content": continue_message.content})
+                    
+                    # Check if verification is complete
+                    if "OK" in continue_message.content and "Code Localization" not in continue_message.content:
+                        result = {"status": "end", "output": continue_message.content}
+                    else:
+                        result = {"status": "continue", "output": continue_message.content}
+                    break
                 else:
+                    # No tool calls, check if verification is complete
                     if "OK" in message.content and "Code Localization" not in message.content:
                         result = {"status": "end", "output": message.content}
                     else:

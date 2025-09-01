@@ -147,6 +147,13 @@ class Investigator3D:
         try:
             bpy.ops.wm.save_mainfile(filepath=self.blender_path)
             print(f"Blender file saved to: {self.blender_path}")
+            
+            # 清理备份文件以避免生成 .blend1 文件
+            backup_file = self.blender_path + "1"
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+                print(f"Removed backup file: {backup_file}")
+                
         except Exception as e:
             print(f"Warning: Failed to save blender file: {e}")
 
@@ -372,8 +379,10 @@ class Executor:
             "--python", self.blender_script,
             "--", script_path, render_path
         ]
-        if self.blend_path:
-            cmd.append(self.blend_path)
+        # with open('cmd.txt', 'w') as f:
+        #     f.write(" ".join(cmd))
+        # # if self.blend_path:
+        # #     cmd.append(self.blend_path)
         cmd_str = " ".join(cmd)
         try:
             proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True)
@@ -540,6 +549,13 @@ def add_meshy_asset(
         try:
             bpy.ops.wm.save_mainfile(filepath=blender_path)
             print(f"Blender file saved to: {blender_path}")
+            
+            # 清理备份文件以避免生成 .blend1 文件
+            backup_file = blender_path + "1"
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+                print(f"Removed backup file: {backup_file}")
+                
         except Exception as save_error:
             print(f"Warning: Failed to save blender file: {save_error}")
 
