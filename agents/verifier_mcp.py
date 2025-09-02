@@ -206,7 +206,7 @@ class VerifierAgent:
         
     def _get_tools(self) -> List[Dict]:
         """Get available tools for the verifier agent."""
-        return ToolManager.get_verifier_tools(self.mode)
+        return ToolManager.get_verifier_tools(self.mode, self.task_name)
         
     async def _handle_tool_call(self, tool_call) -> Dict[str, Any]:
         """Handle tool calls from the verifier agent."""
