@@ -65,7 +65,7 @@ class VerifierAgent:
         elif mode == "autopresent":
             self.memory = self.prompt_builder.build_autopresent_verifier_prompt(mode, target_description)
         elif mode == "blendergym-hard":
-            self.memory = self.prompt_builder.build_blendergym_hard_verifier_prompt(mode, task_name, target_image_path, blender_file_path)
+            self.memory = self.prompt_builder.build_blendergym_hard_verifier_prompt(mode, task_name, target_image_path, blender_file_path, target_description)
         else:
             raise NotImplementedError("Mode not implemented")
         
@@ -84,11 +84,11 @@ class VerifierAgent:
             return result
         elif self.server_type == "scene":
             # Initialize scene investigator
-            blender_path = kwargs.get("blender_path", None)
+            blender_file = kwargs.get("blender_file", None)
             save_dir = kwargs.get("save_dir", None)
             result = await self.tool_client.call_tool("scene", "initialize_investigator", {
                 "thoughtprocess_save": save_dir,
-                "blender_path": blender_path,
+                "blender_path": blender_file,
             })
             return result
         return {"status": "success", "message": "No executor setup needed for this mode."}
@@ -240,7 +240,7 @@ def main():
         target_description: Optional[str] = None,
         image_server_path: Optional[str] = None,
         scene_server_path: Optional[str] = None,
-        blender_save: Optional[str] = None, # The new file, we cover it each verification step
+        blender_file: Optional[str] = None,
         api_base_url: Optional[str] = None,
     ) -> dict:
         
@@ -257,7 +257,7 @@ def main():
                 image_server_path=image_server_path,
                 scene_server_path=scene_server_path,
                 api_base_url=api_base_url,
-                blender_file_path=blender_save
+                blender_file_path=blender_file
             )
             agent_holder['agent'] = agent
             # Initialize server executor
@@ -266,7 +266,7 @@ def main():
                 if setup_result.get("status") != "success":
                     return {"status": "error", "error": f"Image server setup failed: {setup_result.get('error', setup_result)}"}
             elif mode == "blendergym-hard":
-                setup_result = await agent.setup_executor(blender_path=blender_save, save_dir=thought_save)
+                setup_result = await agent.setup_executor(blender_file=blender_file, save_dir=thought_save)
                 if setup_result.get("status") != "success":
                     return {"status": "error", "error": f"Scene server setup failed: {setup_result.get('error', setup_result)}"}
             await agent._ensure_tools_connected()

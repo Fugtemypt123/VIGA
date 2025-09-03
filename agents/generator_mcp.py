@@ -77,7 +77,7 @@ class GeneratorAgent:
         elif mode == "autopresent":
             self.memory = self.prompt_builder.build_autopresent_generator_prompt(mode, init_code_path, init_image_path, target_description)
         elif mode == "blendergym-hard":
-            self.memory = self.prompt_builder.build_blendergym_hard_generator_prompt(mode, task_name, init_code_path, init_image_path, target_image_path, blender_file_path)
+            self.memory = self.prompt_builder.build_blendergym_hard_generator_prompt(mode, task_name, init_code_path, init_image_path, target_image_path, blender_file_path, target_description)
         else:
             raise NotImplementedError("Mode not implemented")
     
@@ -91,21 +91,21 @@ class GeneratorAgent:
         result = await self.tool_client.initialize_executor(self.server_type, **kwargs)
         
         # Store blender file path for Meshy asset generation
-        if self.server_type == "blender" and "blender_file" in kwargs:
-            self.blender_file_path = kwargs["blender_file"]
-            # Update tool handler with blender file path
-            self.tool_handler.blender_file_path = self.blender_file_path
+        # if self.server_type == "blender" and "blender_file" in kwargs:
+        #     self.blender_file_path = kwargs["blender_file"]
+        #     # Update tool handler with blender file path
+        #     self.tool_handler.blender_file_path = self.blender_file_path
             
-            # Initialize investigator for blendergym-hard
-            if self.mode == "blendergym-hard":
-                try:
-                    investigator_result = await self.tool_client.call_tool("blender", "initialize_investigator", {"blender_path": kwargs["blender_file"]})
-                    if investigator_result.get("status") == "success":
-                        logging.info("Investigator initialized successfully")
-                    else:
-                        logging.warning(f"Investigator initialization failed: {investigator_result.get('error')}")
-                except Exception as e:
-                    logging.warning(f"Failed to initialize investigator: {e}")
+        #     # Initialize investigator for blendergym-hard
+        #     if self.mode == "blendergym-hard":
+        #         try:
+        #             investigator_result = await self.tool_client.call_tool("blender", "initialize_investigator", {"blender_path": kwargs["blender_file"]})
+        #             if investigator_result.get("status") == "success":
+        #                 logging.info("Investigator initialized successfully")
+        #             else:
+        #                 logging.warning(f"Investigator initialization failed: {investigator_result.get('error')}")
+        #         except Exception as e:
+        #             logging.warning(f"Failed to initialize investigator: {e}")
         
         return result
     
@@ -131,8 +131,8 @@ class GeneratorAgent:
             self.memory.append({"role": "user", "content": feedback})
         
         try:
-            # Check if we need to use tools
-            use_tools = self.mode == "blendergym-hard" and self._server_connected
+            # We do not use tools for code generation test
+            use_tools = False # self.mode == "blendergym-hard" and self._server_connected
             
             if use_tools:
                 # Get available tools

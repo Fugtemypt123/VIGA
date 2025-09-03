@@ -14,63 +14,6 @@ class PromptBuilder:
         self.client = client
         self.model = model
     
-    def get_scene_info(self, blender_file_path: str) -> str:
-        """
-        Get scene information from Blender file by executing a script to list all objects.
-        
-        Args:
-            blender_file_path: Path to the Blender file
-            
-        Returns:
-            String containing scene information with object names
-        """
-        try:
-            import bpy
-            
-            # Clear existing scene
-            bpy.ops.object.select_all(action='SELECT')
-            bpy.ops.object.delete(use_global=False)
-            
-            # Open the blender file
-            bpy.ops.wm.open_mainfile(filepath=blender_file_path)
-            
-            # Get scene information
-            scene_info = []
-            scene_info.append("Scene Information:")
-            scene_info.append(f"Scene name: {bpy.context.scene.name}")
-            # scene_info.append(f"Collection count: {len(bpy.data.collections)}")
-            
-            # List all objects in the scene
-            scene_info.append("\nObjects in scene:")
-            for obj in bpy.context.scene.objects:
-                obj_name = obj.name
-                scene_info.append(f"- Name: {obj_name}")
-            
-            # # List collections
-            # scene_info.append("\nCollections:")
-            # for collection in bpy.data.collections:
-            #     scene_info.append(f"- {collection.name}: {len(collection.objects)} objects")
-            #     for obj in collection.objects:
-            #         scene_info.append(f"  - {obj.name} ({obj.type})")
-            
-            # # List materials
-            # scene_info.append("\nMaterials:")
-            # for material in bpy.data.materials:
-            #     scene_info.append(f"- {material.name}")
-            
-            # # List meshes
-            # scene_info.append("\nMeshes:")
-            # for mesh in bpy.data.meshes:
-            #     scene_info.append(f"- {mesh.name}: {len(mesh.vertices)} vertices, {len(mesh.polygons)} faces")
-            
-            return "\n".join(scene_info)
-            
-        except ImportError:
-            # If bpy is not available, return a placeholder message
-            return "Scene information not available (Blender Python API not accessible)"
-        except Exception as e:
-            return f"Error getting scene information: {str(e)}"
-    
     def _get_image_base64(self, image_path: str) -> str:
         """Return a full data URL for the image, preserving original jpg/png format."""
         image = Image.open(image_path)
@@ -123,7 +66,8 @@ class PromptBuilder:
                                              init_code_path: str = None, 
                                              init_image_path: str = None, 
                                              target_image_path: str = None,
-                                             blender_file_path: str = None) -> List[Dict]:
+                                             blender_file_path: str = None,
+                                             target_description: str = None) -> List[Dict]:
         """Build the system prompt for the generator for blendergym-hard mode."""
         level = task_name.split('-')[0]
         idx = int(task_name.split('-')[1])
@@ -133,14 +77,14 @@ class PromptBuilder:
         full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['generator'][level]})
         user_content = []
         
+        # Add initial code
+        init_code = open(init_code_path, 'r').read()
+        user_content.append({"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"})
+        
         # Add scene information if blender file path is provided
         if blender_file_path and os.path.exists(blender_file_path):
-            scene_info = self.get_scene_info(blender_file_path)
+            scene_info = target_description
             user_content.append({"type": "text", "text": f"Scene Information:\n{scene_info}"})
-        # Add initial code (except level-1)
-        if level != 'level1':
-            init_code = open(init_code_path, 'r').read()
-            user_content = [{"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"}]
         
         # Add initial images
         init_image_path = os.path.join(init_image_path, 'render1.png')
@@ -280,7 +224,8 @@ class PromptBuilder:
                                             mode: str,
                                             task_name: str,
                                             target_image_path: str,
-                                            blender_file_path: str) -> List[Dict]:
+                                            blender_file_path: str,
+                                            target_description: str) -> List[Dict]:
         """Build the system prompt for the verifier for blendergym-hard mode."""
         level = task_name.split('-')[0]
         idx = int(task_name.split('-')[1])
@@ -290,7 +235,7 @@ class PromptBuilder:
         user_content = []
         # Add scene information if blender file path is provided
         if blender_file_path and os.path.exists(blender_file_path):
-            scene_info = self.get_scene_info(blender_file_path)
+            scene_info = target_description
             user_content.append({"type": "text", "text": f"Scene Information:\n{scene_info}"})
         # Add target image/description
         if level == 'level1':

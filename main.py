@@ -349,9 +349,11 @@ async def main():
     os.makedirs(args.output_dir, exist_ok=True)
     
     # Prepare target description
-    if args.target_description:
+    if os.path.exists(args.target_description):
         with open(args.target_description, 'r') as f:
             target_description = f.read().strip()
+    elif args.target_description:
+        target_description = args.target_description
     else:
         target_description = None
 
@@ -423,7 +425,7 @@ async def main():
             verifier_params.update({
                 "image_server_path": None,
                 "scene_server_path": args.scene_server_path, 
-                "blender_save": args.output_dir + "/blender_file.blend"
+                "blender_file": args.blender_file,
             })
         else:
             raise NotImplementedError("Mode not implemented")

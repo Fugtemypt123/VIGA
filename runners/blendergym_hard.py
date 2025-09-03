@@ -17,6 +17,52 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+def get_scene_info(blender_file_path: str) -> str:
+    """
+    Get scene information from Blender file by executing a script to list all objects.
+    
+    Args:
+        blender_file_path: Path to the Blender file
+        
+    Returns:
+        String containing scene information with object names
+    """
+    try:
+        import bpy
+        
+        # Clear existing scene
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.delete(use_global=False)
+        
+        # Open the blender file (no saving; read-only introspection)
+        bpy.ops.wm.open_mainfile(filepath=blender_file_path)
+        
+        # Get scene information
+        scene_info = []
+        
+        # List all objects in the scene
+        scene_info.append("Objects in scene:")
+        for obj in bpy.context.scene.objects:
+            obj_name = obj.name
+            if 'Camera' in obj_name:
+                continue
+            scene_info.append(f"- Name: {obj_name}; Location: {obj.location}")
+        
+        return "\n".join(scene_info)
+        
+    except ImportError:
+        # If bpy is not available, return a placeholder message
+        return "Scene information not available (Blender Python API not accessible)"
+    except Exception as e:
+        return f"Error getting scene information: {str(e)}"
+    finally:
+        # Ensure we do not leave a file open in Blender. Reset to factory settings silently.
+        try:
+            bpy.ops.wm.read_factory_settings(use_empty=True)
+        except Exception:
+            # Suppress any cleanup errors to avoid shutdown issues
+            pass
+
 def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     """
     Check for failed tasks in a test output directory.
@@ -152,6 +198,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[st
             "init_image_path": str(start_renders_dir),
             "target_image_path": str(goal_renders_dir),
             "blender_file": str(blender_file),
+            "target_description": get_scene_info(str(blender_file)),
         }
         tasks.append(task_config)
         print(f"Found task: {task_name}")
@@ -196,6 +243,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         "--init-code-path", str(task_config["init_code_path"]),
         "--init-image-path", str(task_config["init_image_path"]),
         "--target-image-path", str(task_config["target_image_path"]),
+        "--target-description", str(task_config["target_description"]),
         "--output-dir", str(output_base),
         # Agent server paths
         "--generator-script", args.generator_script,
@@ -307,8 +355,7 @@ def main():
     # Blender parameters
     parser.add_argument("--blender-server-path", default="servers/generator/blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
-    parser.add_argument("--blender-script", default="data/blendergym_hard/pipeline_render_script.py", help="Blender execution script")
-    parser.add_argument("--save-blender-file", default=True, action="store_true", help="Save blender file")
+    parser.add_argument("--save-blender-file", default=False, action="store_true", help="Save blender file")
     
     # Tool server paths
     parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
