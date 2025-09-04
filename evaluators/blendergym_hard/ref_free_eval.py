@@ -57,6 +57,22 @@ First, respond with a score; Then, provide your justification for the score in n
 Only evaluate the image based on the specified criteria, and no other aspects. Give scores across the full spectrum (0-5) instead of only good ones (3-5).
 """
 
+
+def _extract_round1_avg(instance_data: dict) -> float:
+    """Return round1 average score from one instance's details, or 0 if missing."""
+    if not isinstance(instance_data, dict):
+        return 0.0
+    r1 = instance_data.get("1")
+    if not isinstance(r1, dict):
+        return 0.0
+    # Prefer direct average if present
+    if isinstance(r1.get("average_score"), (int, float)):
+        return float(r1["average_score"])
+    # Fallback to round_average if present
+    if isinstance(r1.get("round_average"), (int, float)):
+        return float(r1["round_average"])
+    return 0.0
+
 def encode_image(image_path):
     """Encode image to base64 for GPT API."""
     with open(image_path, 'rb') as image_file:
@@ -320,6 +336,11 @@ def main():
     
     scores_across_tasks = {}
     intermediates = {}
+    # For round1 statistics across all instances
+    round1_scores_by_instance = {}
+    # Track per-level Round1 aggregates
+    level_round1_sums = {}
+    level_round1_counts = {}
     
     for task_type, task_instances in tasks_by_type.items():
         print(f"\nProcessing task type: {task_type}")
@@ -369,6 +390,14 @@ def main():
             scores_across_tasks[task_type] = {}
 
         intermediates[task_type] = scores_across_instances
+        # Collect round1 averages for this task type
+        for instance_key, instance_detail in scores_across_instances['instance_details'].items():
+            r1 = _extract_round1_avg(instance_detail)
+            round1_scores_by_instance[instance_key] = r1
+            # Level is the first segment before '/'
+            level = instance_key.split('/')[0] if isinstance(instance_key, str) else "unknown"
+            level_round1_sums[level] = level_round1_sums.get(level, 0.0) + r1
+            level_round1_counts[level] = level_round1_counts.get(level, 0) + 1
     
     # Save overall results
     overall_scores_path = os.path.join(eval_output_dir, 'reference_free_overall_scores.json')
@@ -378,6 +407,23 @@ def main():
     intermediate_scores_path = os.path.join(eval_output_dir, 'reference_free_intermediate_scores.json')
     with open(intermediate_scores_path, 'w') as f:
         json.dump(intermediates, f, indent=4)
+
+    # Save and print round1 statistics
+    round1_stats_path = os.path.join(eval_output_dir, 'round1_scores_summary.json')
+    try:
+        # Compute per-level averages
+        level_avgs = {}
+        for level, s in level_round1_sums.items():
+            cnt = level_round1_counts.get(level, 0)
+            level_avgs[level] = (s / cnt) if cnt else 0.0
+        round1_payload = {
+            'per_instance_round1': round1_scores_by_instance,
+            'per_level_average_round1': level_avgs
+        }
+        with open(round1_stats_path, 'w') as f:
+            json.dump(round1_payload, f, indent=4)
+    except Exception as e:
+        print(f"Error saving round1 stats: {e}")
     
     # Print summary
     print(f"\n=== Reference-Free Evaluation Summary ===")
@@ -385,6 +431,19 @@ def main():
     print(f"Output directory: {eval_output_dir}")
     print(f"Results saved to: {overall_scores_path}")
     print(f"GPT Model used: {args.model_name}")
+    # Print round1 summary
+    try:
+        print("\nRound1 average scores (per instance):")
+        for inst, sc in sorted(round1_scores_by_instance.items()):
+            print(f"  {inst}: {sc}")
+        print("\nRound1 average scores (per level):")
+        for level in sorted(level_round1_sums.keys()):
+            cnt = level_round1_counts.get(level, 0)
+            avg = (level_round1_sums[level] / cnt) if cnt else 0.0
+            print(f"  {level}: {avg:.4f}")
+        print(f"Round1 stats saved to: {round1_stats_path}")
+    except Exception:
+        pass
     
     for task_type, scores in scores_across_tasks.items():
         if scores:
