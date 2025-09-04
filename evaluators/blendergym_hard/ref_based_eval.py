@@ -18,11 +18,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Task instance counts for different task types
 TASK_INSTANCE_COUNT_DICT = {
-    'geometry': 45,
-    'material': 40,
-    'blendshape': 75,
-    'placement': 40,
-    'lighting': 40
+    'level1': 9,
+    'level2': 9,
+    'level3': 9,
+    'level4': 3
 }
 
 # Global CLIP model/processor to share across threads
@@ -205,10 +204,12 @@ def extract_task_type_and_number(task_dir_name):
     Returns:
         tuple: (task_type, task_number) or (None, None) if invalid
     """
+    level_dir_name = task_dir_name.split("/")[0]
+    task_name = task_dir_name.split("/")[1]
     for task_type in TASK_INSTANCE_COUNT_DICT.keys():
-        if task_dir_name.startswith(task_type):
+        if level_dir_name == task_type:
             try:
-                task_number = int(task_dir_name[len(task_type):])
+                task_number = int(task_name[-1])
                 return task_type, task_number
             except ValueError:
                 continue
@@ -243,8 +244,12 @@ def main():
     os.makedirs(eval_output_dir, exist_ok=True)
     
     # Get all task directories
-    task_dirs = [d for d in os.listdir(output_base_dir) 
-                if os.path.isdir(os.path.join(output_base_dir, d)) and d != "evaluation"]
+    task_dirs = []
+    for level_dir in os.listdir(output_base_dir):
+        if os.path.isdir(os.path.join(output_base_dir, level_dir)) and level_dir != "_evaluation":
+            for task_dir in os.listdir(os.path.join(output_base_dir, level_dir)):
+                if os.path.isdir(os.path.join(output_base_dir, level_dir, task_dir)):
+                    task_dirs.append(os.path.join(level_dir, task_dir))
     
     print(f"Found {len(task_dirs)} task directories in {output_base_dir}")
     
