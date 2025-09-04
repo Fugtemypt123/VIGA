@@ -114,7 +114,7 @@ def process_task_instance(output_base_dir: str, task_dir: str):
     if not os.path.exists(renders_dir):
         return task_dir, {}, None, None
 
-    gt_renders_dir = f"data/blendergym/{task_dir}/renders/goal"
+    gt_renders_dir = f"data/blendergym_hard/{task_dir}/renders/goal"
     if not os.path.exists(gt_renders_dir):
         return task_dir, {}, None, None
 
@@ -215,10 +215,10 @@ def extract_task_type_and_number(task_dir_name):
     return None, None
 
 def main():
-    parser = argparse.ArgumentParser(description='Evaluate AgenticVerifier blendergym results')
+    parser = argparse.ArgumentParser(description='Evaluate AgenticVerifier blendergym-hard results')
     parser.add_argument('test_id', type=str, help='Test ID (e.g., 20250815_150016)')
     parser.add_argument('--output_dir', type=str, default=None, 
-                       help='Output directory for evaluation results (default: output/blendergym/{test_id}/)_evaluation)')
+                       help='Output directory for evaluation results (default: output/blendergym_hard/{test_id}/)_evaluation)')
     parser.add_argument('--missing_round_penalty_max', type=float, default=2.0,
                         help='Max penalty factor for earliest rounds.')
     parser.add_argument('--missing_round_penalty_min', type=float, default=1.0,
@@ -231,7 +231,7 @@ def main():
     MAX_ROUNDS = 10
     
     # Set up paths
-    output_base_dir = f"output/blendergym/{test_id}"
+    output_base_dir = f"output/blendergym_hard/{test_id}"
     if not os.path.exists(output_base_dir):
         raise ValueError(f"Output directory {output_base_dir} does not exist.")
     

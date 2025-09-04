@@ -156,7 +156,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[st
         return tasks
     
     if task_name == 'all':
-        task_list = ['level1', 'level2', 'level3']
+        task_list = ['level1', 'level2']
     else:
         task_list = [task_name]
         
@@ -428,8 +428,6 @@ def main():
     # Save task list for reference
     with open(os.path.join(args.output_dir, "tasks.json"), "w") as f:
         json.dump(tasks, f, indent=2)
-        
-    tasks = tasks[:1]
 
     # Run tasks
     start_time = time.time()
