@@ -156,7 +156,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, task_id: Optional[st
         return tasks
     
     if task_name == 'all':
-        task_list = ['level1', 'level2']
+        task_list = ['level1', 'level2', 'level3']
     else:
         task_list = [task_name]
         
