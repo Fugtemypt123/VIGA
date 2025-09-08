@@ -27,18 +27,10 @@ class HTMLExecutor:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.browser_command = browser_command
-        self.temp_dir = None
         
-    def _setup_temp_dir(self):
-        """Setup temporary directory for HTML files."""
-        if self.temp_dir is None:
-            self.temp_dir = tempfile.mkdtemp(prefix="design2code_")
-        return self.temp_dir
-    
     def _save_html_file(self, html_code: str, filename: str = "index.html") -> str:
         """Save HTML code to a temporary file."""
-        temp_dir = self._setup_temp_dir()
-        html_path = os.path.join(temp_dir, filename)
+        html_path = os.path.join(self.output_dir, filename)
         
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html_code)
@@ -142,16 +134,6 @@ class HTMLExecutor:
                 "status": "error",
                 "error": str(e)
             }
-    
-    def cleanup(self):
-        """Clean up temporary files."""
-        if self.temp_dir and os.path.exists(self.temp_dir):
-            import shutil
-            try:
-                shutil.rmtree(self.temp_dir)
-                logging.info(f"Cleaned up temp directory: {self.temp_dir}")
-            except Exception as e:
-                logging.warning(f"Failed to cleanup temp directory: {e}")
 
 @mcp.tool()
 def initialize_executor(output_dir: str, browser_command: str = "google-chrome") -> dict:
@@ -200,7 +182,6 @@ def cleanup_executor() -> dict:
     global _executor
     try:
         if _executor:
-            _executor.cleanup()
             _executor = None
         return {"status": "success", "message": "HTML executor cleaned up"}
     except Exception as e:
