@@ -216,8 +216,6 @@ def main():
         sys.exit(1)
 
     print(f"Found {len(tasks)} cases")
-    
-    tasks = tasks[:1]
 
     start_time = time.time()
 
