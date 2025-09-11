@@ -19,6 +19,8 @@ import threading
 
 notice_assets = {
     'level4-1': ['clock', 'fireplace', 'lounge area', 'snowman', 'christmas_tree', 'box_inside', 'box_outside', 'tree_decoration_inside', 'tree_decoration_outside', 'bell'],
+    'level4-2': [],
+    'level4-3': [],
 }
 
 def get_scene_info(task_name: str, blender_file_path: str) -> str:
@@ -53,6 +55,9 @@ def get_scene_info(task_name: str, blender_file_path: str) -> str:
             if task_name in notice_assets and obj_name not in notice_assets[task_name]:
                 continue
             scene_info.append(f"- Name: {obj_name}; Location: {obj.location}")
+            
+        if len(scene_info) == 1:
+            scene_info.append("All the information are provided in the code.")
         
         return "\n".join(scene_info)
         
@@ -258,7 +263,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         "--blender-server-path", args.blender_server_path,
         "--blender-command", args.blender_command,
         "--blender-file", str(output_base / "blender_file.blend"),
-        "--blender-script", f'data/blendergym_hard/{level}/pipeline_render_script.py',
+        "--blender-script", f'data/blendergym_hard/{task_name}/pipeline_render_script.py',
         # Tool server paths (for verifier)
         "--image-server-path", args.image_server_path,
         "--scene-server-path", args.scene_server_path,
@@ -361,7 +366,7 @@ def main():
     # Blender parameters
     parser.add_argument("--blender-server-path", default="servers/generator/blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
-    parser.add_argument("--save-blender-file", default=False, action="store_true", help="Save blender file")
+    parser.add_argument("--save-blender-file", default=True, action="store_true", help="Save blender file")
     
     # Tool server paths
     parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
