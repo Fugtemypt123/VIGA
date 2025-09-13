@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import argparse
+from openai import OpenAI
 from typing import List, Dict, Any, Optional
 from .init import initialize_3d_scene_from_image, load_scene_info, update_scene_info
 from .asset import AssetGenerator
@@ -10,20 +11,28 @@ from .asset import AssetGenerator
 class SceneReconstructionDemo:
     """Scene Reconstruction Demo Class"""
     
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, model: str = "gpt-5", base_url: str = None):
         """
         Initialize demo class
         
         Args:
             api_key: Meshy API key (optional, defaults to environment variable)
         """
-        self.api_key = api_key or os.getenv("MESHY_API_KEY")
-        if not self.api_key:
+        self.openai_api_key = api_key
+        self.meshy_api_key = os.getenv("MESHY_API_KEY")
+        self.model = model
+        if not self.openai_api_key:
+            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass api_key parameter.")
+        if not self.meshy_api_key:
             raise ValueError("Meshy API key is required. Set MESHY_API_KEY environment variable or pass api_key parameter.")
         
+        kwargs = {'api_key': self.openai_api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        self.client = OpenAI(**kwargs)
         self.current_scene = None
         self.asset_generator = None
-        self.max_iterations = 10  # Maximum number of iterations
+        self.max_iterations = 20  # Maximum number of iterations
         self.completed_objects = []  # List of completed objects
     
     def ask_vlm_for_missing_objects(self, current_scene_info: Dict[str, Any], target_image_path: str) -> List[str]:
@@ -37,48 +46,23 @@ class SceneReconstructionDemo:
         Returns:
             List[str]: List of missing object names
         """
-        try:
-            # This should call VLM API to analyze current scene and target image
-            # Now using simple simulation logic first
-            
-            print(f"[VLM Analysis] Analyzing scene vs target image...")
-            print(f"  - Current scene objects: {len(current_scene_info.get('objects', []))}")
-            print(f"  - Target image: {target_image_path}")
-            
-            # Simulate VLM analysis results
-            # In actual implementation, you need to:
-            # 1. Use VLM to analyze target image and identify objects in it
-            # 2. Use VLM to analyze current scene and identify existing objects
-            # 3. Compare the two to find missing objects
-            
-            # Simple simulation logic: assume common objects in target image
-            target_objects = [
-                "chair", "table", "lamp", "sofa", "bookshelf", 
-                "coffee_table", "bed", "desk", "television", "plant"
+        system_prompt = """You are a 3D scene expert. Now I will give you a picture and a list of objects I already have. Please find an object in the picture that does not appear in the list I have. You only need to output an object name, such as 'object: christmas tree'"""
+
+        vlm_response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": [{"type": "image_url", "image_url": {"url": target_image_path}}, {"type": "text", "text": f"Objects I already have: {current_scene_info.get('objects', [])}"}]}
             ]
-            
-            # Get existing objects in current scene
-            current_objects = [obj.get("name", "").lower() for obj in current_scene_info.get("objects", [])]
-            current_objects.extend(self.completed_objects)
-            
-            # Find missing objects
-            missing_objects = []
-            for obj in target_objects:
-                if obj not in current_objects and obj not in self.completed_objects:
-                    missing_objects.append(obj)
-            
-            # Limit to maximum 3 objects per iteration to avoid generating too many at once
-            missing_objects = missing_objects[:3]
-            
-            print(f"[VLM Analysis] Found {len(missing_objects)} missing objects: {missing_objects}")
-            
-            return missing_objects
-            
-        except Exception as e:
-            logging.error(f"Failed to analyze missing objects: {e}")
-            return []
+        )
+        vlm_response = vlm_response.choices[0].message.content
+        if 'object:' in vlm_response:
+            vlm_response = vlm_response.split('object:')[1].strip()
+        else:
+            raise ValueError("VLM response is not a valid object name")
+        return vlm_response
     
-    def run_reconstruction_loop(self, target_image_path: str, output_dir: str = "output/demo/reconstruction") -> Dict[str, Any]:
+    def run_reconstruction_loop(self, target_image_path: str, output_dir: str = "output/demo") -> Dict[str, Any]:
         """
         Run scene reconstruction loop
         
@@ -98,7 +82,7 @@ class SceneReconstructionDemo:
             
             # Step 1: Initialize 3D scene
             print("\n📋 Step 1: Initializing 3D scene...")
-            scene_init_result = initialize_3d_scene_from_image(target_image_path, output_dir)
+            scene_init_result = initialize_3d_scene_from_image(client=self.client, model=self.model, target_image_path=target_image_path, output_dir=output_dir)
             
             if scene_init_result.get("status") != "success":
                 return {
@@ -109,7 +93,8 @@ class SceneReconstructionDemo:
             self.current_scene = scene_init_result
             self.asset_generator = AssetGenerator(
                 blender_path=scene_init_result["blender_file_path"],
-                api_key=self.api_key
+                client=self.client,
+                model=self.model
             )
             
             print(f"✓ Scene initialized: {scene_init_result['scene_name']}")
@@ -147,8 +132,6 @@ class SceneReconstructionDemo:
                     asset_result = self.asset_generator.generate_both_assets(
                         object_name=obj_name,
                         image_path=target_image_path,  # Use target image as reference
-                        location=f"{len(self.completed_objects) * 2},0,0",  # Avoid overlap
-                        scale=1.0
                     )
                     
                     # Display result summary
@@ -219,6 +202,7 @@ class SceneReconstructionDemo:
             
             # This will call scene editing functionality in main.py in the future
             # Now return placeholder result first
+            # TODO TODO TODO
             
             return {
                 "status": "placeholder",
@@ -234,7 +218,7 @@ class SceneReconstructionDemo:
                 "error": str(e)
             }
 
-def run_demo(target_image_path: str, api_key: str = None, output_dir: str = "output/demo/") -> Dict[str, Any]:
+def run_demo(target_image_path: str, model: str = "gpt-5-2025-08-07", base_url: str = None, api_key: str = None, output_dir: str = "output/demo/") -> Dict[str, Any]:
     """
     Run scene reconstruction demo
     
@@ -255,7 +239,7 @@ def run_demo(target_image_path: str, api_key: str = None, output_dir: str = "out
             }
         
         # Create demo instance and run
-        demo = SceneReconstructionDemo(api_key=api_key)
+        demo = SceneReconstructionDemo(api_key=api_key, model=model, base_url=base_url)
         result = demo.run_reconstruction_loop(target_image_path, output_dir)
         
         return result
@@ -273,6 +257,8 @@ def test_demo():
     """
     parser = argparse.ArgumentParser(description="Test demo functionality")
     parser.add_argument("--target-image-path", default="data/blendergym_hard/level4/christmas1/renders/goal/visprompt1.png", type=str, help="Target image path")
+    parser.add_argument("--model", default="gpt-5", type=str, help="OpenAI model")
+    parser.add_argument("--base-url", default=os.getenv("OPENAI_BASE_URL"), type=str, help="OpenAI base URL")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), type=str, help="OpenAI API key")
     parser.add_argument("--output-dir", default="output/demo/christmas1", type=str, help="Output directory")
     args = parser.parse_args()
@@ -284,7 +270,7 @@ def test_demo():
     
     # Run demo
     try:
-        result = run_demo(target_image_path=args.target_image_path, api_key=args.api_key, output_dir=args.output_dir)
+        result = run_demo(target_image_path=args.target_image_path, model=args.model, base_url=args.base_url, api_key=args.api_key, output_dir=args.output_dir)
         print(f"\n📊 Demo Result: {result.get('status', 'unknown')}")
         
         if result.get("status") == "success":

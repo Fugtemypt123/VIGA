@@ -4,8 +4,12 @@ import json
 import time
 from pathlib import Path
 import logging
+from openai import OpenAI
+import subprocess
 
-def initialize_3d_scene_from_image(image_path: str, output_dir: str = "output/demo/scenes") -> dict:
+system_prompt = """You are a 3D scene designer. You are good at initializing the scene's background, walls, lights, and other information. Now I will give you a picture that describes the scene, and ask you to write a Blender code to initialize various scene information. Note: Be very careful when initializing your scene and camera coordinates so they match the image settings as closely as possible."""
+
+def initialize_3d_scene_from_image(client: OpenAI, model: str, image_path: str, output_dir: str = "output/demo") -> dict:
     """
     Initialize a 3D scene from an input image
     
@@ -20,53 +24,51 @@ def initialize_3d_scene_from_image(image_path: str, output_dir: str = "output/de
         # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
         
-        # Create new Blender scene
-        bpy.ops.wm.read_homefile(app_template="")
-        
         # Generate scene filename
         timestamp = int(time.time())
         image_name = Path(image_path).stem
         scene_name = f"scene_{image_name}_{timestamp}"
         blender_file_path = os.path.join(output_dir, f"{scene_name}.blend")
         
-        # Set basic scene parameters
-        scene = bpy.context.scene
-        scene.render.resolution_x = 1024
-        scene.render.resolution_y = 1024
-        scene.render.engine = 'CYCLES'
-        
-        # Create basic camera
-        bpy.ops.object.camera_add(location=(5, -5, 3))
-        camera = bpy.context.active_object
-        camera.name = "Camera1"
-        camera.rotation_euler = (1.1, 0, 0.785)
-        scene.camera = camera
-        
-        # Create basic lighting
-        bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
-        sun_light = bpy.context.active_object
-        sun_light.name = "Sun"
-        sun_light.data.energy = 3.0
-        
-        # Add ambient light
-        bpy.ops.object.light_add(type='AREA', location=(-5, -5, 5))
-        area_light = bpy.context.active_object
-        area_light.name = "AreaLight"
-        area_light.data.energy = 2.0
-        area_light.data.size = 10
-        
-        # Create a simple plane as ground
-        bpy.ops.mesh.primitive_plane_add(size=20, location=(0, 0, 0))
-        ground = bpy.context.active_object
-        ground.name = "Ground"
-        
-        # Save initial scene
+        # Create new Blender scene
+        bpy.ops.wm.read_homefile(app_template="")
         bpy.ops.wm.save_mainfile(filepath=blender_file_path)
+        
+        # Generate init code
+        code_response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": [
+                    {"type": "text", "text": 'Initial Image:'},
+                    {"type": "image_url", "image_url": {"url": image_path}}
+                ]}
+            ]
+        )
+        
+        # parse init code
+        init_code = code_response.choices[0].message.content
+        if '```python' in init_code:
+            init_code = init_code.split('```python')[1].split('```')[0].strip()
+            code_path = os.path.join(output_dir, f"{scene_name}.py")
+            with open(code_path, 'w', encoding='utf-8') as f:
+                f.write(init_code)
+        else:
+            raise ValueError("Init code is not a valid Python code")
+        
+        # execute init_code
+        cmd = [
+            'utils/blender/infinigen/blender/blender',
+            "--background", blender_file_path,
+            "--python", code_path
+        ]
+        subprocess.run(cmd, check=True)
         
         # Create scene info file
         scene_info = {
             "scene_name": scene_name,
             "blender_file_path": blender_file_path,
+            "code_path": code_path,
             "source_image": image_path,
             "created_at": timestamp,
             "objects": [],
@@ -88,7 +90,7 @@ def initialize_3d_scene_from_image(image_path: str, output_dir: str = "output/de
             "scene_name": scene_name,
             "blender_file_path": blender_file_path,
             "scene_info_path": info_file_path,
-            "scene_info": scene_info
+            "code_path": code_path,
         }
         
     except Exception as e:
