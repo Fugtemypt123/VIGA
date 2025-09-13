@@ -5,15 +5,15 @@ from typing import Optional, Dict, Any
 from .meshy import add_meshy_asset, add_meshy_asset_from_image
 
 class AssetGenerator:
-    """3D资产生成器，支持从文本和图片生成资产"""
+    """3D Asset Generator, supports generating assets from text and images"""
     
     def __init__(self, blender_path: str, api_key: str = None):
         """
-        初始化资产生成器
+        Initialize asset generator
         
         Args:
-            blender_path: Blender文件路径
-            api_key: Meshy API密钥（可选，默认从环境变量读取）
+            blender_path: Blender file path
+            api_key: Meshy API key (optional, defaults to environment variable)
         """
         self.blender_path = blender_path
         self.api_key = api_key or os.getenv("MESHY_API_KEY")
@@ -22,20 +22,20 @@ class AssetGenerator:
     
     def ask_vlm_for_object_description(self, object_name: str, context_image_path: str = None) -> str:
         """
-        询问VLM获取物体的详细文本描述
+        Ask VLM for detailed text description of the object
         
         Args:
-            object_name: 物体名称
-            context_image_path: 上下文图片路径（可选）
+            object_name: Object name
+            context_image_path: Context image path (optional)
             
         Returns:
-            str: 详细的物体描述
+            str: Detailed object description
         """
         try:
-            # 这里应该调用VLM API，现在先用简单的模板
-            # 在实际实现中，你需要调用OpenAI或其他VLM服务
+            # This should call VLM API, now using simple templates first
+            # In actual implementation, you need to call OpenAI or other VLM services
             
-            # 简单的描述模板（实际应用中应该用VLM生成）
+            # Simple description templates (should use VLM generation in actual application)
             description_templates = {
                 "chair": "A comfortable wooden chair with a high backrest and armrests, suitable for dining or office use",
                 "table": "A sturdy wooden dining table with four legs and a smooth surface, perfect for family meals",
@@ -59,11 +59,11 @@ class AssetGenerator:
                 "cup": "A ceramic coffee cup with a handle, perfect for morning coffee or tea"
             }
             
-            # 如果物体名称在模板中，使用模板
+            # If object name is in templates, use template
             if object_name.lower() in description_templates:
                 return description_templates[object_name.lower()]
             
-            # 否则生成通用描述
+            # Otherwise generate generic description
             return f"A detailed 3D model of a {object_name}, with realistic textures and proper proportions"
             
         except Exception as e:
@@ -72,22 +72,22 @@ class AssetGenerator:
     
     def generate_asset_from_text(self, object_name: str, location: str = "0,0,0", scale: float = 1.0) -> Dict[str, Any]:
         """
-        从文本生成3D资产
+        Generate 3D asset from text
         
         Args:
-            object_name: 物体名称
-            location: 资产位置 "x,y,z"
-            scale: 缩放比例
+            object_name: Object name
+            location: Asset position "x,y,z"
+            scale: Scale factor
             
         Returns:
-            dict: 生成结果
+            dict: Generation result
         """
         try:
-            # 获取详细描述
+            # Get detailed description
             description = self.ask_vlm_for_object_description(object_name)
             print(f"[AssetGenerator] Generating text-to-3D asset for '{object_name}': {description}")
             
-            # 调用meshy.py中的函数
+            # Call functions in meshy.py
             result = add_meshy_asset(
                 description=description,
                 blender_path=self.blender_path,
@@ -117,23 +117,23 @@ class AssetGenerator:
     
     def generate_asset_from_image(self, object_name: str, image_path: str, location: str = "0,0,0", scale: float = 1.0) -> Dict[str, Any]:
         """
-        从图片生成3D资产
+        Generate 3D asset from image
         
         Args:
-            object_name: 物体名称
-            image_path: 输入图片路径
-            location: 资产位置 "x,y,z"
-            scale: 缩放比例
+            object_name: Object name
+            image_path: Input image path
+            location: Asset position "x,y,z"
+            scale: Scale factor
             
         Returns:
-            dict: 生成结果
+            dict: Generation result
         """
         try:
-            # 获取详细描述作为prompt
+            # Get detailed description as prompt
             description = self.ask_vlm_for_object_description(object_name)
             print(f"[AssetGenerator] Generating image-to-3D asset for '{object_name}' from image: {image_path}")
             
-            # 调用meshy.py中的函数
+            # Call functions in meshy.py
             result = add_meshy_asset_from_image(
                 image_path=image_path,
                 blender_path=self.blender_path,
@@ -165,27 +165,27 @@ class AssetGenerator:
     
     def generate_both_assets(self, object_name: str, image_path: str = None, location: str = "0,0,0", scale: float = 1.0) -> Dict[str, Any]:
         """
-        同时生成文本和图片两种3D资产
+        Generate both text and image 3D assets simultaneously
         
         Args:
-            object_name: 物体名称
-            image_path: 输入图片路径（可选）
-            location: 资产位置 "x,y,z"
-            scale: 缩放比例
+            object_name: Object name
+            image_path: Input image path (optional)
+            location: Asset position "x,y,z"
+            scale: Scale factor
             
         Returns:
-            dict: 包含两种资产生成结果
+            dict: Contains both asset generation results
         """
         try:
             print(f"[AssetGenerator] Generating both text and image assets for '{object_name}'")
             
-            # 生成文本资产
+            # Generate text asset
             text_result = self.generate_asset_from_text(object_name, location, scale)
             
-            # 生成图片资产（如果提供了图片路径）
+            # Generate image asset (if image path provided)
             image_result = None
             if image_path and os.path.exists(image_path):
-                # 为图片资产调整位置（避免重叠）
+                # Adjust position for image asset (avoid overlap)
                 image_location = f"{float(location.split(',')[0]) + 2},{location.split(',')[1]},{location.split(',')[2]}"
                 image_result = self.generate_asset_from_image(object_name, image_path, image_location, scale)
             else:
@@ -214,13 +214,13 @@ class AssetGenerator:
     
     def get_asset_summary(self, generation_result: Dict[str, Any]) -> str:
         """
-        获取资产生成结果的摘要
+        Get summary of asset generation results
         
         Args:
-            generation_result: 资产生成结果
+            generation_result: Asset generation result
             
         Returns:
-            str: 结果摘要
+            str: Result summary
         """
         try:
             object_name = generation_result.get("object_name", "Unknown")
@@ -229,7 +229,7 @@ class AssetGenerator:
             
             summary_parts = [f"Asset generation for '{object_name}':"]
             
-            # 文本资产结果
+            # Text asset result
             if text_asset.get("type") == "text_to_3d":
                 text_result = text_asset.get("result", {})
                 if text_result.get("status") == "success":
@@ -237,7 +237,7 @@ class AssetGenerator:
                 else:
                     summary_parts.append(f"  ✗ Text-to-3D: {text_result.get('error', 'Failed')}")
             
-            # 图片资产结果
+            # Image asset result
             if image_asset.get("type") == "image_to_3d":
                 if image_asset.get("status") == "skipped":
                     summary_parts.append(f"  ⏭️ Image-to-3D: {image_asset.get('message', 'Skipped')}")
