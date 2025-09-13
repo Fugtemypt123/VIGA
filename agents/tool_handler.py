@@ -131,25 +131,25 @@ class ToolHandler:
                     output = await self.tool_client.call_tool("scene", "focus", {
                         "object_name": function_args.get("object_name", "")
                     })
-                    return {'text': f"Focused camera on object: {function_args.get('object_name', '')}", 'image': output.get('image')}
+                    return {'text': f"Focused camera on object: {function_args.get('object_name', '')}", 'image': output.get('image'), 'camera_position': output.get('camera_position')}
                 elif op == 'zoom':
                     output = await self.tool_client.call_tool("scene", "zoom", {
                         "direction": function_args.get("direction", "")
                     })
-                    return {'text': f"Zoomed {function_args.get('direction', '')}", 'image': output.get('image')}
+                    return {'text': f"Zoomed {function_args.get('direction', '')}", 'image': output.get('image'), 'camera_position': output.get('camera_position')}
                 elif op == 'move':
                     output = await self.tool_client.call_tool("scene", "move", {
                         "direction": function_args.get("direction", "")
                     })
-                    return {'text': f"Moved camera {function_args.get('direction', '')}", 'image': output.get('image')}
+                    return {'text': f"Moved camera {function_args.get('direction', '')}", 'image': output.get('image'), 'camera_position': output.get('camera_position')}
                 else:
-                    return {'text': f"Unknown operation: {op}", 'image': None}
+                    return {'text': f"Unknown operation: {op}", 'image': None, 'camera_position': None}
             elif function_name == "compare_images":
                 output = await self.tool_client.call_tool("image", "compare_images", {
                     "path1": current_image_path,
                     "path2": target_image_path
                 })
-                return {'text': output.get('description', ''), 'image': None}
+                return {'text': output.get('description', ''), 'image': None, 'camera_position': None}
             elif function_name == "compare_designs":
                 output = await self.tool_client.call_tool("web", "compare_designs", {
                     "generated_path": current_image_path,
@@ -157,14 +157,14 @@ class ToolHandler:
                 })
                 if output.get("status") == "success":
                     result = output.get("result", {})
-                    return {'text': result.get('comparison', ''), 'image': None}
+                    return {'text': result.get('comparison', ''), 'image': None, 'camera_position': None}
                 else:
-                    return {'text': f"Comparison failed: {output.get('error', 'Unknown error')}", 'image': None}
+                    return {'text': f"Comparison failed: {output.get('error', 'Unknown error')}", 'image': None, 'camera_position': None}
             elif function_name == "analyze_html_structure":
                 # Extract HTML code from the current context (this would need to be passed in)
                 # For now, return a placeholder
-                return {'text': "HTML structure analysis not yet implemented", 'image': None}
+                return {'text': "HTML structure analysis not yet implemented", 'image': None, 'camera_position': None}
             else:
-                return {'text': f"Unknown tool: {function_name}", 'image': None}
+                return {'text': f"Unknown tool: {function_name}", 'image': None, 'camera_position': None}
         except Exception as e:
-            return {'text': f"Error executing tool: {str(e)}", 'image': None}
+            return {'text': f"Error executing tool: {str(e)}", 'image': None, 'camera_position': None}

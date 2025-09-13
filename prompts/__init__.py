@@ -39,7 +39,10 @@ prompts_dict = {
             'generator': blendergym_hard_generator_format_dict,
             'verifier': blendergym_hard_verifier_format_dict
         },
-        'hints': blendergym_hard_hints
+        'hints': {
+            'generator': blendergym_hard_generator_hints,
+            'verifier': blendergym_hard_verifier_hints
+        }
     },
     'design2code': {
         'system': {

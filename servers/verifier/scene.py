@@ -98,7 +98,7 @@ class Investigator3D:
         self._load_blender_file()                 # 再加载文件
         self.base = Path(thoughtprocess_save) / "investigator"
         self.base.mkdir(parents=True, exist_ok=True)
-        self.cam = self._get_or_create_cam()
+        # self.cam = self._get_or_create_cam()
         self.target = None
         self.radius = 5.0
         self.theta = 0.0
@@ -107,9 +107,10 @@ class Investigator3D:
 
     def _load_blender_file(self):
         """加载 Blender 文件，如果已经加载了相同的文件则跳过"""
-        current_file = bpy.data.filepath
-        if current_file != self.blender_path:
-            bpy.ops.wm.open_mainfile(filepath=str(self.blender_path))
+        # current_file = bpy.data.filepath
+        # if current_file != self.blender_path:
+        bpy.ops.wm.open_mainfile(filepath=str(self.blender_path))
+        self.cam = self._get_or_create_cam()
 
     def _get_or_create_cam(self):
         if "InvestigatorCamera" in bpy.data.objects:
@@ -139,15 +140,15 @@ class Investigator3D:
         #     print(f"Warning: Failed to save blender file: {e}")
 
         # 获取当前相机位置信息
-        camera_position = {
+        camera_position = str({
             "location": list(self.cam.matrix_world.translation),
             "rotation": list(self.cam.rotation_euler),
             "target_object": self.target.name if self.target else None,
             "radius": self.radius,
             "theta": self.theta,
             "phi": self.phi
-        }
-
+        })
+        
         return {
             "image_path": out,
             "camera_position": camera_position

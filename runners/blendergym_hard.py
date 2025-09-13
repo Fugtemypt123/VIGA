@@ -51,8 +51,6 @@ def get_scene_info(task_name: str, blender_file_path: str) -> str:
         scene_info.append("Objects in scene:")
         for obj in bpy.context.scene.objects:
             obj_name = obj.name
-            if 'Camera' in obj_name:
-                continue
             if task_name in notice_assets and obj_name not in notice_assets[task_name]:
                 continue
             
@@ -258,6 +256,9 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     # copy blender file to output directory
     shutil.copy(task_config["blender_file"], output_base / "blender_file.blend")
     
+    if level != 'level4':
+        task_name = level
+          
     # Build main.py command
     cmd = [
         sys.executable, "main.py",
@@ -374,7 +375,7 @@ def main():
     parser.add_argument("--test-id", default=None, help="Test ID to check for failed cases and retest them")
     
     # Main.py parameters
-    parser.add_argument("--max-rounds", type=int, default=20, help="Maximum number of interaction rounds")
+    parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
@@ -455,6 +456,8 @@ def main():
     # Save task list for reference
     with open(os.path.join(args.output_dir, "tasks.json"), "w") as f:
         json.dump(tasks, f, indent=2)
+        
+    tasks = tasks[:1]
 
     # Run tasks
     start_time = time.time()

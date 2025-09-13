@@ -23,26 +23,6 @@ import time
 from openai import OpenAI
 import re
 
-_HAS_GDINOSAM = True
-try:
-    import torch
-    import torchvision
-    from PIL import Image
-    from groundingdino.util.inference import load_model, predict
-    from groundingdino.util import box_ops
-    # SAM v1
-    from segment_anything import sam_model_registry, SamPredictor
-except Exception as _e:
-    _HAS_GDINOSAM = False
-    # logging.warning(f"Grounded-SAM backend not available: {_e}")
-    
-_HAS_YOLO = True
-try:
-    from ultralytics import YOLO
-except Exception as _e:
-    _HAS_YOLO = False
-    # logging.warning(f"YOLO backend not available: {_e}")
-
 mcp = FastMCP("blender-executor")
 
 # Global executor instance
@@ -78,8 +58,6 @@ class Executor:
         ]
         if self.blend_path:
             cmd.append(self.blend_path)
-        # with open('cmd.txt', 'w') as f:
-        #     f.write(" ".join(cmd))
         cmd_str = " ".join(cmd)
         try:
             proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True)

@@ -26,7 +26,7 @@ class VerifierAgent:
                  image_server_path: Optional[str] = None,
                  scene_server_path: Optional[str] = None,
                  api_base_url: Optional[str] = None,
-                 blender_file_path: Optional[str] = None,
+                 blender_file: Optional[str] = None,
                  web_server_path: Optional[str] = None):
         self.mode = mode
         self.vision_model = vision_model
@@ -48,6 +48,7 @@ class VerifierAgent:
         self.tool_client = ExternalToolClient()
         self._tools_connected = False
         self.task_name = task_name
+        self.blender_file = blender_file
         
         if mode == "blendergym" or mode == "autopresent" or mode == "design2code":
             self.server_type = "image"
@@ -67,7 +68,7 @@ class VerifierAgent:
         elif mode == "autopresent":
             self.system_prompt = self.prompt_builder.build_autopresent_verifier_prompt(mode, target_description)
         elif mode == "blendergym-hard":
-            self.system_prompt = self.prompt_builder.build_blendergym_hard_verifier_prompt(mode, task_name, target_image_path, blender_file_path, target_description)
+            self.system_prompt = self.prompt_builder.build_blendergym_hard_verifier_prompt(mode, task_name, target_image_path, blender_file, target_description)
         elif mode == "design2code":
             self.system_prompt = self.prompt_builder.build_design2code_verifier_prompt(mode, target_image_path)
         else:
@@ -103,6 +104,11 @@ class VerifierAgent:
         return {"status": "success", "message": "No executor setup needed for this mode."}
         
     async def verify_scene(self, code: str, render_path: str, round_num: int) -> Dict[str, Any]:
+        # reload investigator each time
+        if self.mode == "blendergym-hard":
+            setup_result = await self.setup_executor(blender_file=self.blender_file, save_dir=self.thought_save)
+            if setup_result.get("status") != "success":
+                return {"status": "error", "error": f"Scene server setup failed: {setup_result.get('error', setup_result)}"}
         await self._ensure_tools_connected()
         
         # define current round
@@ -283,7 +289,7 @@ def main():
                 image_server_path=image_server_path,
                 scene_server_path=scene_server_path,
                 api_base_url=api_base_url,
-                blender_file_path=blender_file,
+                blender_file=blender_file,
                 web_server_path=web_server_path
             )
             agent_holder['agent'] = agent

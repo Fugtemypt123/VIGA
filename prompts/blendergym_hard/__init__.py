@@ -5,7 +5,7 @@ blendergym_hard_generator_hints = {
    "level4": "TODO"
 }
 
-blendergym_hard_generator_hints = {
+blendergym_hard_verifier_hints = {
     "level1": "The generator's task is to adjust the camera position and angle to make the view look like the target image. Your task is to help him get the correct camera perspective. To do this, you need to use the 'investigator_3d' tool to move the camera and find the state that is closest to the correct camera perspective. You will get the initial scene information. Please infer the appropriate camera position in 'Thought' based on the current view, the target view and the positional relationship of other objects.",
     "level2": "The generator's task is to edit multiple elements, such as lighting, object position, and object shape. The order in which you modify these elements requires common sense reasoning, such as adjusting the brightness to see objects clearly, removing objects that are obstructing each other, etc. Your task is to move the camera in the scene to observe the overall picture of the scene and find out the specific parts that need to be modified.",
     "level3": "The generator's task is to edit multiple elements, such as lighting, object position, and object shape. The order in which you modify these elements requires common sense reasoning, such as adjusting the brightness to see objects clearly, removing objects that are obstructing each other, etc. You will get the initial scene information. Please infer the appropriate camera position and objects position in 'Thought' based on the current view, the target view and the positional relationship of other objects.",
