@@ -360,7 +360,7 @@ print("Blender file saved successfully")
                 "error": str(e)
             }
     
-    async def run_main_iteration(self, blender_file_path: str, task_name: str, target_image_path: str, output_dir: str, max_rounds: int = 5, object_name: str = None) -> Dict[str, Any]:
+    def run_main_iteration(self, blender_file_path: str, task_name: str, target_image_path: str, output_dir: str, max_rounds: int = 5, object_name: str = None) -> Dict[str, Any]:
         """
         Run main.py iteration for scene adjustment
         
@@ -396,8 +396,8 @@ print("Blender file saved successfully")
                 "--target-description", get_scene_info(task_name, blender_file_path, notice_assets),
                 "--output-dir", output_dir,
                 "--task-name", task_name,
-                "--init-code-path", output_dir + f"scripts/{object_name}/start.py",
-                "--init-image-path", output_dir + f"renders/{object_name}/start.png",
+                "--init-code-path", output_dir + f"/scripts/{object_name}/start.py",
+                "--init-image-path", output_dir + f"/renders/{object_name}/render1.png",
                 "--blender-server-path", "servers/generator/blender.py",
                 "--blender-command", "utils/blender/infinigen/blender/blender",
                 "--blender-file", blender_file_path,
@@ -407,32 +407,20 @@ print("Blender file saved successfully")
             
             print(f"Running command: {' '.join(cmd)}")
             
-            # Run main.py asynchronously
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=os.getcwd()
-            )
-            
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode == 0:
-                print("✓ Main.py iteration completed successfully")
-                return {
-                    "status": "success",
-                    "message": "Main.py iteration completed successfully",
-                    "stdout": stdout.decode() if stdout else "",
-                    "stderr": stderr.decode() if stderr else ""
-                }
-            else:
-                print(f"❌ Main.py iteration failed with return code {process.returncode}")
-                return {
-                    "status": "error",
-                    "error": f"Main.py failed with return code {process.returncode}",
-                    "stdout": stdout.decode() if stdout else "",
-                    "stderr": stderr.decode() if stderr else ""
-                }
+            try:
+                result = subprocess.run(cmd, check=True, capture_output=False, timeout=3600)  # 1 hour timeout
+                print(f"Task completed successfully: {task_name}")
+            except subprocess.CalledProcessError as e:
+                error_msg = f"Task failed: {task_name}, Error: {e}"
+                print(error_msg)
+            except subprocess.TimeoutExpired:
+                error_msg = f"Task timed out: {task_name}"
+                print(error_msg)
+            except Exception as e:
+                error_msg = f"Task failed with exception: {task_name}, Error: {e}"
+                print(error_msg)
+                
+            raise NotImplementedError("Not implemented")
                 
         except Exception as e:
             logging.error(f"Failed to run main.py iteration: {e}")
@@ -478,6 +466,7 @@ print("Blender file saved successfully")
             # Step 1: Import assets
             print("\n📦 Step 1: Importing assets...")
             import_results = []
+            start_code_path = None
             
             for i, asset_path in enumerate(os.listdir(asset_paths)):
                 if not os.path.exists(os.path.join(asset_paths, asset_path)):
@@ -507,6 +496,9 @@ print("Blender file saved successfully")
                 # copy current blender file to object directory
                 os.makedirs(output_dir + f"/blender/{object_name}", exist_ok=True)
                 shutil.copy(blender_file_path, output_dir + f"/blender/{object_name}/blender_file.blend")
+                # delete duplicate blender file
+                if os.path.exists(output_dir + f"/blender/{object_name}/blender_file.blend1"):
+                    os.remove(output_dir + f"/blender/{object_name}/blender_file.blend1")
                 
                 import_results.append(import_result)
                 self.completed_objects.append(object_name)
@@ -515,6 +507,32 @@ print("Blender file saved successfully")
                     print(f"✓ Imported: {object_name}")
                 else:
                     print(f"❌ Failed to import: {object_name} - {import_result.get('error')}")
+                    
+                # Create a start code
+                if not start_code_path:
+                    start_code_path = output_dir + f"/scripts/{object_name}/start.py"
+                    os.makedirs(output_dir + f"/scripts/{object_name}", exist_ok=True)
+                    with open(start_code_path, "w") as f:
+                        f.write(f"import bpy")
+                else:
+                    os.makedirs(output_dir + f"/scripts/{object_name}", exist_ok=True)
+                    shutil.copy(start_code_path, output_dir + f"/scripts/{object_name}/start.py")
+                    start_code_path = output_dir + f"/scripts/{object_name}/start.py"
+                
+                with open(start_code_path, "a") as f:
+                    f.write(f"\n\nbpy.data.objects['{object_name}'].location = (0, 0, 0)\n\nbpy.data.objects['{object_name}'].rotation_euler = (0, 0, 0)\n\nbpy.data.objects['{object_name}'].scale = (1, 1, 1)\n\n")
+                    
+                # Run script to get the start image
+                os.makedirs(output_dir + f"/renders/{object_name}", exist_ok=True)
+                cmd = [
+                    "utils/blender/infinigen/blender/blender",
+                    "--background", blender_file_path,
+                    "--python", os.path.dirname(asset_paths) + '/pipeline_render_script.py',
+                    "--", os.path.dirname(asset_paths) + '/start.py',  output_dir + f"/renders/{object_name}"
+                ]
+                subprocess.run(cmd, check=True, capture_output=False, timeout=3600)
+                
+                raise NotImplementedError("Not implemented")
             
                 # Step 2: Run main.py iteration
                 print(f"\n🔄 Step 2: Running main.py iteration...")
@@ -547,7 +565,7 @@ print("Blender file saved successfully")
                 
                 raise NotImplementedError("Not implemented")
             
-            return final_result
+            return None
             
         except Exception as e:
             logging.error(f"Failed to run test mode: {e}")
@@ -644,7 +662,7 @@ def test_demo():
     parser.add_argument("--asset-paths", default='data/blendergym_hard/level4/christmas1/assets', type=str, help="Paths to asset files to import (required for test mode)")
     parser.add_argument("--task-name", default="level4-1", type=str, help="Task name")
     parser.add_argument("--target-image-path", default="data/blendergym_hard/level4/christmas1/renders/goal/visprompt1.png", type=str, help="Target image path")
-    parser.add_argument("--model", default="gpt-5", type=str, help="OpenAI model")
+    parser.add_argument("--model", default="o4-mini", type=str, help="OpenAI model")
     parser.add_argument("--base-url", default=os.getenv("OPENAI_BASE_URL"), type=str, help="OpenAI base URL")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), type=str, help="OpenAI API key")
     parser.add_argument("--output-dir", default="output/demo/christmas1", type=str, help="Output directory")
