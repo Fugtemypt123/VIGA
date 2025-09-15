@@ -14,7 +14,7 @@ from pathlib import Path
 import logging
 from openai import OpenAI
 import subprocess
-from utils.blender.get_scene_info import get_scene_info, notice_assets
+from utils.blender.get_scene_info import get_scene_info, add_assets
 from agents.utils import get_image_base64
 
 system_prompt = """You are a 3D spatial perception assistant, skilled at inferring the three-dimensional structure of an image. I will now give you an image depicting a 3D scene, the scene's initial coordinate settings (do not output these objects), and a list of objects to be inferred (you will simply output the objects in the list in the code). Based on this information, infer the position of each object in the list.
@@ -45,7 +45,7 @@ def initialize_3d_scene_from_image(client: OpenAI, model: str, task_name: str, i
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": [
-            {"type": "text", "text": 'Object list: ' + str(notice_assets[task_name])},
+            {"type": "text", "text": 'Object list: ' + str(add_assets[task_name])},
             {"type": "text", "text": 'Initial image:'},
             {"type": "image_url", "image_url": {"url": image_base64}},
             {"type": "text", "text": 'Initial scene information (Do NOT include these objects in the output.): ' + get_scene_info(task_name, blender_path)}
@@ -58,11 +58,6 @@ def initialize_3d_scene_from_image(client: OpenAI, model: str, task_name: str, i
     
     with open(os.path.join(os.path.dirname(blender_path), f"init_code.json"), 'w', encoding='utf-8') as f:
         json.dump(messages, f, indent=2, ensure_ascii=False)
-        
-    return {
-        "status": "success",
-        "message": f"3D scene initialized successfully",
-    }
     
     code_path = os.path.dirname(blender_path) + f"/start.py"
     init_code = code_response.choices[0].message.content
@@ -132,4 +127,10 @@ def update_scene_info(scene_info_path: str, updates: dict) -> dict:
 
 if __name__ == "__main__":
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    initialize_3d_scene_from_image(client, "o4-mini", "level4-1", "data/blendergym_hard/level4/christmas1/renders/goal/visprompt1.png", "data/blendergym_hard/level4/christmas1/blender_file.blend")
+    task_name = 'level4-2'
+    map_task = {
+        'level4-1': 'christmas1',
+        'level4-2': 'meeting2',
+        'level4-3': 'outdoor3',
+    }
+    initialize_3d_scene_from_image(client, "o4-mini", "level4-2", f"data/blendergym_hard/level4/{map_task[task_name]}/renders/goal/visprompt1.png", f"data/blendergym_hard/level4/{map_task[task_name]}/blender_file.blend")

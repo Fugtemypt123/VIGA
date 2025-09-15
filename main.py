@@ -7,6 +7,7 @@ Uses MCP stdio connections instead of HTTP servers.
 import argparse
 import os
 import sys
+import shutil
 import time
 import json
 import asyncio
@@ -361,6 +362,12 @@ async def main():
             target_description = args.target_description
     else:
         target_description = None
+        
+    if args.save_blender_file:
+        save_blender_file = args.output_dir + "/blender_file.blend"
+        if not os.path.exists(save_blender_file):
+            # copy the blender file to the output directory
+            shutil.copy(args.blender_file, save_blender_file)
 
     # Init agents
     generator = GeneratorAgentClient(args.generator_script)
@@ -435,7 +442,7 @@ async def main():
             verifier_params.update({
                 "image_server_path": None,
                 "scene_server_path": args.scene_server_path, 
-                "blender_file": args.blender_file,
+                "blender_file": args.output_dir + "/blender_file.blend" if args.save_blender_file else None,
             })
         else:
             raise NotImplementedError("Mode not implemented")

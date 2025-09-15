@@ -1,6 +1,13 @@
-notice_assets = {
-    'level4-1': ['clock', 'fireplace', 'lounge', 'snowman', 'christmastree', 'giftboxes', 'decoration', 'goldenbells', 'floor', 'left wall', 'right wall', 'CUADRO'],
+origin_assets = {
+    'level4-1': ['floor', 'left wall', 'right wall', 'CUADRO'] + ['bell', 'clock', 'fireplace', 'lounge', 'snowman', 'christmastree', 'giftboxes', 'decoration', 'goldenbells'],
+    'level4-2': ['Door', 'window.006', 'dining-room_0-0.wall', 'dining-room_0-0.floor', 'dining-room_0-0.ceiling'] + ['table', 'chair.001', 'chair.002', 'chair.003', 'chair.004', 'chair.005', 'chair.006', 'chair.007', 'chair.008', 'openedbook', 'whitecup.001', 'whitecup.002', 'computer.001', 'computer.002', 'plant', 'blackcup.001', 'blackcup.002'],
 }
+
+add_assets = {
+    'level4-1': ['clock', 'fireplace', 'lounge', 'snowman', 'christmastree', 'giftboxes', 'decoration', 'goldenbells'], 
+    'level4-2': ['table', 'chair.001', 'chair.002', 'chair.003', 'chair.004', 'chair.005', 'chair.006', 'chair.007', 'chair.008', 'openedbook', 'whitecup.001', 'whitecup.002', 'computer.001', 'computer.002', 'plant', 'blackcup.001', 'blackcup.002'],
+}
+
 
 # # Golden bell on the wall
 # bpy.data.objects['bell'].location = (-1.8349, 0.7151, 2.3103)
@@ -109,7 +116,7 @@ def get_scene_info(task_name: str, blender_file_path: str) -> str:
         scene_info.append("Scene Information:")
         for obj in bpy.context.scene.objects:
             obj_name = obj.name
-            if task_name in notice_assets and obj_name not in notice_assets[task_name]:
+            if task_name in origin_assets and obj_name not in origin_assets[task_name]:
                 continue
             
             # Get object bounding box
@@ -126,8 +133,8 @@ def get_scene_info(task_name: str, blender_file_path: str) -> str:
             ))
             bbox_size = bbox_max - bbox_min
             
-            # scene_info.append(f"- Name: {obj_name}; Location: {obj.location}; Rotation: {obj.rotation_euler}; Scale: {obj.scale}; BBox: min({bbox_min.x:.3f}, {bbox_min.y:.3f}, {bbox_min.z:.3f}), max({bbox_max.x:.3f}, {bbox_max.y:.3f}, {bbox_max.z:.3f})")
-            scene_info.append(f"- Name: {obj_name}; BBox: min({bbox_min.x:.3f}, {bbox_min.y:.3f}, {bbox_min.z:.3f}), max({bbox_max.x:.3f}, {bbox_max.y:.3f}, {bbox_max.z:.3f})")
+            scene_info.append(f"- Name: {obj_name}; Location: {obj.location}; Rotation: {obj.rotation_euler}; Scale: {obj.scale}; BBox: min({bbox_min.x:.3f}, {bbox_min.y:.3f}, {bbox_min.z:.3f}), max({bbox_max.x:.3f}, {bbox_max.y:.3f}, {bbox_max.z:.3f})")
+            # scene_info.append(f"- Name: {obj_name}; BBox: min({bbox_min.x:.3f}, {bbox_min.y:.3f}, {bbox_min.z:.3f}), max({bbox_max.x:.3f}, {bbox_max.y:.3f}, {bbox_max.z:.3f})")
             
         if len(scene_info) == 1:
             scene_info.append("All the information are provided in the code.")

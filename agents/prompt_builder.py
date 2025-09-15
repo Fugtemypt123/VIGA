@@ -82,7 +82,7 @@ class PromptBuilder:
         user_content.append({"type": "text", "text": f"Initial Code:\n```python\n{init_code}\n```"})
         
         # Add scene information if blender file path is provided
-        if blender_file_path and os.path.exists(blender_file_path):
+        if target_description:
             scene_info = target_description
             user_content.append({"type": "text", "text": scene_info})
         
@@ -234,7 +234,7 @@ class PromptBuilder:
         full_prompt.append({"role": "system", "content": prompts_dict[mode]['system']['verifier'][level]})
         user_content = []
         # Add scene information if blender file path is provided
-        if blender_file_path and os.path.exists(blender_file_path):
+        if target_description:
             scene_info = target_description
             user_content.append({"type": "text", "text": scene_info})
         # Add target image/description

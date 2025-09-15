@@ -136,7 +136,7 @@ class GeneratorAgent:
         if feedback:
             self.memory.append({"role": "user", "content": feedback})
             
-        if self.mode == "blendergym-hard":
+        if self.mode == "blendergym-hard" and self.level == "level4":
             self.memory.append({"role": "user", "content": get_scene_info(self.task_name, self.blender_file_path)})
         
         try:

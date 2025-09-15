@@ -654,6 +654,12 @@ def direct_run(task_name: str, model: str, api_key: str, output_dir: str, max_ro
         '2': 'meeting2',
         '3': 'outdoor3',
     }
+    task_description = {
+        '1': "Place the objects in the Christmas scene in the correct positions, making sure that the objects are positioned correctly relative to each other and that none of them are stuck in the wall.",
+        '2': "First, move the table and chair combination to the correct position, do not let the chair get stuck in the wall, then place the small object on top of the table. If you can't see the object, it means it is stuck under the table.",
+        '3': "Place the objects in the outdoor scene in the correct positions, making sure that the objects are positioned correctly relative to each other and that none of them are stuck in the wall.",
+        
+    }
     cmd = [
         "python", "main.py",
         "--mode", "blendergym-hard",
@@ -662,7 +668,7 @@ def direct_run(task_name: str, model: str, api_key: str, output_dir: str, max_ro
         "--max-rounds", str(max_rounds),
         "--blender-file", blender_file_path,
         "--target-image-path", target_image_path,
-        "--target-description", get_scene_info(task_name, blender_file_path),
+        "--target-description", task_description[id],
         "--output-dir", output_dir,
         "--task-name", task_name,
         "--init-code-path", os.path.dirname(blender_file_path) + "/start.py",
@@ -677,16 +683,19 @@ def direct_run(task_name: str, model: str, api_key: str, output_dir: str, max_ro
     try:
         result = subprocess.run(cmd, check=True, capture_output=False, timeout=3600)  # 1 hour timeout
         print(f"Task completed successfully: {task_name}")
+        return result
     except subprocess.CalledProcessError as e:
         error_msg = f"Task failed: {task_name}, Error: {e}"
         print(error_msg)
+        return error_msg
     except subprocess.TimeoutExpired:
         error_msg = f"Task timed out: {task_name}"
         print(error_msg)
+        return error_msg
     except Exception as e:
         error_msg = f"Task failed with exception: {task_name}, Error: {e}"
         print(error_msg)
-    return result
+        return error_msg    
 
 def test_demo():
     """
@@ -695,16 +704,26 @@ def test_demo():
     parser = argparse.ArgumentParser(description="Test demo functionality")
     parser.add_argument("--direct-run", action="store_true", help="Direct run")
     parser.add_argument("--easy-mode", action="store_true", help="Enable test mode (start from existing Blender file)")
-    parser.add_argument("--blender-file", default='data/blendergym_hard/level4/christmas1/blender_file.blend', type=str, help="Path to existing Blender file (required for test mode)")
-    parser.add_argument("--asset-paths", default='data/blendergym_hard/level4/christmas1/assets', type=str, help="Paths to asset files to import (required for test mode)")
-    parser.add_argument("--task-name", default="level4-1", type=str, help="Task name")
-    parser.add_argument("--target-image-path", default="data/blendergym_hard/level4/christmas1/renders/goal", type=str, help="Target image path")
+    # parser.add_argument("--blender-file", default='data/blendergym_hard/level4/meeting2/blender_file.blend', type=str, help="Path to existing Blender file (required for test mode)")
+    # parser.add_argument("--asset-paths", default='data/blendergym_hard/level4/meeting2/assets', type=str, help="Paths to asset files to import (required for test mode)")
+    parser.add_argument("--task-name", default="level4-2", type=str, help="Task name")
+    # parser.add_argument("--target-image-path", default="data/blendergym_hard/level4/meeting2/renders/goal", type=str, help="Target image path")
     parser.add_argument("--max-rounds", default=20, type=int, help="Max rounds")
     parser.add_argument("--model", default="o4-mini", type=str, help="OpenAI model")
     parser.add_argument("--base-url", default=os.getenv("OPENAI_BASE_URL"), type=str, help="OpenAI base URL")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), type=str, help="OpenAI API key")
     parser.add_argument("--output-dir", default="output/demo", type=str, help="Output directory")
     args = parser.parse_args()
+    
+    map_id_name = {
+        'level4-1': 'christmas1',
+        'level4-2': 'meeting2',
+        'level4-3': 'outdoor3',
+    }
+    
+    args.blender_file = f'data/blendergym_hard/level4/{map_id_name[args.task_name]}/blender_file.blend'
+    args.asset_paths = f'data/blendergym_hard/level4/{map_id_name[args.task_name]}/assets'
+    args.target_image_path = f'data/blendergym_hard/level4/{map_id_name[args.task_name]}/renders/goal'
     
     print("🧪 Testing Scene Reconstruction Demo...")
     
