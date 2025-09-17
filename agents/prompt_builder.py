@@ -280,6 +280,8 @@ class PromptBuilder:
         # Add hints
         if prompts_dict[mode]['hints']['verifier'][task_name] is not None:
             user_content.append({"type": "text", "text": f"Hints:\n{prompts_dict[mode]['hints']['verifier'][task_name]}"})            
+        # Add tool example
+        user_content.append({"type": "text", "text": f"Tool Example:\n{prompts_dict[mode]['tool_example']}"})
         full_prompt.append({"role": "user", "content": user_content})
         return full_prompt
     

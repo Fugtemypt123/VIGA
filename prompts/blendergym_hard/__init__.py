@@ -1,3 +1,6 @@
+from .tool_example import *
+
+
 demo_generator_system = """You are a Blender coder. Your task is to write code to transform the initial 3D scene into the target scene based on the provided target image.
 
 You will work with the provided initial and target images to understand what changes need to be made. Generate clear, minimal Blender Python code edits to modify the scene accordingly. After each code edit, your code will be passed to a validator, which will provide feedback on the result. Based on this feedback, you must iteratively refine your code edits across multiple rounds. You will get the initial scene information. Please infer the appropriate objects position based on the current view, the target view and the positional relationship of other objects.

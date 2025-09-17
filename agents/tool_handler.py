@@ -16,7 +16,7 @@ class ToolHandler:
         function_args = json.loads(tool_call.function.arguments)
         
         try:
-            if function_name == "generate_3d_asset":
+            if function_name == "generate_and_import_3d_asset":
                 if self.server_type != "blender":
                     return {'text': "Error: 3D asset generation is only available for Blender mode", 'success': False}
                 

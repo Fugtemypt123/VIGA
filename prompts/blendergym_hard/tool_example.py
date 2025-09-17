@@ -1,0 +1,4 @@
+verifier_tool_hints = """About how to use the tool: Our investigator_3d tool provides three operations: 
+(1) focus on an object: Let your camera focus on a key object, suitable for situations where a certain object of interest is known. Always call (1) to obtain a key object before calling (2)(3).
+(2) zoom in/out: Zoom the camera in/out. Generally speaking, zooming in is suitable for observing a small part (such as the object you want to move in a small corner of the scene), while zooming out is suitable for observing the whole picture (such as observing the relative position of the object in the scene); 
+(3) move: Rotate the camera up/down/left/right. Please note: This rotation is performed on a sphere with a fixed radius of the distance from the current camera to the target object. If you want to adjust the distance from the current camera to the target object, please do not use this operation."""
