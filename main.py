@@ -336,6 +336,8 @@ async def main():
     parser.add_argument("--blender-file", default="data/blendergym/blendshape1/blender_file.blend", help="Blender template file")
     parser.add_argument("--blender-script", default="data/blendergym/pipeline_render_script.py", help="Blender execution script")
     parser.add_argument("--save-blender-file", action="store_true", help="Save blender file")
+    parser.add_argument("--meshy_api_key", default=os.getenv("MESHY_API_KEY"), help="Meshy API key")
+    parser.add_argument("--va_api_key", default=os.getenv("VA_API_KEY"), help="VA API key")
     
     # Slides execution parameters (for generator)
     parser.add_argument("--slides-server-path", default="servers/generator/slides.py", help="Path to Slides MCP server script")
@@ -402,7 +404,9 @@ async def main():
                 "blender_script": args.blender_script,
                 "render_save": args.output_dir + "/renders",
                 "script_save": args.output_dir + "/scripts",
-                "blender_save": args.output_dir + "/blender_file.blend" if args.save_blender_file else None
+                "blender_save": args.output_dir + "/blender_file.blend" if args.save_blender_file else None,
+                "meshy_api_key": args.meshy_api_key,
+                "va_api_key": args.va_api_key,
             })
         elif args.mode == "autopresent":
             generator_params.update({

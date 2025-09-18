@@ -133,16 +133,17 @@ class GeneratorAgent:
             
             if message.tool_calls:
                 for tool_call in message.tool_calls:
-                    object_name = tool_call.function.arguments.get('object_name', '')
+                    tool_args = json.loads(tool_call.function.arguments)
+                    object_name = tool_args.get('object_name', '')
                     tool_response = await self._handle_tool_call(tool_call)
+                    output_content = f"# import a 3D asset: {object_name}\n# To edit this asset, please use `bpy.data.objects['{object_name}']`\n# To copy this asset (if you think you'll need more than one of it in the target image), please use `new_object = bpy.data.objects['{object_name}'].copy()\n# To delete this object (if you think the quality of this asset is really bad), please use `bpy.data.objects.remove(bpy.data.objects['{object_name}'])`\n"
                     self.memory.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
                         "name": tool_call.function.name,
-                        "content": tool_response['text']
+                        "content": output_content
                     })
-                    with open(self.init_code_path, 'a') as f:
-                        f.write(f"\n# import a 3D asset: {object_name}\n# To edit this asset, please use `bpy.data.objects['{object_name}']`\n# To copy this asset (if you think you'll need more than one of it in the target image), please use `new_object = bpy.data.objects['{object_name}'].copy()\nnew_object.name = 'your_new_name'`\n# To delete this object (if you think the quality of this asset is really bad), please use `bpy.data.objects.remove(bpy.data.objects['{object_name}'])`\n")
+                full_code = output_content
                     
             else:
                 # Parse the response to extract code if needed (only for modes that generate code)
@@ -241,6 +242,8 @@ def main():
         script_save: str = None,
         render_save: str = None,
         blender_save: Optional[str] = None,
+        meshy_api_key: str = None,
+        va_api_key: str = None,
         # Slides executor parameters
         slides_server_path: str = None,
         output_dir: str = None,
@@ -283,7 +286,10 @@ def main():
                         blender_script=blender_script,
                         script_save=script_save,
                         render_save=render_save,
-                        blender_save=blender_save
+                        blender_save=blender_save,
+                        meshy_api_key=meshy_api_key,
+                        va_api_key=va_api_key,
+                        target_image_path=target_image_path
                     )
                     setup_results.append(("Blender", setup_result))
                 except Exception as e:
