@@ -304,8 +304,8 @@ def main():
     parser.add_argument("--save-blender-file", action="store_true", help="Save blender file")
     
     # Tool server paths
-    parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
-    parser.add_argument("--verifier-script", default="agents/verifier_mcp.py", help="Verifier MCP script path")
+    parser.add_argument("--generator-script", default="agents/generator.py", help="Generator MCP script path")
+    parser.add_argument("--verifier-script", default="agents/verifier.py", help="Verifier MCP script path")
     parser.add_argument("--image-server-path", default="servers/verifier/image.py", help="Path to image processing MCP server script")
     parser.add_argument("--scene-server-path", default="servers/verifier/scene.py", help="Path to scene investigation MCP server script")
     

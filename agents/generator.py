@@ -226,37 +226,36 @@ def main():
     agent_holder = {}
 
     @mcp.tool()
-    async def initialize_generator(**kwargs) -> dict:
+    async def initialize_generator(args: dict) -> dict:
         """
         Initialize a new Generator Agent with optional Blender or Slides executor setup.
         """
         try:
-            agent = GeneratorAgent(**kwargs)
+            agent = GeneratorAgent(**args)
             agent_holder['agent'] = agent
-            
             setup_results = []
             
             # Setup executor based on mode
-            if kwargs.get("mode") == "blendergym" or kwargs.get("mode") == "blendergym-hard":
+            if args.get("mode") == "blendergym" or args.get("mode") == "blendergym-hard":
                 try:
-                    setup_result = await agent.setup_executor(**kwargs)
+                    setup_result = await agent.setup_executor(**args)
                     setup_results.append(("Blender", setup_result))
                 except Exception as e:
                     setup_results.append(("Blender", {"status": "error", "error": str(e)}))
             
-            elif kwargs.get("mode") == "autopresent":
+            elif args.get("mode") == "autopresent":
                 try:
                     # Add task_dir from init_code_path
-                    setup_kwargs = kwargs.copy()
-                    setup_kwargs["task_dir"] = os.path.dirname(kwargs.get("init_code_path"))
+                    setup_kwargs = args.copy()
+                    setup_kwargs["task_dir"] = os.path.dirname(args.get("init_code_path"))
                     setup_result = await agent.setup_executor(**setup_kwargs)
                     setup_results.append(("Slides", setup_result))
                 except Exception as e:
                     setup_results.append(("Slides", {"status": "error", "error": str(e)}))
             
-            elif kwargs.get("mode") == "design2code":
+            elif args.get("mode") == "design2code":
                 try:
-                    setup_result = await agent.setup_executor(**kwargs)
+                    setup_result = await agent.setup_executor(**args)
                     setup_results.append(("HTML", setup_result))
                 except Exception as e:
                     setup_results.append(("HTML", {"status": "error", "error": str(e)}))

@@ -200,20 +200,20 @@ def main():
     agent_holder = {}
     
     @mcp.tool()
-    async def initialize_verifier(**kwargs) -> dict:
+    async def initialize_verifier(args: dict) -> dict:
         
         try:
-            agent = VerifierAgent(**kwargs)
+            agent = VerifierAgent(**args)
             agent_holder['agent'] = agent
             # Initialize server executor
-            if kwargs.get("mode") == "blendergym" or kwargs.get("mode") == "autopresent" or kwargs.get("mode") == "design2code":
-                setup_result = await agent.setup_executor(**kwargs)
+            if args.get("mode") == "blendergym" or args.get("mode") == "autopresent" or args.get("mode") == "design2code":
+                setup_result = await agent.setup_executor(**args)
                 if setup_result.get("status") != "success":
                     return {"status": "error", "error": f"Server setup failed: {setup_result.get('error', setup_result)}"}
-            elif kwargs.get("mode") == "blendergym-hard":
+            elif args.get("mode") == "blendergym-hard":
                 # For scene mode, we need to map save_dir to thoughtprocess_save
-                setup_kwargs = kwargs.copy()
-                setup_kwargs["save_dir"] = kwargs.get("thought_save")
+                setup_kwargs = args.copy()
+                setup_kwargs["save_dir"] = args.get("thought_save")
                 setup_result = await agent.setup_executor(**setup_kwargs)
                 if setup_result.get("status") != "success":
                     return {"status": "error", "error": f"Scene server setup failed: {setup_result.get('error', setup_result)}"}

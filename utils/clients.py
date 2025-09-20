@@ -117,7 +117,7 @@ class GeneratorAgentClient:
         if not self.mcp_session:
             raise RuntimeError("Not connected. Call connect() first.")
         
-        result = await self.mcp_session.client.call_tool("initialize_generator", kwargs)
+        result = await self.mcp_session.client.call_tool("initialize_generator", {'args': kwargs})
         if result.content and len(result.content) > 0:
             content = result.content[0].text
             if '"status": "success"' in content or '"status":"success"' in content:
@@ -255,7 +255,7 @@ class VerifierAgentClient:
         if not self.mcp_session:
             raise RuntimeError("Not connected. Call connect() first.")
         
-        result = await self.mcp_session.client.call_tool("initialize_verifier", kwargs)
+        result = await self.mcp_session.client.call_tool("initialize_verifier", {'args': kwargs})
         if result.content and len(result.content) > 0:
             content = result.content[0].text
             try:
