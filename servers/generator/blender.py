@@ -610,9 +610,14 @@ def initialize_executor(**kwargs) -> dict:
             render_save=kwargs.get("render_save"),
             blender_save=kwargs.get("blender_save")
         )
-        _meshy_api = MeshyAPI(kwargs.get("meshy_api_key"))
-        _asset_importer = AssetImporter(kwargs.get("blender_file"))
-        _image_cropper = ImageCropper(kwargs.get("va_api_key"), kwargs.get("target_image_path"))
+        if "meshy_api_key" in kwargs:
+            _meshy_api = MeshyAPI(kwargs.get("meshy_api_key"))
+        if "va_api_key" in kwargs:
+            _image_cropper = ImageCropper(kwargs.get("va_api_key"), kwargs.get("target_image_path"))
+        if "blender_file" in kwargs:
+            _asset_importer = AssetImporter(kwargs.get("blender_file"))
+        if "target_image_path" in kwargs:
+            _image_cropper = ImageCropper(kwargs.get("va_api_key"), kwargs.get("target_image_path"))
         return {"status": "success", "message": "Executor initialized successfully"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
