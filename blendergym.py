@@ -3,6 +3,14 @@
 Main entry for dual-agent interactive framework (generator/verifier).
 Supports 3D (Blender) and 2D (PPTX) modes.
 Uses MCP stdio connections instead of HTTP servers.
+Includes a new VLM-based testing mode that generates two codes per iteration.
+
+VLM Testing Mode Usage:
+    python blendergym.py --vlm-test-mode --mode blendergym --max-rounds 5
+    python blendergym.py --mode vlm-test --max-rounds 5
+
+This mode generates two codes per iteration, executes both, and uses a VLM to select
+which generated image is closer to the target image.
 """
 import argparse
 import os
@@ -11,310 +19,120 @@ import shutil
 import time
 import json
 import asyncio
+import base64
+import io
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from contextlib import AsyncExitStack
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp.types import TextContent
+from openai import OpenAI
+from PIL import Image
+from utils.clients import GeneratorAgentClient, VerifierAgentClient
 
-# ========== MCP Session Management ==========
+# ========== VLM Selection Function ==========
 
-class McpSession:
-    """Manages a single MCP session with its own task and cleanup."""
+def get_image_base64(image_path: str) -> str:
+    """Convert image to base64 data URL for OpenAI API."""
+    with open(image_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+        ext = os.path.splitext(image_path)[1].lower()
+        if ext in ['.jpg', '.jpeg']:
+            mime_type = 'image/jpeg'
+        elif ext == '.png':
+            mime_type = 'image/png'
+        else:
+            mime_type = 'image/png'  # default
+        return f"data:{mime_type};base64,{encoded_string}"
+
+async def select_better_image_with_vlm(
+    left_image_path: str,
+    right_image_path: str,
+    target_image_path: str,
+    vision_model: str,
+    api_key: str,
+    api_base_url: Optional[str] = None
+) -> str:
+    """
+    Use VLM to select which image (left or right) is closer to the target.
     
-    def __init__(self, name: str, client: ClientSession, task: asyncio.Task, stop_event: asyncio.Event):
-        self.name = name
-        self.client = client
-        self.task = task
-        self.stop_event = stop_event
-        self.initialized = False
-
-    async def close(self) -> None:
-        """Close the MCP session by setting stop event and waiting for task completion."""
-        print(f"Sending stop event to {self.name}")
-        self.stop_event.set()
-        print(f"Waiting for task {self.name} to finish")
-        await self.task
-        print(f"Task {self.name} finished")
-
-# ========== Agent Client Wrappers ==========
-
-class GeneratorAgentClient:
-    def __init__(self, script_path: str):
-        self.script_path = script_path
-        self.mcp_session: Optional[McpSession] = None
-        self.initialized = False
-
-    async def connect(self):
-        """Connect to the Generator MCP server in a background task."""
-        ready_event = asyncio.Event()
-
-        async def mcp_session_runner() -> None:
-            try:
-                server_params = StdioServerParameters(
-                    command="python",
-                    args=[self.script_path],
-                    env={**os.environ, "PYTHONPATH": os.getcwd()}
-                )
-                
-                exit_stack = AsyncExitStack()
-                stdio_transport = await exit_stack.enter_async_context(stdio_client(server_params))
-                stdio, write = stdio_transport
-                client = await exit_stack.enter_async_context(ClientSession(stdio, write))
-                
-                # Initialize the session
-                await client.initialize()
-                
-            except Exception as e:
-                print(f"Error during MCP connection setup: {e}")
-                raise ConnectionError(f"Failed to connect to Generator MCP server: {e}") from e
-            finally:
-                print("Sending Generator MCP connection ready event")
-                ready_event.set()
-
-            try:
-                stop_event = asyncio.Event()
-                
-                # Store the session
-                current_task = asyncio.current_task()
-                assert current_task is not None, "Current task should not be None"
-                
-                self.mcp_session = McpSession(
-                    name="generator",
-                    client=client,
-                    task=current_task,
-                    stop_event=stop_event,
-                )
-                
-                print(f"Connected to Generator: {self.script_path}")
-                
-                # Wait for the stop event
-                await stop_event.wait()
-                
-            except asyncio.CancelledError:
-                print("Generator MCP session cancelled")
-                raise
-            except Exception as e:
-                print(f"Error during Generator MCP session: {e}")
-                raise
-            finally:
-                print("Closing Generator MCP session")
-                try:
-                    await exit_stack.aclose()
-                except Exception as e:
-                    print(f"Error during Generator exit stack close: {e}")
-                print("Generator MCP session closed")
-
-        # Run the session runner in a separate task
-        asyncio.create_task(mcp_session_runner())
-        print("Waiting for Generator MCP connection to be ready")
-        await ready_event.wait()
-        print("Generator MCP connection is ready")
-
-    async def create_session(self, **kwargs):
-        """Initialize the generator with session parameters."""
-        if not self.mcp_session:
-            raise RuntimeError("Not connected. Call connect() first.")
+    Args:
+        left_image_path: Path to the left image
+        right_image_path: Path to the right image  
+        target_image_path: Path to the target image
+        vision_model: OpenAI vision model name
+        api_key: OpenAI API key
+        api_base_url: Optional custom API base URL
         
-        result = await self.mcp_session.client.call_tool("initialize_generator", kwargs)
-        if result.content and len(result.content) > 0:
-            content = result.content[0].text
-            if '"status": "success"' in content or '"status":"success"' in content:
-                self.initialized = True
-                return "success"
-        raise RuntimeError(f"Failed to create session: {result.content}")
+    Returns:
+        "left" or "right" indicating which image is better
+    """
+    # Initialize OpenAI client
+    client_kwargs = {"api_key": api_key}
+    if api_base_url:
+        client_kwargs["base_url"] = api_base_url
+    
+    client = OpenAI(**client_kwargs)
+    
+    # Convert images to base64
+    target_b64 = get_image_base64(target_image_path)
+    left_b64 = get_image_base64(left_image_path)
+    right_b64 = get_image_base64(right_image_path)
+    
+    # Create the prompt
+    prompt = """You are comparing two generated images (left and right) to determine which one is closer to the target image. 
 
-    async def call(self, feedback: Optional[str] = None):
-        """Generate code, optionally with feedback."""
-        if not self.initialized:
-            raise RuntimeError("Generator not initialized. Call create_session() first.")
+Please analyze:
+1. Overall composition and layout similarity to the target
+2. Object positioning and arrangement
+3. Visual style and appearance
+4. Color schemes and lighting
+5. Any specific details that match or differ from the target
+
+Respond with ONLY "left" or "right" (no other text) to indicate which generated image is closer to the target."""
+    
+    try:
+        response = client.chat.completions.create(
+            model=vision_model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": target_b64}
+                        },
+                        {
+                            "type": "image_url", 
+                            "image_url": {"url": left_b64}
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": right_b64}
+                        }
+                    ]
+                }
+            ],
+            max_tokens=10
+        )
         
-        params = {}
-        if feedback:
-            params["feedback"] = feedback
-        
-        result = await self.mcp_session.client.call_tool("call", params)
-        if result.content and len(result.content) > 0:
-            content = result.content[0].text
-            return json.loads(content)
-        raise RuntimeError(f"Failed to generate code: {result.content}")
-
-    async def add_feedback(self, feedback: str):
-        """Add feedback to the generator."""
-        if not self.initialized:
-            raise RuntimeError("Generator not initialized. Call create_session() first.")
-        
-        result = await self.mcp_session.client.call_tool("add_feedback", {"feedback": feedback})
-        if not (result.content and len(result.content) > 0 and 
-                ('"status": "success"' in result.content[0].text or '"status":"success"' in result.content[0].text)):
-            raise RuntimeError(f"Failed to add feedback: {result.content}")
-
-    async def save_thought_process(self):
-        """Save the thought process."""
-        if not self.initialized:
-            raise RuntimeError("Generator not initialized. Call create_session() first.")
-        
-        result = await self.mcp_session.client.call_tool("save_thought_process", {})
-        if not (result.content and len(result.content) > 0 and 
-                ('"status": "success"' in result.content[0].text or '"status":"success"' in result.content[0].text)):
-            raise RuntimeError(f"Failed to save thought process: {result.content}")
-
-    async def cleanup(self):
-        """Clean up resources."""
-        if self.mcp_session:
-            try:
-                # Call cleanup tool first if initialized
-                if self.initialized:
-                    try:
-                        await self.mcp_session.client.call_tool("cleanup_generator", {})
-                        print("Generator cleanup tool called successfully")
-                    except Exception as e:
-                        print(f"Warning: Generator cleanup tool failed: {e}")
-                
-                # Then cleanup MCP session
-                await self.mcp_session.close()
-            except Exception as e:
-                print(f"Warning: Generator cleanup error: {e}")
-
-
-class VerifierAgentClient:
-    def __init__(self, script_path: str):
-        self.script_path = script_path
-        self.mcp_session: Optional[McpSession] = None
-        self.initialized = False
-
-    async def connect(self):
-        """Connect to the Verifier MCP server in a background task."""
-        ready_event = asyncio.Event()
-
-        async def mcp_session_runner() -> None:
-            try:
-                server_params = StdioServerParameters(
-                    command="python",
-                    args=[self.script_path],
-                    env={**os.environ, "PYTHONPATH": os.getcwd()}
-                )
-                
-                exit_stack = AsyncExitStack()
-                stdio_transport = await exit_stack.enter_async_context(stdio_client(server_params))
-                stdio, write = stdio_transport
-                client = await exit_stack.enter_async_context(ClientSession(stdio, write))
-                
-                # Initialize the session
-                await client.initialize()
-                
-            except Exception as e:
-                print(f"Error during MCP connection setup: {e}")
-                raise ConnectionError(f"Failed to connect to Verifier MCP server: {e}") from e
-            finally:
-                print("Sending Verifier MCP connection ready event")
-                ready_event.set()
-
-            try:
-                stop_event = asyncio.Event()
-                
-                # Store the session
-                current_task = asyncio.current_task()
-                assert current_task is not None, "Current task should not be None"
-                
-                self.mcp_session = McpSession(
-                    name="verifier",
-                    client=client,
-                    task=current_task,
-                    stop_event=stop_event,
-                )
-                
-                print(f"Connected to Verifier: {self.script_path}")
-                
-                # Wait for the stop event
-                await stop_event.wait()
-                
-            except asyncio.CancelledError:
-                print("Verifier MCP session cancelled")
-                raise
-            except Exception as e:
-                print(f"Error during Verifier MCP session: {e}")
-                raise
-            finally:
-                print("Closing Verifier MCP session")
-                try:
-                    await exit_stack.aclose()
-                except Exception as e:
-                    print(f"Error during Verifier exit stack close: {e}")
-                print("Verifier MCP session closed")
-
-        # Run the session runner in a separate task
-        asyncio.create_task(mcp_session_runner())
-        print("Waiting for Verifier MCP connection to be ready")
-        await ready_event.wait()
-        print("Verifier MCP connection is ready")
-
-    async def create_session(self, **kwargs):
-        """Create a verification session with automatic tool server connection."""
-        if not self.mcp_session:
-            raise RuntimeError("Not connected. Call connect() first.")
-        
-        result = await self.mcp_session.client.call_tool("initialize_verifier", kwargs)
-        if result.content and len(result.content) > 0:
-            content = result.content[0].text
-            try:
-                json_data = json.loads(content)
-                if json_data.get("status") == "success":
-                    self.initialized = True
-                    return "success"
-            except json.JSONDecodeError:
-                pass
-        raise RuntimeError(f"Failed to create session: {result.content}")
-
-    async def call(self, code: str, render_path: str, round_num: int):
-        """Verify the scene with given parameters."""
-        if not self.initialized:
-            raise RuntimeError("Verifier not initialized. Call create_session() first.")
-        
-        result = await self.mcp_session.client.call_tool("call", {
-            "code": code,
-            "render_path": render_path,
-            "round_num": round_num
-        })
-        if result.content and len(result.content) > 0:
-            content = result.content[0].text
-            print("verifier result: ", content)
-            return json.loads(content)
-        raise RuntimeError(f"Failed to verify scene: {result.content}")
-
-    async def save_thought_process(self):
-        """Save the thought process."""
-        if not self.initialized:
-            raise RuntimeError("Verifier not initialized. Call create_session() first.")
-        
-        result = await self.mcp_session.client.call_tool("save_thought_process", {})
-        if not (result.content and len(result.content) > 0 and 
-                ('"status": "success"' in result.content[0].text or '"status":"success"' in result.content[0].text)):
-            raise RuntimeError(f"Failed to save thought process: {result.content}")
-
-    async def cleanup(self):
-        """Clean up resources."""
-        if self.mcp_session:
-            try:
-                # Call cleanup tool first if initialized
-                if self.initialized:
-                    try:
-                        await self.mcp_session.client.call_tool("cleanup_verifier", {})
-                        print("Verifier cleanup tool called successfully")
-                    except Exception as e:
-                        print(f"Warning: Verifier cleanup tool failed: {e}")
-                
-                # Then cleanup MCP session
-                await self.mcp_session.close()
-            except Exception as e:
-                print(f"Warning: Verifier cleanup error: {e}")
+        choice = response.choices[0].message.content.strip().lower()
+        if choice in ["left", "right"]:
+            return choice
+        else:
+            print(f"Warning: VLM returned unexpected response '{choice}', defaulting to 'left'")
+            return "left"
+            
+    except Exception as e:
+        print(f"Error in VLM selection: {e}")
+        print("Defaulting to 'left' selection")
+        return "left"
 
 # ========== Main Dual-Agent Loop ==========
 
 async def main():
     parser = argparse.ArgumentParser(description="Dual-agent interactive framework")
-    parser.add_argument("--mode", choices=["blendergym", "autopresent", "blendergym-hard", "demo", "design2code"], default="blendergym", help="Choose 3D (Blender), 2D (PPTX), or Design2Code mode")
+    parser.add_argument("--mode", choices=["blendergym", "autopresent", "blendergym-hard", "demo", "design2code", "vlm-test"], default="blendergym", help="Choose 3D (Blender), 2D (PPTX), Design2Code mode, or VLM testing mode")
+    parser.add_argument("--vlm-test-mode", action="store_true", help="Enable VLM-based testing mode (generates two codes per iteration and uses VLM to select better one)")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
@@ -436,70 +254,193 @@ async def main():
         for round_num in range(args.max_rounds):
             print(f"\n=== Round {round_num+1} ===")
             
-            print("Step 1: Generator generating code...")
-            gen_result = await generator.call()
-            if gen_result.get("status") == "max_rounds_reached":
-                print("Max rounds reached. Stopping.")
-                break
-            if gen_result.get("status") == "error":
-                print(f"Generator error: {gen_result['error']}")
-                break
-            
-            print("gen_result: ", gen_result)
-            
-            # Extract code from result
-            code = gen_result.get("code") or gen_result.get("current_code") or gen_result.get("generated_code")
-            if not code:
-                print("No code generated")
-                break
+            if args.vlm_test_mode or args.mode == "vlm-test":
+                # VLM Testing Mode: Generate two codes and use VLM to select better one
+                print("Step 1: Generating first code...")
+                gen_result_1 = await generator.call()
+                if gen_result_1.get("status") == "max_rounds_reached":
+                    print("Max rounds reached. Stopping.")
+                    break
+                if gen_result_1.get("status") == "error":
+                    print(f"Generator error: {gen_result_1['error']}")
+                    break
                 
-            print(f"Generated code (truncated):\n{code[:200]}...")
-            
-            # Check if automatic execution happened
-            if gen_result.get("execution_result"):
-                exec_result = gen_result["execution_result"]
-                if exec_result.get("status") == "success":
-                    print("✅ Automatic execution completed!")
-                    result = exec_result.get("result", {})
-                    if result.get("status") == "success":
-                        print("   - Generation successful")
+                print("Step 2: Generating second code...")
+                gen_result_2 = await generator.call()
+                if gen_result_2.get("status") == "max_rounds_reached":
+                    print("Max rounds reached. Stopping.")
+                    break
+                if gen_result_2.get("status") == "error":
+                    print(f"Generator error: {gen_result_2['error']}")
+                    break
+                
+                # Extract codes from results
+                code_1 = gen_result_1.get("code") or gen_result_1.get("current_code") or gen_result_1.get("generated_code")
+                code_2 = gen_result_2.get("code") or gen_result_2.get("current_code") or gen_result_2.get("generated_code")
+                
+                if not code_1 or not code_2:
+                    print("Failed to generate both codes")
+                    break
+                
+                print(f"Generated code 1 (truncated):\n{code_1[:200]}...")
+                print(f"Generated code 2 (truncated):\n{code_2[:200]}...")
+                
+                # Execute both codes and get results
+                result_1 = None
+                result_2 = None
+                
+                if gen_result_1.get("execution_result") and gen_result_1["execution_result"].get("status") == "success":
+                    result_1 = gen_result_1["execution_result"].get("result", {})
+                    if result_1.get("status") == "success":
+                        print("✅ First code execution successful")
                     else:
-                        print(f"   - Generation failed: {result.get('output', 'Unknown error')}")
-                        await generator.add_feedback(f"Execution error: {result.get('output')}")
+                        print(f"❌ First code execution failed: {result_1.get('output', 'Unknown error')}")
+                        result_1 = None
+                
+                if gen_result_2.get("execution_result") and gen_result_2["execution_result"].get("status") == "success":
+                    result_2 = gen_result_2["execution_result"].get("result", {})
+                    if result_2.get("status") == "success":
+                        print("✅ Second code execution successful")
+                    else:
+                        print(f"❌ Second code execution failed: {result_2.get('output', 'Unknown error')}")
+                        result_2 = None
+                
+                if not result_1 and not result_2:
+                    print("Both code executions failed, skipping this round")
+                    continue
+                elif not result_1:
+                    print("Only second code succeeded, using it")
+                    selected_code = code_2
+                    selected_result = result_2
+                elif not result_2:
+                    print("Only first code succeeded, using it")
+                    selected_code = code_1
+                    selected_result = result_1
+                else:
+                    # Both succeeded, use VLM to select better one
+                    print("Step 3: Using VLM to select better result...")
+                    
+                    # Get target image path
+                    target_image_path = os.path.join(args.target_image_path, 'render1.png')
+                    if not os.path.exists(target_image_path):
+                        print(f"Target image not found: {target_image_path}")
+                        selected_code = code_1  # default to first
+                        selected_result = result_1
+                    else:
+                        # Use VLM to select better image
+                        left_image_path = os.path.join(result_1["output"], 'render1.png')
+                        right_image_path = os.path.join(result_2["output"], 'render1.png')
+                        
+                        if not os.path.exists(left_image_path) or not os.path.exists(right_image_path):
+                            print("Generated images not found, defaulting to first result")
+                            selected_code = code_1
+                            selected_result = result_1
+                        else:
+                            vlm_choice = await select_better_image_with_vlm(
+                                left_image_path=left_image_path,
+                                right_image_path=right_image_path,
+                                target_image_path=target_image_path,
+                                vision_model=args.vision_model,
+                                api_key=args.api_key,
+                                api_base_url=args.openai_base_url
+                            )
+                            
+                            print(f"VLM selected: {vlm_choice}")
+                            if vlm_choice == "left":
+                                selected_code = code_1
+                                selected_result = result_1
+                            else:
+                                selected_code = code_2
+                                selected_result = result_2
+                
+                # Add render results to generator as feedback
+                await generator.add_feedback(selected_result["output"])
+                
+                print("Step 4: Verifier analyzing scene...")
+                verify_result = await verifier.call(
+                    code=selected_code,
+                    render_path=selected_result["output"],
+                    round_num=round_num,
+                )
+                
+                print(f"Verifier result: {verify_result.get('status')}")
+                if verify_result.get("status") == "end":
+                    print("Verifier: OK! Task complete.")
+                    break
+                elif verify_result.get("status") == "continue":
+                    feedback = verify_result["output"]
+                    print(f"Verifier feedback: {feedback}")
+                    await generator.add_feedback(feedback)
+                else:
+                    print(f"Verifier error: {verify_result.get('error')}")
+                    break
+                
+            else:
+                # Original mode: Single code generation
+                print("Step 1: Generator generating code...")
+                gen_result = await generator.call()
+                if gen_result.get("status") == "max_rounds_reached":
+                    print("Max rounds reached. Stopping.")
+                    break
+                if gen_result.get("status") == "error":
+                    print(f"Generator error: {gen_result['error']}")
+                    break
+                
+                print("gen_result: ", gen_result)
+                
+                # Extract code from result
+                code = gen_result.get("code") or gen_result.get("current_code") or gen_result.get("generated_code")
+                if not code:
+                    print("No code generated")
+                    break
+                    
+                print(f"Generated code (truncated):\n{code[:200]}...")
+                
+                # Check if automatic execution happened
+                if gen_result.get("execution_result"):
+                    exec_result = gen_result["execution_result"]
+                    if exec_result.get("status") == "success":
+                        print("✅ Automatic execution completed!")
+                        result = exec_result.get("result", {})
+                        if result.get("status") == "success":
+                            print("   - Generation successful")
+                        else:
+                            print(f"   - Generation failed: {result.get('output', 'Unknown error')}")
+                            await generator.add_feedback(f"Execution error: {result.get('output')}")
+                            continue
+                    else:
+                        print(f"   - Execution failed: {exec_result.get('error', 'Unknown error')}")
+                        await generator.add_feedback(f"Execution error: {exec_result.get('error')}")
                         continue
                 else:
-                    print(f"   - Execution failed: {exec_result.get('error', 'Unknown error')}")
-                    await generator.add_feedback(f"Execution error: {exec_result.get('error')}")
-                    continue
-            else:
-                # Manual execution (when automatic execution is not available)
-                # print("Step 2: Executing code...")
-                # print("   - Execution handled by generator agent internally")
-                raise ValueError("Unknown error in automatic execution")
+                    # Manual execution (when automatic execution is not available)
+                    # print("Step 2: Executing code...")
+                    # print("   - Execution handled by generator agent internally")
+                    raise ValueError("Unknown error in automatic execution")
+                
+                # Add render results to generator as feedback
+                await generator.add_feedback(result["output"])
+                
+                print("Step 3: Verifier analyzing scene...")
+                verify_result = await verifier.call(
+                    code=code,
+                    render_path=result["output"],
+                    round_num=round_num,
+                )
+                
+                print(f"Verifier result: {verify_result.get('status')}")
+                if verify_result.get("status") == "end":
+                    print("Verifier: OK! Task complete.")
+                    break
+                elif verify_result.get("status") == "continue":
+                    feedback = verify_result["output"]
+                    print(f"Verifier feedback: {feedback}")
+                    await generator.add_feedback(feedback)
+                else:
+                    print(f"Verifier error: {verify_result.get('error')}")
+                    break
             
-            # Add render results to generator as feedback
-            await generator.add_feedback(result["output"])
-            
-            print("Step 3: Verifier analyzing scene...")
-            verify_result = await verifier.call(
-                code=code,
-                render_path=result["output"],
-                round_num=round_num,
-            )
-            
-            print(f"Verifier result: {verify_result.get('status')}")
-            if verify_result.get("status") == "end":
-                print("Verifier: OK! Task complete.")
-                break
-            elif verify_result.get("status") == "continue":
-                feedback = verify_result["output"]
-                print(f"Verifier feedback: {feedback}")
-                await generator.add_feedback(feedback)
-            else:
-                print(f"Verifier error: {verify_result.get('error')}")
-                break
-            
-            print("Step 4: Saving thought processes...")
+            print("Step 5: Saving thought processes...")
             await generator.save_thought_process()
             await verifier.save_thought_process()
             await asyncio.sleep(1)

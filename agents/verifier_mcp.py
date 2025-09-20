@@ -64,6 +64,7 @@ class VerifierAgent:
         
         # Initialize system prompt using generic prompt builder
         self.system_prompt = self.prompt_builder.build_verifier_prompt(self.config)
+        self.memory = copy.deepcopy(self.system_prompt)
         
     async def _ensure_tools_connected(self):
         if not self._tools_connected:

@@ -4,6 +4,7 @@ import json
 from openai import OpenAI
 from typing import Dict, List, Optional, Any
 import logging
+import copy
 from mcp.server.fastmcp import FastMCP
 from agents.external_tool_client import ExternalToolClient
 from agents.prompt_builder import PromptBuilder
@@ -66,7 +67,8 @@ class GeneratorAgent:
         self.tool_handler = ToolHandler(self.tool_client, self.server_type)
         
         # Initialize memory using generic prompt builder
-        self.memory = self.prompt_builder.build_generator_prompt(self.config)
+        self.system_prompt = self.prompt_builder.build_generator_prompt(self.config)
+        self.memory = copy.deepcopy(self.system_prompt)
     
     async def _ensure_server_connected(self):
         if not self._server_connected and self.server_type and self.server_path:
@@ -86,7 +88,7 @@ class GeneratorAgent:
         """Handle tool calls from the generator agent."""
         return await self.tool_handler.handle_generator_tool_call(tool_call)
 
-    async def call(self, feedback: Optional[str] = None) -> Dict[str, Any]:
+    async def call(self, no_memory: bool = False) -> Dict[str, Any]:
         """
         Generate code based on current memory and optional feedback.
         
@@ -96,8 +98,8 @@ class GeneratorAgent:
         Returns:
             Dict containing the generated code and metadata
         """
-        if feedback:
-            self.memory.append({"role": "user", "content": feedback})
+        if no_memory:
+            self.memory = copy.deepcopy(self.system_prompt)
             
         if self.mode == "blendergym-hard" and self.level == "level4":
             self.memory.append({"role": "user", "content": get_scene_info(self.task_name, self.config.get("blender_file_path"))})
@@ -293,14 +295,14 @@ def main():
             return {"status": "error", "error": str(e)}
     
     @mcp.tool()
-    async def call(feedback: str = None) -> dict:
+    async def call(no_memory: bool = False) -> dict:
         """
         Generate code using the initialized Generator Agent.
         """
         try:
             if 'agent' not in agent_holder:
                 return {"status": "error", "error": "Generator Agent not initialized. Call initialize_generator first."}
-            result = await agent_holder['agent'].call(feedback)
+            result = await agent_holder['agent'].call(no_memory=no_memory)
             return result
         except Exception as e:
             return {"status": "error", "error": str(e)}
