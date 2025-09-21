@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+import torch
 
 
 def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
@@ -109,7 +110,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     
     # Build main.py command
     cmd = [
-        sys.executable, "main.py",
+        sys.executable, "blendergym.py",
         "--mode", "blendergym",
         "--vision-model", args.vision_model,
         "--api-key", args.api_key,
@@ -223,7 +224,7 @@ def main():
     parser.add_argument("--test-id", default=None, help="Test ID to check for failed cases and retest them")
     
     # Main.py parameters
-    parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
+    parser.add_argument("--max-rounds", type=int, default=5, help="Maximum number of interaction rounds")
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
@@ -243,7 +244,11 @@ def main():
     # Parallel execution parameters
     parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")
     parser.add_argument("--sequential", action="store_true", help="Run tasks sequentially instead of in parallel")
-    parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
+
+    available_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")
+    if available_gpu_devices is None:
+        available_gpu_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
+    parser.add_argument("--gpu-devices", default=available_gpu_devices, help="GPU devices for Blender")
     
     args = parser.parse_args()
     

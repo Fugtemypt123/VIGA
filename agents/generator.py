@@ -111,7 +111,7 @@ class GeneratorAgent:
                 "tools": self._get_tools()
             }
             if chat_args['tools']:
-                if self.model == 'gpt-4o':
+                if 'gpt' in self.model:
                     chat_args['parallel_tool_calls'] = False
                 if self.model != 'Qwen2-VL-7B-Instruct':
                     chat_args['tool_choice'] = "auto"

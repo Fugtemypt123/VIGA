@@ -119,6 +119,8 @@ def compute_overall_scores(intermediates: Dict[str, Any],
             scores_across_tasks[task_type] = {
                 'best_n_clip': sum(scores_across_instances['best_n_clip']) / len(scores_across_instances['best_n_clip']),
                 'best_pl': sum(scores_across_instances['best_pl']) / len(scores_across_instances['best_pl']),
+                'last_round_n_clip': sum(scores_across_instances['last_round_n_clip']) / len(scores_across_instances['last_round_n_clip']),
+                'last_round_pl': sum(scores_across_instances['last_round_pl']) / len(scores_across_instances['last_round_pl']),
                 'num_instances': len(scores_across_instances['best_n_clip']),
                 'per_round': per_round_summary
             }
@@ -126,6 +128,8 @@ def compute_overall_scores(intermediates: Dict[str, Any],
             print(f"  Task {task_type} overall scores:")
             print(f"    Average best n_clip: {scores_across_tasks[task_type]['best_n_clip']:.4f}")
             print(f"    Average best pl: {scores_across_tasks[task_type]['best_pl']:.4f}")
+            print(f"    Average last round n_clip: {scores_across_tasks[task_type]['last_round_n_clip']:.4f}")
+            print(f"    Average last round pl: {scores_across_tasks[task_type]['last_round_pl']:.4f}")
             print(f"    Number of instances: {scores_across_tasks[task_type]['num_instances']}")
         else:
             print(f"  No valid scores for task type {task_type}")
@@ -186,6 +190,8 @@ def main():
             print(f"\n{task_type.upper()}:")
             print(f"  Average best n_clip: {scores['best_n_clip']:.4f}")
             print(f"  Average best pl: {scores['best_pl']:.4f}")
+            print(f"  Average last round n_clip: {scores['last_round_n_clip']:.4f}")
+            print(f"  Average last round pl: {scores['last_round_pl']:.4f}")
             print(f"  Instances evaluated: {scores['num_instances']}")
         else:
             print(f"\n{task_type.upper()}: No valid scores")

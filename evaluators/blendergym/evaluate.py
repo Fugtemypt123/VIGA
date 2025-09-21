@@ -183,6 +183,15 @@ def process_task_instance(output_base_dir: str, task_dir: str):
         best_n_clip_round = min(valid_rounds.keys(), key=lambda r: valid_rounds[r]['avg_n_clip'])
         best_n_clip = valid_rounds[best_n_clip_round]['avg_n_clip']
         best_pl = valid_rounds[best_n_clip_round]['avg_pl']
+        
+    # select last round results
+    last_round_n_clip = None
+    last_round_pl = None
+    for round in valid_rounds.keys():
+        if round == str(max(valid_rounds.keys())):
+            last_round_n_clip = valid_rounds[round]['avg_n_clip']
+            last_round_pl = valid_rounds[round]['avg_pl']
+            break
 
     # Save individual instance scores
     instance_scores_path = os.path.join(task_instance_dir, 'scores.json')
@@ -192,7 +201,7 @@ def process_task_instance(output_base_dir: str, task_dir: str):
     except Exception:
         pass
 
-    return task_dir, task_instance_scores, best_n_clip, best_pl
+    return task_dir, task_instance_scores, best_n_clip, best_pl, last_round_n_clip, last_round_pl
 
 def extract_task_type_and_number(task_dir_name):
     """
@@ -273,6 +282,8 @@ def main():
         scores_across_instances = {
             'best_n_clip': [],
             'best_pl': [],
+            'last_round_n_clip': [],
+            'last_round_pl': [],
             'instance_details': {}
         }
 
@@ -286,11 +297,13 @@ def main():
 
             for future in tqdm(as_completed(futures), total=len(futures), desc=f"Processing {task_type}"):
                 try:
-                    task_dir, task_instance_scores, best_n_clip, best_pl = future.result()
+                    task_dir, task_instance_scores, best_n_clip, best_pl, last_round_n_clip, last_round_pl = future.result()
                     scores_across_instances['instance_details'][task_dir] = task_instance_scores
                     if best_n_clip is not None and best_pl is not None:
                         scores_across_instances['best_n_clip'].append(best_n_clip)
                         scores_across_instances['best_pl'].append(best_pl)
+                        scores_across_instances['last_round_n_clip'].append(last_round_n_clip)
+                        scores_across_instances['last_round_pl'].append(last_round_pl)
                         print(f"    {task_dir}: Best n_clip={best_n_clip:.4f}, Best pl={best_pl:.4f}")
                     else:
                         print(f"    {task_dir}: No valid scores")
@@ -356,6 +369,8 @@ def main():
             scores_across_tasks[task_type] = {
                 'best_n_clip': sum(scores_across_instances['best_n_clip']) / len(scores_across_instances['best_n_clip']),
                 'best_pl': sum(scores_across_instances['best_pl']) / len(scores_across_instances['best_pl']),
+                'last_round_n_clip': sum(scores_across_instances['last_round_n_clip']) / len(scores_across_instances['last_round_n_clip']),
+                'last_round_pl': sum(scores_across_instances['last_round_pl']) / len(scores_across_instances['last_round_pl']),
                 'num_instances': len(scores_across_instances['best_n_clip']),
                 'per_round': per_round_summary
             }
@@ -363,6 +378,8 @@ def main():
             print(f"  Task {task_type} overall scores:")
             print(f"    Average best n_clip: {scores_across_tasks[task_type]['best_n_clip']:.4f}")
             print(f"    Average best pl: {scores_across_tasks[task_type]['best_pl']:.4f}")
+            print(f"    Average last round n_clip: {scores_across_tasks[task_type]['last_round_n_clip']:.4f}")
+            print(f"    Average last round pl: {scores_across_tasks[task_type]['last_round_pl']:.4f}")
             print(f"    Number of instances: {scores_across_tasks[task_type]['num_instances']}")
         else:
             print(f"  No valid scores for task type {task_type}")
@@ -390,6 +407,8 @@ def main():
             print(f"\n{task_type.upper()}:")
             print(f"  Average best n_clip: {scores['best_n_clip']:.4f}")
             print(f"  Average best pl: {scores['best_pl']:.4f}")
+            print(f"  Average last round n_clip: {scores['last_round_n_clip']:.4f}")
+            print(f"  Average last round pl: {scores['last_round_pl']:.4f}")
             print(f"  Instances evaluated: {scores['num_instances']}")
         else:
             print(f"\n{task_type.upper()}: No valid scores")

@@ -143,6 +143,7 @@ async def main():
     parser.add_argument("--target-description", default=None, help="Target description for 2D mode")
     parser.add_argument("--output-dir", default="output", help="Output directory")
     parser.add_argument("--task-name", default="blendshape", help="Task name for hints extraction")
+    parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
     
     # Agent server paths 
     parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
@@ -191,12 +192,10 @@ async def main():
 
     # Init agents
     generator = GeneratorAgentClient(args.generator_script)
-    verifier = VerifierAgentClient(args.verifier_script)
 
     try:
         # Connect to agents
         await generator.connect()
-        await verifier.connect()
 
         # Create generator session - pass all args as kwargs
         generator_params = {
@@ -211,6 +210,7 @@ async def main():
             "target_description": target_description,
             "api_base_url": args.openai_base_url,
             "thought_save": args.output_dir + "/generator_thoughts.json",
+            "gpu_devices": args.gpu_devices,
             # Blender executor parameters
             "blender_server_path": args.blender_server_path,
             "blender_command": args.blender_command,
@@ -230,219 +230,113 @@ async def main():
         
         await generator.create_session(**generator_params)
         
-        # Create verifier session - pass all args as kwargs
-        verifier_params = {
-            "mode": args.mode,
-            "vision_model": args.vision_model,
-            "api_key": args.api_key,
-            "max_rounds": args.max_rounds,
-            "task_name": args.task_name,
-            "target_image_path": args.target_image_path,
-            "target_description": target_description,
-            "thought_save": args.output_dir + "/verifier_thoughts",
-            "api_base_url": args.openai_base_url,
-            # Tool server paths
-            "image_server_path": args.image_server_path,
-            "scene_server_path": args.scene_server_path,
-            "blender_file": args.output_dir + "/blender_file.blend" if args.save_blender_file else None,
-            "web_server_path": None,  # Not used in current implementation
-        }
-        
-        await verifier.create_session(**verifier_params)
-
         # Main loop
         for round_num in range(args.max_rounds):
             print(f"\n=== Round {round_num+1} ===")
             
-            if args.vlm_test_mode or args.mode == "vlm-test":
-                # VLM Testing Mode: Generate two codes and use VLM to select better one
-                print("Step 1: Generating first code...")
-                gen_result_1 = await generator.call()
-                if gen_result_1.get("status") == "max_rounds_reached":
-                    print("Max rounds reached. Stopping.")
-                    break
-                if gen_result_1.get("status") == "error":
-                    print(f"Generator error: {gen_result_1['error']}")
-                    break
+            # VLM Testing Mode: Generate two codes and use VLM to select better one
+            print("Step 1: Generating first code...")
+            gen_result_1 = await generator.call(no_memory=True)
+            if gen_result_1.get("status") == "max_rounds_reached":
+                print("Max rounds reached. Stopping.")
+                break
+            if gen_result_1.get("status") == "error":
+                print(f"Generator error: {gen_result_1['error']}")
+                break
+            
+            print("Step 2: Generating second code...")
+            gen_result_2 = await generator.call(no_memory=True)
+            if gen_result_2.get("status") == "max_rounds_reached":
+                print("Max rounds reached. Stopping.")
+                break
+            if gen_result_2.get("status") == "error":
+                print(f"Generator error: {gen_result_2['error']}")
+                break
+            
+            # Extract codes from results
+            code_1 = gen_result_1.get("code") or gen_result_1.get("current_code") or gen_result_1.get("generated_code")
+            code_2 = gen_result_2.get("code") or gen_result_2.get("current_code") or gen_result_2.get("generated_code")
+            
+            if not code_1 or not code_2:
+                print("Failed to generate both codes")
+                break
+            
+            print(f"Generated code 1 (truncated):\n{code_1[:200]}...")
+            print(f"Generated code 2 (truncated):\n{code_2[:200]}...")
+            
+            # Execute both codes and get results
+            result_1 = None
+            result_2 = None
+            
+            if gen_result_1.get("execution_result") and gen_result_1["execution_result"].get("status") == "success":
+                result_1 = gen_result_1["execution_result"].get("result", {})
+                if result_1.get("status") == "success":
+                    print("✅ First code execution successful")
+                else:
+                    print(f"❌ First code execution failed: {result_1.get('output', 'Unknown error')}")
+                    result_1 = None
+            
+            if gen_result_2.get("execution_result") and gen_result_2["execution_result"].get("status") == "success":
+                result_2 = gen_result_2["execution_result"].get("result", {})
+                if result_2.get("status") == "success":
+                    print("✅ Second code execution successful")
+                else:
+                    print(f"❌ Second code execution failed: {result_2.get('output', 'Unknown error')}")
+                    result_2 = None
+            
+            if not result_1 and not result_2:
+                print("Both code executions failed, skipping this round")
+                continue
+            elif not result_1:
+                print("Only second code succeeded, using it")
+                selected_code = code_2
+                selected_result = result_2
+            elif not result_2:
+                print("Only first code succeeded, using it")
+                selected_code = code_1
+                selected_result = result_1
+            else:
+                # Both succeeded, use VLM to select better one
+                print("Step 3: Using VLM to select better result...")
                 
-                print("Step 2: Generating second code...")
-                gen_result_2 = await generator.call()
-                if gen_result_2.get("status") == "max_rounds_reached":
-                    print("Max rounds reached. Stopping.")
-                    break
-                if gen_result_2.get("status") == "error":
-                    print(f"Generator error: {gen_result_2['error']}")
-                    break
-                
-                # Extract codes from results
-                code_1 = gen_result_1.get("code") or gen_result_1.get("current_code") or gen_result_1.get("generated_code")
-                code_2 = gen_result_2.get("code") or gen_result_2.get("current_code") or gen_result_2.get("generated_code")
-                
-                if not code_1 or not code_2:
-                    print("Failed to generate both codes")
-                    break
-                
-                print(f"Generated code 1 (truncated):\n{code_1[:200]}...")
-                print(f"Generated code 2 (truncated):\n{code_2[:200]}...")
-                
-                # Execute both codes and get results
-                result_1 = None
-                result_2 = None
-                
-                if gen_result_1.get("execution_result") and gen_result_1["execution_result"].get("status") == "success":
-                    result_1 = gen_result_1["execution_result"].get("result", {})
-                    if result_1.get("status") == "success":
-                        print("✅ First code execution successful")
-                    else:
-                        print(f"❌ First code execution failed: {result_1.get('output', 'Unknown error')}")
-                        result_1 = None
-                
-                if gen_result_2.get("execution_result") and gen_result_2["execution_result"].get("status") == "success":
-                    result_2 = gen_result_2["execution_result"].get("result", {})
-                    if result_2.get("status") == "success":
-                        print("✅ Second code execution successful")
-                    else:
-                        print(f"❌ Second code execution failed: {result_2.get('output', 'Unknown error')}")
-                        result_2 = None
-                
-                if not result_1 and not result_2:
-                    print("Both code executions failed, skipping this round")
-                    continue
-                elif not result_1:
-                    print("Only second code succeeded, using it")
-                    selected_code = code_2
-                    selected_result = result_2
-                elif not result_2:
-                    print("Only first code succeeded, using it")
-                    selected_code = code_1
+                # Get target image path
+                target_image_path = os.path.join(args.target_image_path, 'render1.png')
+                if not os.path.exists(target_image_path):
+                    print(f"Target image not found: {target_image_path}")
+                    selected_code = code_1  # default to first
                     selected_result = result_1
                 else:
-                    # Both succeeded, use VLM to select better one
-                    print("Step 3: Using VLM to select better result...")
+                    # Use VLM to select better image
+                    left_image_path = os.path.join(result_1["output"], 'render1.png')
+                    right_image_path = os.path.join(result_2["output"], 'render1.png')
                     
-                    # Get target image path
-                    target_image_path = os.path.join(args.target_image_path, 'render1.png')
-                    if not os.path.exists(target_image_path):
-                        print(f"Target image not found: {target_image_path}")
-                        selected_code = code_1  # default to first
+                    if not os.path.exists(left_image_path) or not os.path.exists(right_image_path):
+                        print("Generated images not found, defaulting to first result")
+                        selected_code = code_1
                         selected_result = result_1
                     else:
-                        # Use VLM to select better image
-                        left_image_path = os.path.join(result_1["output"], 'render1.png')
-                        right_image_path = os.path.join(result_2["output"], 'render1.png')
+                        vlm_choice = await select_better_image_with_vlm(
+                            left_image_path=left_image_path,
+                            right_image_path=right_image_path,
+                            target_image_path=target_image_path,
+                            vision_model=args.vision_model,
+                            api_key=args.api_key,
+                            api_base_url=args.openai_base_url
+                        )
                         
-                        if not os.path.exists(left_image_path) or not os.path.exists(right_image_path):
-                            print("Generated images not found, defaulting to first result")
+                        print(f"VLM selected: {vlm_choice}")
+                        if vlm_choice == "left":
                             selected_code = code_1
                             selected_result = result_1
                         else:
-                            vlm_choice = await select_better_image_with_vlm(
-                                left_image_path=left_image_path,
-                                right_image_path=right_image_path,
-                                target_image_path=target_image_path,
-                                vision_model=args.vision_model,
-                                api_key=args.api_key,
-                                api_base_url=args.openai_base_url
-                            )
-                            
-                            print(f"VLM selected: {vlm_choice}")
-                            if vlm_choice == "left":
-                                selected_code = code_1
-                                selected_result = result_1
-                            else:
-                                selected_code = code_2
-                                selected_result = result_2
-                
+                            selected_code = code_2
+                            selected_result = result_2
+            
                 # Add render results to generator as feedback
                 await generator.add_feedback(selected_result["output"])
-                
-                print("Step 4: Verifier analyzing scene...")
-                verify_result = await verifier.call(
-                    code=selected_code,
-                    render_path=selected_result["output"],
-                    round_num=round_num,
-                )
-                
-                print(f"Verifier result: {verify_result.get('status')}")
-                if verify_result.get("status") == "end":
-                    print("Verifier: OK! Task complete.")
-                    break
-                elif verify_result.get("status") == "continue":
-                    feedback = verify_result["output"]
-                    print(f"Verifier feedback: {feedback}")
-                    await generator.add_feedback(feedback)
-                else:
-                    print(f"Verifier error: {verify_result.get('error')}")
-                    break
-                
-            else:
-                # Original mode: Single code generation
-                print("Step 1: Generator generating code...")
-                gen_result = await generator.call()
-                if gen_result.get("status") == "max_rounds_reached":
-                    print("Max rounds reached. Stopping.")
-                    break
-                if gen_result.get("status") == "error":
-                    print(f"Generator error: {gen_result['error']}")
-                    break
-                
-                print("gen_result: ", gen_result)
-                
-                # Extract code from result
-                code = gen_result.get("code") or gen_result.get("current_code") or gen_result.get("generated_code")
-                if not code:
-                    print("No code generated")
-                    break
-                    
-                print(f"Generated code (truncated):\n{code[:200]}...")
-                
-                # Check if automatic execution happened
-                if gen_result.get("execution_result"):
-                    exec_result = gen_result["execution_result"]
-                    if exec_result.get("status") == "success":
-                        print("✅ Automatic execution completed!")
-                        result = exec_result.get("result", {})
-                        if result.get("status") == "success":
-                            print("   - Generation successful")
-                        else:
-                            print(f"   - Generation failed: {result.get('output', 'Unknown error')}")
-                            await generator.add_feedback(f"Execution error: {result.get('output')}")
-                            continue
-                    else:
-                        print(f"   - Execution failed: {exec_result.get('error', 'Unknown error')}")
-                        await generator.add_feedback(f"Execution error: {exec_result.get('error')}")
-                        continue
-                else:
-                    # Manual execution (when automatic execution is not available)
-                    # print("Step 2: Executing code...")
-                    # print("   - Execution handled by generator agent internally")
-                    raise ValueError("Unknown error in automatic execution")
-                
-                # Add render results to generator as feedback
-                await generator.add_feedback(result["output"])
-                
-                print("Step 3: Verifier analyzing scene...")
-                verify_result = await verifier.call(
-                    code=code,
-                    render_path=result["output"],
-                    round_num=round_num,
-                )
-                
-                print(f"Verifier result: {verify_result.get('status')}")
-                if verify_result.get("status") == "end":
-                    print("Verifier: OK! Task complete.")
-                    break
-                elif verify_result.get("status") == "continue":
-                    feedback = verify_result["output"]
-                    print(f"Verifier feedback: {feedback}")
-                    await generator.add_feedback(feedback)
-                else:
-                    print(f"Verifier error: {verify_result.get('error')}")
-                    break
             
             print("Step 5: Saving thought processes...")
             await generator.save_thought_process()
-            await verifier.save_thought_process()
             await asyncio.sleep(1)
             
     except Exception as e:
@@ -456,11 +350,6 @@ async def main():
             await generator.cleanup()
         except Exception as e:
             print(f"Warning: Generator cleanup failed: {e}")
-        
-        try:
-            await verifier.cleanup()
-        except Exception as e:
-            print(f"Warning: Verifier cleanup failed: {e}")
     
     print("\n=== Dual-agent interaction finished ===")
 

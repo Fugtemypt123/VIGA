@@ -111,43 +111,17 @@ def gather_results(test_id: str, slide_name: str = 'all'):
                 for key in ref_free_eval_result:
                     ref_free_eval_result[key] += best_round_ref_free_eval[key]
             else:
-                # Check for baseline results (old format) as fallback
-                # ref_eval = os.path.join(slide_dir, "baseline", "ref_eval.txt")
-                # ref_free_eval = os.path.join(slide_dir, "baseline", "refree_eval.json")
-                
-                # if os.path.exists(ref_eval) and os.path.exists(ref_free_eval):
-                #     print(f"Using baseline for {name} slide_{slide_num}")
-                #     with open(ref_eval, 'r') as f:
-                #         current_ref_eval_result = f.read()
-                #         current_ref_eval_result = current_ref_eval_result.split('\n')
-                #         for result in current_ref_eval_result:
-                #             if 'match' in result:
-                #                 ref_eval_result['match'] += float(result.split(': ')[1])
-                #             elif 'text' in result:
-                #                 ref_eval_result['text'] += float(result.split(': ')[1])
-                #             elif 'color' in result:
-                #                 ref_eval_result['color'] += float(result.split(': ')[1])
-                #             elif 'position' in result:
-                #                 ref_eval_result['position'] += float(result.split(': ')[1])
-                    
-                #     with open(ref_free_eval, 'r') as f:
-                #         current_ref_free_eval_result = json.load(f)
-                #         ref_free_eval_result['text'] += current_ref_free_eval_result['text']['score'] * 20
-                #         ref_free_eval_result['image'] += current_ref_free_eval_result['image']['score'] * 20
-                #         ref_free_eval_result['layout'] += current_ref_free_eval_result['layout']['score'] * 20
-                #         ref_free_eval_result['color'] += current_ref_free_eval_result['color']['score'] * 20
-                # else:
                 fail_num += 1
                 print(f"Warning: No evaluation results found for {name} slide_{slide_num}")
                     
             total_num += 1
 
     # Calculate averages
-    if total_num > 0:
+    if total_num - fail_num > 0:
         for key in ref_eval_result.keys():
-            ref_eval_result[key] = ref_eval_result[key] / total_num
+            ref_eval_result[key] = ref_eval_result[key] / (total_num - fail_num)
         for key in ref_free_eval_result.keys():
-            ref_free_eval_result[key] = ref_free_eval_result[key] / total_num
+            ref_free_eval_result[key] = ref_free_eval_result[key] / (total_num - fail_num)
 
     # Calculate Round 1 averages
     if round1_count > 0:
@@ -167,12 +141,13 @@ def gather_results(test_id: str, slide_name: str = 'all'):
     overall_score = (ref_eval_result['match'] + ref_eval_result['text'] + 
                     ref_eval_result['color'] + ref_eval_result['position'] + 
                     ref_free_eval_result['text'] + ref_free_eval_result['image'] + 
-                    ref_free_eval_result['layout'] + ref_free_eval_result['color']) / 8
+                    ref_free_eval_result['layout'] + ref_free_eval_result['color']) / 8 * ((total_num - fail_num) / total_num)
     print(f"Overall score: {overall_score:.4f}")
     
     # Print Round 1 specific results
     print(f"\n=== Round 1 Statistics ===")
     print(f"Round 1 slides count: {round1_count}")
+    print(f"Round 1 Success rate: {round1_count / total_num:.4f}")
     if round1_count > 0:
         print(f"Round 1 ref-based evaluation results: {round1_ref_eval_result}")
         print(f"Round 1 ref-free evaluation results: {round1_ref_free_eval_result}")
@@ -180,7 +155,7 @@ def gather_results(test_id: str, slide_name: str = 'all'):
         round1_overall_score = (round1_ref_eval_result['match'] + round1_ref_eval_result['text'] + 
                               round1_ref_eval_result['color'] + round1_ref_eval_result['position'] + 
                               round1_ref_free_eval_result['text'] + round1_ref_free_eval_result['image'] + 
-                              round1_ref_free_eval_result['layout'] + round1_ref_free_eval_result['color']) / 8
+                              round1_ref_free_eval_result['layout'] + round1_ref_free_eval_result['color']) / 8 * (round1_count / total_num)
         print(f"Round 1 overall score: {round1_overall_score:.4f}")
         
         # Compare Round 1 vs Best Round performance

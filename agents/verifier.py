@@ -105,7 +105,7 @@ class VerifierAgent:
                     "tools": self._get_tools()
                 }
                 if chat_args['tools']:
-                    if self.vision_model == 'gpt-4o':
+                    if 'gpt' in self.vision_model:
                         chat_args['parallel_tool_calls'] = False
                     if self.vision_model != 'Qwen2-VL-7B-Instruct':
                         chat_args['tool_choice'] = "auto"
