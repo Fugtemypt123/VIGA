@@ -38,11 +38,11 @@ def get_task_specific_penalty(task_name: str) -> float:
     
     # Define penalty scores by task type
     penalty_scores = {
-        'blendshape': 0.05,
-        'placement': 0.05,
-        'geometry': 0.5,
-        'lighting': 0.5,
-        'material': 0.5
+        'blendshape': 0.1,
+        'placement': 0.1,
+        'geometry': 1,
+        'lighting': 1,
+        'material': 1
     }
     
     return penalty_scores.get(task_type, 1.0)
