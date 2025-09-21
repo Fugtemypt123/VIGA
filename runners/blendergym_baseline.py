@@ -26,6 +26,24 @@ GLOBAL_CLIP_MODEL = None
 GLOBAL_CLIP_PROCESSOR = None
 
 
+def convert_numpy_types(obj):
+    """
+    Convert numpy types to Python native types for JSON serialization.
+    """
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    else:
+        return obj
+
+
 def ensure_clip_loaded():
     """
     Lazily load the global CLIP model and processor once per process.
@@ -229,6 +247,30 @@ def clip_fallback_comparison(image1_path: str, image2_path: str, target_path: st
         return 1
 
 
+def get_max_rounds_for_task(task_name: str) -> int:
+    """
+    Get the maximum number of rounds for a task from the reference directory.
+    
+    Args:
+        task_name: Name of the task (e.g., 'blendshape1')
+        
+    Returns:
+        Maximum round number found in the reference directory
+    """
+    reference_dir = Path(f"output/blendergym/gpt-4o/{task_name}/renders")
+    if not reference_dir.exists():
+        print(f"Warning: Reference directory not found: {reference_dir}")
+        return 8  # Default fallback
+    
+    max_round = 0
+    for round_dir in reference_dir.iterdir():
+        if round_dir.is_dir() and round_dir.name.isdigit():
+            round_num = int(round_dir.name)
+            max_round = max(max_round, round_num)
+    
+    return max_round
+
+
 def load_tasks_from_output(output_dir: str) -> List[Dict]:
     """
     Load completed tasks from output directory.
@@ -251,41 +293,48 @@ def load_tasks_from_output(output_dir: str) -> List[Dict]:
         if task_dir.is_dir() and task_dir.name != "_evaluation":
             renders_dir = task_dir / "renders"
             if renders_dir.exists():
-                # Check if we have the expected round directories (1-8)
+                task_name = task_dir.name
+                
+                # Get maximum rounds from reference directory
+                max_rounds = get_max_rounds_for_task(task_name)
+                print(f"Task {task_name}: using max rounds = {max_rounds}")
+                
+                # Check for round directories (1 to max_rounds)
                 round_dirs = []
-                for i in range(1, 9):  # rounds 1-8
+                for i in range(1, max_rounds + 1):
                     round_dir = renders_dir / str(i)
                     if round_dir.exists():
                         # Check for render files
                         render1 = round_dir / "render1.png"
-                        render2 = round_dir / "render2.png"
-                        if render1.exists() and render2.exists():
+                        if render1.exists():
                             round_dirs.append(i)
                 
-                if len(round_dirs) >= 2:  # Need at least 2 rounds for tournament
-                    # Find corresponding target images
-                    task_name = task_dir.name
-                    target_renders_dir = Path(f"data/blendergym/{task_name}/renders/goal")
-                    if target_renders_dir.exists():
-                        target_render1 = target_renders_dir / "render1.png"
-                        target_render2 = target_renders_dir / "render2.png"
+                # Find corresponding target images
+                target_renders_dir = Path(f"data/blendergym/{task_name}/renders/goal")
+                if target_renders_dir.exists():
+                    target_render1 = target_renders_dir / "render1.png"
+                    
+                    if target_render1.exists():
+                        task_config = {
+                            "task_name": task_name,
+                            "task_dir": str(task_dir),
+                            "renders_dir": str(renders_dir),
+                            "target_renders_dir": str(target_renders_dir),
+                            "round_dirs": sorted(round_dirs),
+                            "max_rounds": max_rounds
+                        }
+                        tasks.append(task_config)
                         
-                        if target_render1.exists() and target_render2.exists():
-                            task_config = {
-                                "task_name": task_name,
-                                "task_dir": str(task_dir),
-                                "renders_dir": str(renders_dir),
-                                "target_renders_dir": str(target_renders_dir),
-                                "round_dirs": sorted(round_dirs)
-                            }
-                            tasks.append(task_config)
-                            print(f"Found task: {task_name} with {len(round_dirs)} rounds")
+                        if len(round_dirs) >= 2:
+                            print(f"Found task: {task_name} with {len(round_dirs)} rounds (max_rounds={max_rounds}) - will run tournament")
+                        elif len(round_dirs) == 1:
+                            print(f"Found task: {task_name} with {len(round_dirs)} round (max_rounds={max_rounds}) - will auto-win")
                         else:
-                            print(f"Warning: Target renders not found for {task_name}")
+                            print(f"Found task: {task_name} with {len(round_dirs)} rounds (max_rounds={max_rounds}) - will get penalty score")
                     else:
-                        print(f"Warning: Target renders directory not found for {task_name}")
+                        print(f"Warning: Target renders not found for {task_name}")
                 else:
-                    print(f"Warning: Insufficient rounds found for {task_dir.name}: {len(round_dirs)}")
+                    print(f"Warning: Target renders directory not found for {task_name}")
     
     return tasks
 
@@ -310,23 +359,77 @@ def run_tournament(task_config: Dict, args) -> Dict:
     # Get all available round directories
     available_rounds = task_config['round_dirs']
     
-    # Prepare images for tournament (use all available rounds)
+    # Prepare images for tournament (use rounds 1 to max_rounds)
+    max_rounds = task_config.get('max_rounds', 8)  # Default fallback
     images = []
-    for round_num in available_rounds:  # Use all available rounds
-        round_dir = renders_dir / str(round_num)
-        render1_path = round_dir / "render1.png"
-        render2_path = round_dir / "render2.png"
-        
-        if render1_path.exists() and render2_path.exists():
-            images.append({
-                'round': round_num,
-                'render1': str(render1_path),
-                'render2': str(render2_path)
-            })
+    for round_num in range(1, max_rounds + 1):
+        if round_num in available_rounds:  # Only use rounds that exist
+            round_dir = renders_dir / str(round_num)
+            render1_path = round_dir / "render1.png"
+            render2_path = round_dir / "render2.png"
+            
+            if render1_path.exists() and render2_path.exists():
+                images.append({
+                    'round': round_num,
+                    'render1': str(render1_path),
+                    'render2': str(render2_path)
+                })
     
-    if len(images) < 2:
-        print(f"Warning: Only {len(images)} rounds available, need at least 2")
-        return {"error": f"Insufficient rounds: {len(images)}"}
+    # Handle special cases: 0 rounds or 1 round
+    if len(images) == 0:
+        print(f"Warning: No rounds available for {task_name}, assigning penalty score")
+        return {
+            "task_name": task_name,
+            "max_rounds": max_rounds,
+            "total_participants": 0,
+            "special_case": "no_rounds",
+            "final_metrics": {
+                "n_clip_render1": 1.0,  # Maximum penalty
+                "n_clip_render2": 1.0,  # Maximum penalty
+                "avg_n_clip": 1.0,      # Maximum penalty
+                "pl_render1": 1.0,      # Maximum penalty
+                "pl_render2": 1.0,      # Maximum penalty
+                "avg_pl": 1.0           # Maximum penalty
+            }
+        }
+    elif len(images) == 1:
+        print(f"Only 1 round available for {task_name}, auto-winning")
+        # Calculate metrics for the single round
+        single_image = images[0]
+        target_render1 = str(target_renders_dir / "render1.png")
+        target_render2 = str(target_renders_dir / "render2.png")
+        
+        # Load images for metric calculation
+        winner_render1 = Image.open(single_image['render1'])
+        winner_render2 = Image.open(single_image['render2'])
+        target_img1 = Image.open(target_render1)
+        target_img2 = Image.open(target_render2)
+        
+        # CLIP metrics (1 - similarity = distance)
+        clip1 = 1 - clip_similarity(winner_render1, target_img1)
+        clip2 = 1 - clip_similarity(winner_render2, target_img2)
+        avg_clip = (clip1 + clip2) / 2
+        
+        # Photometric loss
+        pl1 = photometric_loss(winner_render1, target_img1)
+        pl2 = photometric_loss(winner_render2, target_img2)
+        avg_pl = (pl1 + pl2) / 2
+        
+        return {
+            "task_name": task_name,
+            "max_rounds": max_rounds,
+            "total_participants": 1,
+            "special_case": "auto_win",
+            "final_winner": single_image,
+            "final_metrics": {
+                "n_clip_render1": clip1,
+                "n_clip_render2": clip2,
+                "avg_n_clip": avg_clip,
+                "pl_render1": pl1,
+                "pl_render2": pl2,
+                "avg_pl": avg_pl
+            }
+        }
     
     # Target images
     target_render1 = str(target_renders_dir / "render1.png")
@@ -337,6 +440,7 @@ def run_tournament(task_config: Dict, args) -> Dict:
     
     tournament_results = {
         "task_name": task_name,
+        "max_rounds": max_rounds,
         "total_participants": len(images),
         "rounds": []
     }
@@ -545,7 +649,7 @@ def main():
     
     # Save args to json
     with open(os.path.join(output_dir, "args.json"), "w") as f:
-        json.dump(args.__dict__, f, indent=2)
+        json.dump(convert_numpy_types(args.__dict__), f, indent=2)
     
     # Ensure CLIP is loaded
     ensure_clip_loaded()
@@ -554,9 +658,14 @@ def main():
     results = run_tasks_parallel(tasks, args, max_workers=args.max_workers)
     
     # Save results
-    results_path = os.path.join(output_dir, "tournament_results.json")
-    with open(results_path, "w") as f:
-        json.dump(results, f, indent=2)
+    try: 
+        results_path = os.path.join(output_dir, "tournament_results.json")
+        with open(results_path, "w") as f:
+            json.dump(convert_numpy_types(results), f, indent=2)
+    except Exception as e:
+        results_txt_path = os.path.join(output_dir, "tournament_results.txt")
+        with open(results_txt_path, "w") as f:
+            f.write(str(results))
     
     # Calculate summary statistics
     successful_tasks = results["tasks"]
@@ -577,8 +686,16 @@ def main():
             n_clip_values = [t["final_metrics"]["avg_n_clip"] for t in type_tasks]
             pl_values = [t["final_metrics"]["avg_pl"] for t in type_tasks]
             
+            # Count special cases
+            auto_wins = sum(1 for t in type_tasks if t.get("special_case") == "auto_win")
+            penalties = sum(1 for t in type_tasks if t.get("special_case") == "no_rounds")
+            tournaments = len(type_tasks) - auto_wins - penalties
+            
             summary_stats[task_type] = {
                 "num_tasks": len(type_tasks),
+                "tournaments_run": tournaments,
+                "auto_wins": auto_wins,
+                "penalty_scores": penalties,
                 "avg_n_clip": sum(n_clip_values) / len(n_clip_values),
                 "avg_pl": sum(pl_values) / len(pl_values),
                 "best_n_clip": min(n_clip_values),
@@ -590,7 +707,7 @@ def main():
         # Save summary
         summary_path = os.path.join(output_dir, "summary_stats.json")
         with open(summary_path, "w") as f:
-            json.dump(summary_stats, f, indent=2)
+            json.dump(convert_numpy_types(summary_stats), f, indent=2)
         
         # Print summary
         print(f"\n{'='*60}")
@@ -606,6 +723,9 @@ def main():
         for task_type, stats in summary_stats.items():
             print(f"\n{task_type.upper()}:")
             print(f"  Tasks evaluated: {stats['num_tasks']}")
+            print(f"  Tournaments run: {stats['tournaments_run']}")
+            print(f"  Auto-wins: {stats['auto_wins']}")
+            print(f"  Penalty scores: {stats['penalty_scores']}")
             print(f"  Average n_clip: {stats['avg_n_clip']:.4f}")
             print(f"  Average pl: {stats['avg_pl']:.4f}")
             print(f"  Best n_clip: {stats['best_n_clip']:.4f}")
