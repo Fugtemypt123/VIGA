@@ -90,6 +90,35 @@ def aggregate_per_round_scores(scores_across_instances: Dict[str, Any],
     return per_round_summary
 
 
+def compute_last_round_scores(scores_across_instances: Dict[str, Any]) -> tuple:
+    """
+    Compute last round scores from instance details, similar to evaluate.py logic.
+    
+    Args:
+        scores_across_instances: The intermediate scores structure
+        
+    Returns:
+        tuple: (last_round_n_clip_list, last_round_pl_list)
+    """
+    last_round_n_clip_list = []
+    last_round_pl_list = []
+    
+    for instance_scores in scores_across_instances['instance_details'].values():
+        # Find valid rounds for this instance
+        valid_rounds = {k: v for k, v in instance_scores.items() 
+                       if isinstance(v, dict) and 'avg_n_clip' in v and 'avg_pl' in v}
+        
+        if valid_rounds:
+            # Get the last round (highest round number)
+            last_round_key = str(max(valid_rounds.keys()))
+            last_round_n_clip = valid_rounds[last_round_key]['avg_n_clip']
+            last_round_pl = valid_rounds[last_round_key]['avg_pl']
+            last_round_n_clip_list.append(last_round_n_clip)
+            last_round_pl_list.append(last_round_pl)
+    
+    return last_round_n_clip_list, last_round_pl_list
+
+
 def compute_overall_scores(intermediates: Dict[str, Any], 
                           penalty_factor: float = 2.0,
                           max_rounds: int = 10) -> Dict[str, Any]:
@@ -113,6 +142,12 @@ def compute_overall_scores(intermediates: Dict[str, Any],
         per_round_summary = aggregate_per_round_scores(
             scores_across_instances, penalty_factor, max_rounds
         )
+        
+        # Compute last round scores if not already present
+        if not scores_across_instances.get('last_round_n_clip'):
+            last_round_n_clip_list, last_round_pl_list = compute_last_round_scores(scores_across_instances)
+            scores_across_instances['last_round_n_clip'] = last_round_n_clip_list
+            scores_across_instances['last_round_pl'] = last_round_pl_list
         
         # Aggregate results for this task type
         if scores_across_instances.get('best_n_clip'):

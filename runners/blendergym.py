@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+import torch
 
 
 def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
@@ -43,8 +44,8 @@ def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[st
     current_task_dirs = []
     for task in task_list:
         for task_dir in current_task_path.glob(f"{task}*"):
-            current_task_dir = task_dir / "generator_thoughts.json"
-            if os.path.exists(current_task_dir):
+            current_task_dir = task_dir / "scores.json"
+            if os.path.exists(current_task_dir) and task != 'material':
                 current_task_dirs.append(os.path.basename(task_dir))
                 
     task_dirs = []
@@ -243,7 +244,11 @@ def main():
     # Parallel execution parameters
     parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")
     parser.add_argument("--sequential", action="store_true", help="Run tasks sequentially instead of in parallel")
-    parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
+    
+    available_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")
+    if available_gpu_devices is None:
+        available_gpu_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
+    parser.add_argument("--gpu-devices", default=available_gpu_devices, help="GPU devices for Blender")
     
     args = parser.parse_args()
     

@@ -440,14 +440,14 @@ class PromptBuilder:
                 {"type": "text", "text": "Target Image (View 1):"},
                 {"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_1)}}
             ])
+        else:
+            raise ValueError(f"Target image {target_image_path_1} does not exist!")
         target_image_path_2 = os.path.join(target_image_path, 'render2.png')
         if os.path.exists(target_image_path_2):
             user_content.extend([
                 {"type": "text", "text": "Target Image (View 2):"},
                 {"type": "image_url", "image_url": {"url": self._get_image_base64(target_image_path_2)}}
             ])
-        else:
-            raise ValueError(f"Target image {target_image_path_2} does not exist!")
         # Add hints
         if prompts_dict[mode]['hints']['verifier'][task_name] is not None:
             user_content.append({"type": "text", "text": f"Hints:\n{prompts_dict[mode]['hints']['verifier'][task_name]}"})            
