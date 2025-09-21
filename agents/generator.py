@@ -116,11 +116,7 @@ class GeneratorAgent:
                 if self.model != 'Qwen2-VL-7B-Instruct':
                     chat_args['tool_choice'] = "auto"
 
-            response = self.client.chat.completions.create(
-                model=self.model, 
-                messages=self.memory, 
-                tools=self._get_tools()
-            )
+            response = self.client.chat.completions.create(**chat_args)
             message = response.choices[0].message
             
             last_full_code = self.config.get("script_save") + f"/0.py"
