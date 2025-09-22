@@ -12,13 +12,13 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 # DATA_ROOT = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/demo/christmas1/20250921_070451")).resolve()
 
 # Manually configured dataset roots (edit these placeholders)
-DATA_ROOT_1 = Path("/absolute/path/to/output/demo/christmas1/20250921_070451").resolve()
-DATA_ROOT_2 = Path("/absolute/path/to/output/REPLACE_ME_2").resolve()
-DATA_ROOT_3 = Path("/absolute/path/to/output/REPLACE_ME_3").resolve()
-DATA_ROOT_4 = Path("/absolute/path/to/output/REPLACE_ME_4").resolve()
-DATA_ROOT_5 = Path("/absolute/path/to/output/REPLACE_ME_5").resolve()
-DATA_ROOT_6 = Path("/absolute/path/to/output/REPLACE_ME_6").resolve()
-DATA_ROOT_7 = Path("/absolute/path/to/output/REPLACE_ME_7").resolve()
+DATA_ROOT_1 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/demo/christmas1/showcase1")).resolve()
+DATA_ROOT_2 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/demo/christmas1/showcase2")).resolve()
+DATA_ROOT_3 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/demo/level4-1/light_demo")).resolve()
+DATA_ROOT_4 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/demo/level4-1/camera1")).resolve()
+DATA_ROOT_5 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/demo/level4-1/camera2")).resolve()
+DATA_ROOT_6 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/blendergym/place_demo_1/placement1")).resolve()
+DATA_ROOT_7 = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parent.parent / "output/blendergym/place_demo_2/placement1")).resolve()
 DATA_ROOT_8 = Path("/absolute/path/to/output/REPLACE_ME_8").resolve()
 DATA_ROOT_9 = Path("/absolute/path/to/output/REPLACE_ME_9").resolve()
 
@@ -28,10 +28,10 @@ DATASETS: List[Path] = [
     DATA_ROOT_3,
     DATA_ROOT_4,
     DATA_ROOT_5,
-    DATA_ROOT_6,
-    DATA_ROOT_7,
-    DATA_ROOT_8,
-    DATA_ROOT_9,
+    # DATA_ROOT_6,
+    # DATA_ROOT_7,
+    # DATA_ROOT_8,
+    # DATA_ROOT_9,
 ]
 
 

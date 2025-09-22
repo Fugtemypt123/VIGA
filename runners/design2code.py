@@ -184,8 +184,8 @@ def main():
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
 
     # Agent server paths
-    parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
-    parser.add_argument("--verifier-script", default="agents/verifier_mcp.py", help="Verifier MCP script path")
+    parser.add_argument("--generator-script", default="agents/generator.py", help="Generator MCP script path")
+    parser.add_argument("--verifier-script", default="agents/verifier.py", help="Verifier MCP script path")
 
     # HTML execution parameters (for generator)
     parser.add_argument("--html-server-path", default="servers/generator/html.py", help="Path to HTML execution MCP server script")
