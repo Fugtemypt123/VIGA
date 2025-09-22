@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgenticVerifier Viewer</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; padding: 0; color: #111; }
+    header { padding: 16px 24px; background: #0f172a; color: #fff; }
+    main { padding: 16px 24px; display: grid; gap: 24px; grid-template-columns: 320px 1fr; }
+    .panel { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .rounds ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+    .rounds a { display: block; padding: 8px 10px; text-decoration: none; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; text-align: center; color: #0f172a; }
+    .rounds a:hover { background: #eef2ff; border-color: #c7d2fe; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; max-height: 420px; overflow: auto; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    .meta { color: #475569; font-size: 12px; }
+  </style>
+  <script>
+    function toggle(id) {
+      const el = document.getElementById(id);
+      el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+    }
+  </script>
+  <script>
+    function pretty(obj) { return JSON.stringify(obj, null, 2); }
+  </script>
+  <script type="application/json" id="generatorData">{{ generator | tojson }}</script>
+  <script type="application/json" id="scoresData">{{ scores | tojson }}</script>
+  <script type="application/json" id="refFreeScoresData">{{ ref_free_scores | tojson }}</script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const g = document.getElementById('generatorData').textContent;
+      const s = document.getElementById('scoresData').textContent;
+      const r = document.getElementById('refFreeScoresData').textContent;
+      try { document.getElementById('generatorPre').textContent = JSON.stringify(JSON.parse(g), null, 2); } catch {}
+      try { document.getElementById('scoresPre').textContent = JSON.stringify(JSON.parse(s), null, 2); } catch {}
+      try { document.getElementById('refScoresPre').textContent = JSON.stringify(JSON.parse(r), null, 2); } catch {}
+    });
+  </script>
+  </head>
+<body>
+  <header>
+    <h1>AgenticVerifier Viewer</h1>
+    <div class="meta">Data root: {{ data_root }}</div>
+  </header>
+  <main>
+    <section class="panel rounds">
+      <h2>Rounds</h2>
+      <ul>
+        {% for r in rounds %}
+          <li><a href="/round/{{ r }}">Round {{ r }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    <section class="panel">
+      <h2>Generator Thoughts (full)</h2>
+      <pre id="generatorPre"></pre>
+      <h2>Scores</h2>
+      <pre id="scoresPre"></pre>
+      <h2>Reference-free Scores</h2>
+      <pre id="refScoresPre"></pre>
+    </section>
+  </main>
+</body>
+</html>
+
+
+

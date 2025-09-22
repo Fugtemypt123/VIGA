@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Round {{ round_info.round }}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; margin: 0; padding: 0; color: #111; }
+    header { padding: 16px 24px; background: #0f172a; color: #fff; }
+    main { padding: 16px 24px; display: grid; gap: 24px; grid-template-columns: 1fr 1fr; }
+    .panel { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .img-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; display: inline-block; }
+    img { max-width: 100%; height: auto; display: block; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; max-height: 480px; overflow: auto; }
+    .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    a.btn { display: inline-block; padding: 6px 10px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; color: #1e3a8a; text-decoration: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const v = document.getElementById('verifierData').textContent;
+      try { document.getElementById('verifierPre').textContent = JSON.stringify(JSON.parse(v), null, 2); } catch {}
+    });
+  </script>
+  <script type="application/json" id="verifierData">{{ round_info.verifier_json | tojson }}</script>
+</head>
+<body>
+  <header>
+    <h1>Round {{ round_info.round }}</h1>
+    <a class="btn" href="/">← Back</a>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Generator Render</h2>
+      {% if round_info.generator_image_rel %}
+        <div class="img-wrap">
+          <img src="{{ round_info.generator_image_rel }}" alt="render" />
+        </div>
+      {% else %}
+        <em>No image found.</em>
+      {% endif %}
+      {% if round_info.script_rel %}
+        <p><a class="btn" href="{{ round_info.script_rel }}" target="_blank">View script</a></p>
+      {% endif %}
+    </section>
+    <section class="panel">
+      <h2>Verifier Thoughts</h2>
+      <pre id="verifierPre"></pre>
+    </section>
+    <section class="panel" style="grid-column: 1 / -1;">
+      <h2>Investigator Outputs</h2>
+      {% if round_info.investigator_images and round_info.investigator_images|length > 0 %}
+        <div class="thumbs">
+          {% for im in round_info.investigator_images %}
+            <div class="img-wrap"><img src="{{ im }}" /></div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <em>No investigator images.</em>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
+
+
+
