@@ -155,10 +155,6 @@ async def main():
             
             print("gen_result: ", gen_result)
             
-            # Extract code from result
-            code = gen_result.get("code") or gen_result.get("current_code") or gen_result.get("generated_code")
-            print(f"Generated code (truncated):\n{code[:200]}...")
-            
             # Check if automatic execution happened
             if gen_result.get("execution_result"):
                 exec_result = gen_result["execution_result"]
@@ -186,7 +182,7 @@ async def main():
             
             print("Step 3: Verifier analyzing scene...")
             verify_result = await verifier.call(
-                code=code,
+                code=gen_result["code"],
                 render_path=result["output"],
                 round_num=round_num,
             )
