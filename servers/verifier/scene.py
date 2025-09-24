@@ -122,6 +122,18 @@ class Investigator3D:
         if 'Camera1' in bpy.data.objects:
             cam.matrix_world.translation = bpy.data.objects['Camera1'].matrix_world.translation.copy()
             print("Copy from Camera1!")
+        else:
+            # select any camera
+            for existing_cam in bpy.data.objects:
+                if existing_cam.type == 'CAMERA':
+                    cam.matrix_world.translation = existing_cam.matrix_world.translation.copy()
+                    print(f"Copy from Camera: {existing_cam.name}!")
+                    break
+            else:
+                # randomly initialize a camera position
+                cam.location = (5, 5, 5)
+                cam.rotation_euler = (0, 0, 0)
+                cam.data.lens = 20
         return cam
 
     def _render(self, round_num: int):

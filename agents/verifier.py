@@ -125,6 +125,8 @@ class VerifierAgent:
                             })
                             continue
                         tool_response = await self._handle_tool_call(tool_call, round_num)
+                        with open('tool_response.json', 'w') as f:
+                            json.dump(tool_response, f, w=4, ensure_ascii=False)
                         self.memory.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,

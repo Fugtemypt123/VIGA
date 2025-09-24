@@ -41,7 +41,7 @@ if __name__ == "__main__":
     va_api_key = os.getenv("VA_API_KEY")
     api_key = os.getenv("OPENAI_API_KEY")
     openai_base_url = os.getenv("OPENAI_BASE_URL")
-    max_rounds = 40
+    max_rounds = 30
     vision_model = "gpt-5"
     cmd = f"python main.py --mode blendergym-hard --vision-model {vision_model} --api-key {api_key} --max-rounds {max_rounds} --init-code-path {copy_init_code_path} --init-image-path {init_image_path} --target-image-path {target_image_path} --output-dir {output_dir} --task-name {task_name} --generator-script {generator_script} --verifier-script {verifier_script} --blender-server-path {blender_server_path} --blender-command {blender_command} --blender-file {copy_blender_file} --blender-script {copy_blender_script} --save-blender-file --scene-server-path {scene_server_path} --meshy_api_key {meshy_api_key} --va_api_key {va_api_key}"
     print(cmd)
