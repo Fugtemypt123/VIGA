@@ -2,8 +2,13 @@ import os
 import shutil
 import time
 import subprocess
+import argparse
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Test demo functionality")
+    parser.add_argument("--target-image-path", default="data/blendergym_hard/level4/christmas1/renders/goal/visprompt1.png", type=str, help="Task name")
+    args = parser.parse_args()
+    
     time_stamp = time.strftime("%Y%m%d_%H%M%S")
     output_dir = f"output/demo/blendergym_hard/{time_stamp}"
     os.makedirs(output_dir, exist_ok=True)
@@ -16,7 +21,7 @@ if __name__ == "__main__":
     # not exist
     init_image_path = "none"
     # shutil.copytree(init_image_path, copy_init_image_path)
-    target_image_path = "data/blendergym_hard/level4/christmas1/renders/goal/visprompt1.png"
+    target_image_path = args.target_image_path
     task_name = "level4-1"
     generator_script = "agents/generator.py"
     verifier_script = "agents/verifier.py"
