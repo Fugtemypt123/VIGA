@@ -29,7 +29,7 @@ demo_verifier_format = """In each round, you must follow a fixed output format. 
 2. Editing suggestion: Describe your editing suggestion as accurately as possible and provide as much auxiliary information as possible. Here, please clearly indicate whether the next action of the generator should be (1) modify the code or (2) generate an object. 
 3. Code location: If you choose (1) modify the code, please provide the precise code location and editing instructions, preferably using specific numbers. 
 
-NOTE: If the current scene is very close to the target scene, just output "OK!" without any other characters."""
+NOTE: If the current scene is very close to the target scene, just output "END THE PROCESS" without any other characters."""
 
 demo_generator_hints = """1. When you need to adjust the properties of an object, try to reason and think about the coordinates and visual position of each object in concrete numbers whenever possible. (for example, if the floor's bounding box is min(-2, -2, 0), max(2, 2, 0.2), then you need to ensure that the object placed on the floor has a z coordinate greater than 0.2 and an (x, y) coordinate within the range (-2, 2)). Scale and rotation should also be adjusted according to the target image.
 2. If there is nothing in the scene or current object are all in the right position, call 'generate_and_download_3d_asset' tool to download a new object into the local directory. After downloading an object, do not immediately download the next object, but instead first adjust its position by editing the code!

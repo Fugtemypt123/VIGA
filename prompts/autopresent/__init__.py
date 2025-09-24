@@ -27,7 +27,7 @@ autopresent_verifier_format = """Output Structure:
 1. Thought: Analyze the current state and provide a clear plan for the required changes.
 2. Visual Difference: Describe the main differences found (between the current and target slide). Only answer the most obvious 1-2 differences at a time, don't answer too many.
 3. Code Localization: Pinpoint locations in the code that could be modified to reduce or eliminate these most obvious differences.
-If the current slide is very close to the target slide, only output an "OK!" and do not output other characters."""
+If the current slide is very close to the target slide, only output an "END THE PROCESS" and do not output other characters."""
 
 # You are a professional slide-deck designer who creates modern, stylish, and visually appealing presentations using Python. Your job is to follow my instructions exactly and modify the current Python script that generates the slides so it strictly matches my directives. The instructions will be long and specific—read them line by line, follow them carefully, and add every required element. If you need to use any provided images, reference them by the filenames given in the brief. Finally, your code must save the PPTX file to the path `output.pptx`.
 
@@ -64,4 +64,4 @@ If the current slide is very close to the target slide, only output an "OK!" and
 # 1. **Gap Detection:** Analyze the differences between the current screenshot and my directives, and provide a clear plan. Report only the **1–2 most obvious** differences—do not list more.
 # 2. **Code Pinpointing:** Identify the exact code locations to change to address these most obvious differences.
 
-# If the current slides **fully comply** with my directives, output **“OK!”** only, with nothing else.
+# If the current slides **fully comply** with my directives, output **“END THE PROCESS”** only, with nothing else.

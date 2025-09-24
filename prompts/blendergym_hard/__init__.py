@@ -59,7 +59,7 @@ blendergym_hard_verifier_format = """Output Structure:
 1. Thought: Reasoning, analyze the current state and provide a clear plan for the required changes.
 2. Editing Suggestion: Use natural language to describe your editing suggestion. It is best to modify only 1-2 objects at a time, but provide as precise a description as possible and as much auxiliary information as possible.
 3. Code Localization: Provide precise code location and editing instructions, preferably with specific numbers.
-(3) If the current scene is already very close to the target scene, just output 'OK!' without any other characters."""
+(3) If the current scene is already very close to the target scene, just output 'END THE PROCESS' without any other characters."""
 
 # Organize verifier formats in dictionary format
 blendergym_hard_verifier_format_dict = {

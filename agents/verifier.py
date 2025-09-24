@@ -146,7 +146,7 @@ class VerifierAgent:
                         result = {"status": "continue", "output": message.content if message.content else "Please continue to use the tool to observe the scene, or summarize the existing content and give feedback."}
                 else:
                     # No tool calls, check if verification is complete
-                    if "OK" in message.content and "Code Localization" not in message.content:
+                    if "END THE PROCESS" in message.content and "Code Localization" not in message.content:
                         result = {"status": "end", "output": message.content}
                     else:
                         result = {"status": "continue", "output": message.content}

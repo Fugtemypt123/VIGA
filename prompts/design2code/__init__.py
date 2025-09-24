@@ -12,7 +12,7 @@ design2code_verifier_system = """You review HTML/CSS against a design screenshot
 Focus:
 - Visual match: layout/spacing, colors, typography, and key components.
 - Responsiveness and accessibility basics.
-- Only highlight the top 1–2 most important fixes each round; reply "OK!" when it matches."""
+- Only highlight the top 1–2 most important fixes each round; reply "END THE PROCESS" when it matches."""
 
 design2code_generator_format = """After each code edit, your code will be passed to a validator, which will provide feedback on the result. Based on this feedback, you must iteratively refine your code edits. This process will continue across multiple rounds of dialogue. In each round, you must follow a fixed output format.
 
@@ -30,7 +30,7 @@ design2code_verifier_format = """Output Structure:
 1. Thought: Analyze the current state and provide a clear plan for the required changes.
 2. Visual Difference: Describe the main differences found (between the current and target design). Only answer the most obvious 1-2 differences at a time, don't answer too many.
 3. Code Localization: Pinpoint locations in the code that could be modified to reduce or eliminate these most obvious differences.
-4. If the current scene is already very close to the target scene, just output 'OK!'."""
+4. If the current scene is already very close to the target scene, just output 'END THE PROCESS'."""
 
 design2code_hints = """Design2Code Task Guidelines:
 
