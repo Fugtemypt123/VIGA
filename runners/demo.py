@@ -53,7 +53,7 @@ if __name__ == "__main__":
     availble_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")
     if not availble_gpu_devices:
         # count the number of GPUs
-        num_gpus = len(torch.cuda.device_count())
+        num_gpus = int(torch.cuda.device_count())
         availble_gpu_devices = ",".join(range(num_gpus))
 
     cmd = f"python main.py --mode blendergym-hard --vision-model {vision_model} --api-key {api_key} --max-rounds {max_rounds} --init-code-path {copy_init_code_path} --init-image-path {init_image_path} --target-image-path {target_image_path} --output-dir {output_dir} --task-name {task_name} --generator-script {generator_script} --verifier-script {verifier_script} --blender-server-path {blender_server_path} --blender-command {blender_command} --blender-file {copy_blender_file} --blender-script {copy_blender_script} --save-blender-file --scene-server-path {scene_server_path} --meshy_api_key {meshy_api_key} --va_api_key {va_api_key} --gpu-devices {availble_gpu_devices}"

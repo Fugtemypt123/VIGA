@@ -407,18 +407,16 @@ def generate_and_download_3d_asset(
     reference_type: str,
     object_description: str = None,
 ) -> dict:
-    generate_result = None
-    if generate_result is None:
-        if reference_type == "text":
-            generate_result = download_meshy_asset(object_name=object_name, description=object_description, save_dir=_save_dir)
-        elif reference_type == "image":
-            cropped_bbox = _image_cropper.crop_image_by_text(object_name=object_name)
-            cropped_bbox = cropped_bbox['data'][0][0]['bounding_box']
-            cropped_image = PIL.Image.open(_image_cropper.target_image_path).crop(cropped_bbox)
-            save_path = os.path.join(_save_dir, f"cropped_{object_name}.png")
-            os.makedirs(_save_dir, exist_ok=True)
-            cropped_image.save(save_path)
-            generate_result = download_meshy_asset_from_image(image_path=save_path, object_name=object_name, save_dir=_save_dir)
+    if reference_type == "text":
+        generate_result = download_meshy_asset(object_name=object_name, description=object_description, save_dir=_save_dir)
+    elif reference_type == "image":
+        cropped_bbox = _image_cropper.crop_image_by_text(object_name=object_name)
+        cropped_bbox = cropped_bbox['data'][0][0]['bounding_box']
+        cropped_image = PIL.Image.open(_image_cropper.target_image_path).crop(cropped_bbox)
+        save_path = os.path.join(_save_dir, f"cropped_{object_name}.png")
+        os.makedirs(_save_dir, exist_ok=True)
+        cropped_image.save(save_path)
+        generate_result = download_meshy_asset_from_image(image_path=save_path, object_name=object_name, save_dir=_save_dir)
     
     return generate_result
     

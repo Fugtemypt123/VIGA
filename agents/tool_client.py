@@ -26,6 +26,7 @@ class ExternalToolClient:
                 server_params = StdioServerParameters(
                     command="python",
                     args=[server_path],
+                    env = env
                 )
                 
                 exit_stack = AsyncExitStack()
