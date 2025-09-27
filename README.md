@@ -182,6 +182,22 @@ The dual-agent system creates an iterative feedback loop between generation and 
 
 ## Quick Start
 
+### Build from Scratch (Image-to-Scene)
+
+1. Prepare your [Meshy](https://www.meshy.ai/discover), [VA](https://va.landing.ai/demo/agentic-od), [OPENAI](https://platform.openai.com/settings/organization/api-keys) API key. Export them to your environment:
+```bash
+export MESHY_API_KEY="your_meshy_api_key"
+export VA_API_KEY="your_va_api_key"
+export OPENAI_API_KEY="your_openai_api_key"
+```
+
+2. Run the script:
+```bash
+python runners/demo.py --target-image-path=your_initial_image_path
+```
+
+To run the test on benchmarks (BlenderGym, AutoPresent, Design2Code), follow the instruction below:
+
 ### Method 1: Using main.py (Single Instance)
 
 The `main.py` runs a single instance with MCP stdio connections and automatically handles agent communication.
