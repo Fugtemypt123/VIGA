@@ -21,10 +21,12 @@ class ConfigManager:
         self.level = self._extract_level()
         
         # Server configuration flags
-        self.is_blender_mode = self.mode in ["blendergym", "blendergym-hard"]
+        self.is_blender_mode = self.mode in ["blendergym", "blendergym-hard", "static_scene", "dynamic_scene"]
         self.is_slides_mode = self.mode == "autopresent"
         self.is_html_mode = self.mode == "design2code"
         self.is_blendergym_hard_mode = self.mode == "blendergym-hard"
+        self.is_static_scene_mode = self.mode == "static_scene"
+        self.is_dynamic_scene_mode = self.mode == "dynamic_scene"
         
         # Level-specific flags for blendergym-hard
         self.is_level4 = self.is_blendergym_hard_mode and self.level == "level4"
@@ -32,8 +34,8 @@ class ConfigManager:
         
         # Tool configuration flags
         self.has_meshy_tools = self.is_blendergym_hard_mode and self.is_level4
-        self.has_execute_tools = self.mode in ["blendergym", "autopresent", "design2code"]
-        self.has_verifier_tools = self.mode in ["blendergym", "blendergym-hard"]
+        self.has_execute_tools = self.mode in ["blendergym", "autopresent", "design2code", "static_scene", "dynamic_scene"]
+        self.has_verifier_tools = self.mode in ["blendergym", "blendergym-hard", "static_scene", "dynamic_scene"]
         
         # Server paths
         self.blender_server_path = config.get("blender_server_path")
@@ -94,7 +96,7 @@ class ConfigManager:
         """Get verifier server type and path based on mode."""
         if self.mode in ["blendergym", "autopresent", "design2code"]:
             return "image", self.image_server_path
-        elif self.is_blendergym_hard_mode:
+        elif self.mode in ["blendergym-hard", "static_scene", "dynamic_scene"]:
             return "scene", self.scene_server_path
         else:
             return None, None
@@ -117,6 +119,9 @@ class ConfigManager:
                 return os.path.join(self.target_image_path, 'render1.png')
             else:
                 return self.target_image_path
+        elif self.is_static_scene_mode or self.is_dynamic_scene_mode:
+            # For static_scene and dynamic_scene modes, return the target image path as-is
+            return self.target_image_path
         else:
             return self.target_image_path
     

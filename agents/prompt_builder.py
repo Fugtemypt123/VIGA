@@ -42,6 +42,14 @@ class PromptBuilder:
             return self._build_design2code_generator_prompt(
                 config, prompts
             )
+        elif mode == "static_scene":
+            return self._build_static_scene_generator_prompt(
+                config, prompts
+            )
+        elif mode == "dynamic_scene":
+            return self._build_dynamic_scene_generator_prompt(
+                config, prompts
+            )
         else:
             raise NotImplementedError(f"Mode {mode} not implemented")
     
@@ -75,6 +83,14 @@ class PromptBuilder:
             return self._build_design2code_verifier_prompt(
                 config, prompts
             )
+        elif mode == "static_scene":
+            return self._build_static_scene_verifier_prompt(
+                config, prompts
+            )
+        elif mode == "dynamic_scene":
+            return self._build_dynamic_scene_verifier_prompt(
+                config, prompts
+            )
         else:
             raise NotImplementedError(f"Mode {mode} not implemented")
     
@@ -99,6 +115,10 @@ class PromptBuilder:
             return self._build_blendergym_hard_verify_message(config, code, render_path, current_image_path_ref, format_prompt)
         elif mode == "design2code":
             return self._build_design2code_verify_message(code, render_path, format_prompt)
+        elif mode == "static_scene":
+            return self._build_static_scene_verify_message(config, code, render_path, current_image_path_ref, format_prompt)
+        elif mode == "dynamic_scene":
+            return self._build_dynamic_scene_verify_message(config, code, render_path, current_image_path_ref, format_prompt)
         else:
             raise NotImplementedError(f"Mode {mode} not implemented")
     
@@ -221,3 +241,81 @@ class PromptBuilder:
     def _build_design2code_verifier_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
         """Build verifier prompt for design2code mode using prompt manager."""
         return [{"role": "system", "content": "Placeholder - needs implementation"}]
+    
+    def _build_static_scene_generator_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
+        """Build generator prompt for static_scene mode using prompt manager."""
+        return [{"role": "system", "content": "Placeholder - needs implementation"}]
+    
+    def _build_dynamic_scene_generator_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
+        """Build generator prompt for dynamic_scene mode using prompt manager."""
+        return [{"role": "system", "content": "Placeholder - needs implementation"}]
+    
+    def _build_static_scene_verifier_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
+        """Build verifier prompt for static_scene mode using prompt manager."""
+        return [{"role": "system", "content": "Placeholder - needs implementation"}]
+    
+    def _build_dynamic_scene_verifier_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
+        """Build verifier prompt for dynamic_scene mode using prompt manager."""
+        return [{"role": "system", "content": "Placeholder - needs implementation"}]
+    
+    def _build_static_scene_verify_message(self, config: Dict, code: str, render_path: str, current_image_path_ref: List, format_prompt: str) -> Dict:
+        """Build verify message for static_scene mode."""
+        # Similar to blendergym_hard_verify_message but for static scenes
+        verify_message = {"role": "user", "content": [{"type": "text", "text": f"Please analyze the current state:\n"}]}
+        
+        if os.path.isdir(render_path):
+            view1_path = os.path.join(render_path, 'render1.png')
+            view2_path = os.path.join(render_path, 'render2.png')
+        else:
+            view1_path = render_path
+            view2_path = None
+            
+        if os.path.exists(view1_path):
+            verify_message["content"].append({"type": "text", "text": "Current scene view 1:"})
+            verify_message["content"].append({"type": "image_url", "image_url": {"url": get_image_base64(view1_path)}})
+            
+        if view2_path and os.path.exists(view2_path):
+            verify_message["content"].append({"type": "text", "text": "Current scene view 2:"})
+            verify_message["content"].append({"type": "image_url", "image_url": {"url": get_image_base64(view2_path)}})
+            
+        # Add target image
+        target_image_path = config.get("target_image_path")
+        if target_image_path and os.path.exists(target_image_path):
+            verify_message["content"].append({"type": "text", "text": "Target scene:"})
+            verify_message["content"].append({"type": "image_url", "image_url": {"url": get_image_base64(target_image_path)}})
+            
+        verify_message["content"].append({"type": "text", "text": f"Code: {code}"})
+        verify_message["content"].append({"type": "text", "text": format_prompt})
+        
+        return verify_message
+    
+    def _build_dynamic_scene_verify_message(self, config: Dict, code: str, render_path: str, current_image_path_ref: List, format_prompt: str) -> Dict:
+        """Build verify message for dynamic_scene mode."""
+        # Similar to static_scene_verify_message but for dynamic scenes with animation
+        verify_message = {"role": "user", "content": [{"type": "text", "text": f"Please analyze the current dynamic scene state:\n"}]}
+        
+        if os.path.isdir(render_path):
+            view1_path = os.path.join(render_path, 'render1.png')
+            view2_path = os.path.join(render_path, 'render2.png')
+        else:
+            view1_path = render_path
+            view2_path = None
+            
+        if os.path.exists(view1_path):
+            verify_message["content"].append({"type": "text", "text": "Current dynamic scene view 1:"})
+            verify_message["content"].append({"type": "image_url", "image_url": {"url": get_image_base64(view1_path)}})
+            
+        if view2_path and os.path.exists(view2_path):
+            verify_message["content"].append({"type": "text", "text": "Current dynamic scene view 2:"})
+            verify_message["content"].append({"type": "image_url", "image_url": {"url": get_image_base64(view2_path)}})
+            
+        # Add target image
+        target_image_path = config.get("target_image_path")
+        if target_image_path and os.path.exists(target_image_path):
+            verify_message["content"].append({"type": "text", "text": "Target dynamic scene:"})
+            verify_message["content"].append({"type": "image_url", "image_url": {"url": get_image_base64(target_image_path)}})
+            
+        verify_message["content"].append({"type": "text", "text": f"Code: {code}"})
+        verify_message["content"].append({"type": "text", "text": format_prompt})
+        
+        return verify_message
