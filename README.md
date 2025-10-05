@@ -8,6 +8,8 @@ AgenticVerifier is a multi-agent system for iterative code generation and verifi
 - 3D scene generation and validation using Blender
 - 2D slide (PPTX) generation and validation
 - **Design2Code**: Convert visual designs to HTML/CSS code
+- **Static Scene**: Build 3D static scenes from scratch
+- **Dynamic Scene**: Build 3D animated/rigged scenes from scratch
 - Automated feedback loop between Generator and Verifier agents
 - MCP stdio-based agent communication (no manual server setup required)
 - **Seamless extensibility**: Can easily add any new server types
@@ -182,21 +184,31 @@ The dual-agent system creates an iterative feedback loop between generation and 
 
 ## Quick Start
 
-### Build from Scratch (Image-to-Scene)
+### API Keys Setup
 
-1. Prepare your [Meshy](https://www.meshy.ai/discover), [VA](https://va.landing.ai/demo/agentic-od), [OPENAI](https://platform.openai.com/settings/organization/api-keys) API key. Export them to your environment:
+1. Prepare your API keys and configure them in `runners/api_keys.py`:
+   - [Meshy API](https://www.meshy.ai/discover) - for 3D asset generation
+   - [VA API](https://va.landing.ai/demo/agentic-od) - for object detection
+   - [OpenAI API](https://platform.openai.com/settings/organization/api-keys) - for AI models
+
 ```bash
+# Option 1: Set environment variables (fallback)
 export MESHY_API_KEY="your_meshy_api_key"
 export VA_API_KEY="your_va_api_key"
 export OPENAI_API_KEY="your_openai_api_key"
+
+# Option 2: Edit runners/api_keys.py directly (recommended)
+# Edit the values in the api_keys.py file
 ```
 
-2. Run the script:
+### Build from Scratch (Image-to-Scene)
+
+2. Run the demo script:
 ```bash
 python runners/demo.py --target-image-path=your_initial_image_path
 ```
 
-To run the test on benchmarks (BlenderGym, AutoPresent, Design2Code), follow the instruction below:
+To run the test on benchmarks (BlenderGym, AutoPresent, Design2Code, Static Scene, Dynamic Scene), follow the instruction below:
 
 ### Method 1: Using main.py (Single Instance)
 
@@ -231,10 +243,10 @@ python main.py \
 ```
 
 **Available arguments:**
-- `--mode`: Choose `blendergym`, `autopresent`, `blendergym-hard`, `demo`, or `design2code`
+- `--mode`: Choose `blendergym`, `autopresent`, `blendergym-hard`, `demo`, `design2code`, `static_scene`, or `dynamic_scene`
 - `--init-code-path`: Path to the initial code file (**required for blendergym/autopresent**)
 - `--init-image-path`: Path to design screenshot (**required for design2code**)
-- `--target-image-path`: Directory of target images
+- `--target-image-path`: Directory of target images or single image file
 - `--target-description`: Path to description file or direct description text
 - `--max-rounds`: Maximum number of interaction rounds (default: 10)
 - `--output-dir`: Output directory (default: `output`)
@@ -255,6 +267,18 @@ python runners/autopresent.py
 
 # Run blendergym benchmark (tests all blendergym instances)
 python runners/blendergym.py
+
+# Run blendergym-hard benchmark (tests complex 3D scene reconstruction)
+python runners/blendergym_hard.py
+
+# Run design2code benchmark (tests HTML/CSS generation)
+python runners/design2code.py
+
+# Run static scene benchmark (tests 3D static scene generation from scratch)
+python runners/static_scene.py
+
+# Run dynamic scene benchmark (tests 3D animated scene generation from scratch)
+python runners/dynamic_scene.py
 ```
 
 These runner scripts automatically iterate through all available instances in the benchmark and generate comprehensive evaluation results.
@@ -289,7 +313,18 @@ python evaluators/autopresent/gather.py 20250817_035024
 
 The gather script processes the intermediate evaluation results and generates a comprehensive summary.
 
-## Design2Code Mode
+## Supported Modes
+
+### 1. BlenderGym Mode
+3D scene modification and enhancement based on target images using Blender.
+
+### 2. AutoPresent Mode  
+2D slide (PPTX) generation and validation with automated feedback.
+
+### 3. BlenderGym-Hard Mode
+Complex 3D scene reconstruction with advanced tools like Meshy integration and scene investigation.
+
+### 4. Design2Code Mode
 
 The Design2Code mode enables the dual-agent system to convert visual designs (screenshots) into clean, semantic HTML and CSS code. This implementation is inspired by the [Design2Code benchmark](https://github.com/NoviScl/Design2Code) and provides a complete pipeline for:
 
@@ -383,6 +418,46 @@ sudo apt install google-chrome-stable
 5. **Feedback**: Detailed feedback for improvements
 6. **Iteration**: Process repeats until satisfactory result
 
+### 5. Static Scene Mode
+
+Build 3D static scenes from scratch based on target images or descriptions.
+
+**Features:**
+- Generate 3D scenes from single target images
+- Support for scene descriptions
+- Automatic object placement and lighting
+- Scene investigation and feedback
+
+**Usage:**
+```bash
+python main.py \
+    --mode static_scene \
+    --target-image-path data/static_scene/example/target.png \
+    --target-description "A modern living room with sofa and coffee table" \
+    --output-dir output/static_scene_test \
+    --max-rounds 10
+```
+
+### 6. Dynamic Scene Mode
+
+Build 3D animated/rigged scenes from scratch with temporal dynamics.
+
+**Features:**
+- Generate animated 3D scenes from target videos/animations
+- Support for character rigging and animation
+- Physics simulations and temporal coherence
+- Advanced animation analysis and feedback
+
+**Usage:**
+```bash
+python main.py \
+    --mode dynamic_scene \
+    --target-image-path data/dynamic_scene/example/target.mp4 \
+    --target-description "A walking character animation with physics" \
+    --output-dir output/dynamic_scene_test \
+    --max-rounds 15
+```
+
 ## Advanced Usage
 
 ### Custom Agent Development
@@ -420,13 +495,47 @@ async def custom_tool(param: str) -> dict:
     return {"result": "success"}
 ```
 
+## Project Structure
+
+```
+AgenticVerifier/
+├── agents/                 # Agent implementations
+│   ├── config_manager.py   # Configuration management
+│   ├── generator.py        # Generator agent
+│   ├── verifier.py         # Verifier agent
+│   ├── prompt_builder.py   # Prompt building system
+│   └── ...
+├── runners/                # Benchmark runners
+│   ├── api_keys.py         # API key configuration
+│   ├── blendergym.py       # BlenderGym benchmark
+│   ├── autopresent.py      # AutoPresent benchmark
+│   ├── blendergym_hard.py  # BlenderGym-Hard benchmark
+│   ├── design2code.py      # Design2Code benchmark
+│   ├── static_scene.py     # Static Scene benchmark
+│   ├── dynamic_scene.py    # Dynamic Scene benchmark
+│   └── ...
+├── prompts/                # Prompt templates
+│   ├── blendergym/         # BlenderGym prompts
+│   ├── autopresent/        # AutoPresent prompts
+│   ├── blendergym_hard/    # BlenderGym-Hard prompts
+│   ├── design2code/        # Design2Code prompts
+│   ├── static_scene/       # Static Scene prompts
+│   ├── dynamic_scene/      # Dynamic Scene prompts
+│   └── prompt_manager.py   # Centralized prompt management
+├── tools/                  # Tool implementations
+├── evaluators/             # Evaluation scripts
+├── data/                   # Benchmark datasets
+├── output/                 # Generated results
+└── main.py                 # Main entry point
+```
+
 ## Notes
 
+- **API Keys**: Configure in `runners/api_keys.py` or set environment variables
 - **Recommended approach**: Use the new MCP-based `main.py` for easier setup and better resource management
-- 3D mode requires Blender installed and available in your system PATH
+- 3D modes require Blender installed and available in your system PATH
 - 2D PPTX mode requires `unoconv` and LibreOffice  
 - **Design2Code mode requires Chrome/Chromium browser for HTML screenshots**
-- The OpenAI API key must be set as the `OPENAI_API_KEY` environment variable
 - Python 3.8+ is recommended
 - Start with individual component testing before running the full system
 - Agent communication is now handled via MCP stdio (no HTTP servers needed for agents)
