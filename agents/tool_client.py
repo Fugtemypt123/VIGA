@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from contextlib import AsyncExitStack
@@ -97,6 +97,16 @@ class ExternalToolClient:
         print(f"Waiting for {server_type} MCP connection to be ready")
         await ready_event.wait()
         print(f"{server_type} MCP connection is ready")
+
+    async def connect_servers(self, tool_servers: Dict[str, str], api_key: Optional[str] = None) -> None:
+        """Connect to multiple MCP servers given a server_type->script map."""
+        if not tool_servers:
+            return
+        # Launch connections concurrently
+        await asyncio.gather(*[
+            self.connect_server(server_type=stype, server_path=spath, api_key=api_key)
+            for stype, spath in tool_servers.items()
+        ])
     
     async def call_tool(self, server_type: str, tool_name: str, tool_args: dict = None, timeout: int = 3600, **kwargs) -> Any:
         """Call a specific tool on the external server with timeout.

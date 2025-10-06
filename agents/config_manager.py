@@ -168,6 +168,47 @@ class ConfigManager:
                 "blender_file": self.blender_file
             }
         return {}
+
+    # ===== Tool servers (generator/verifier) mapping helpers =====
+    def _infer_server_type(self, script_path: str) -> Optional[str]:
+        """Infer server type key from a tool script path."""
+        if not script_path:
+            return None
+        name = os.path.basename(script_path)
+        if "exec_blender" in name:
+            return "blender"
+        if "meshy" in name:
+            # Expose meshy tools under blender server_type to match current handlers
+            return "blender"
+        if "init_generate" in name or "init_verify" in name or "image" in name:
+            return "image"
+        if "investigator" in name or "scene" in name:
+            return "scene"
+        if "rag" in name or "web" in name:
+            return "web"
+        if "exec_html" in name or "html" in name:
+            return "html"
+        if "exec_slides" in name or "slides" in name:
+            return "slides"
+        return None
+
+    def get_generator_tool_servers(self) -> Dict[str, str]:
+        """Map generator tool server_type -> script path (first occurrence wins)."""
+        servers: Dict[str, str] = {}
+        for p in self.generator_tools:
+            server_type = self._infer_server_type(p)
+            if server_type and server_type not in servers:
+                servers[server_type] = p
+        return servers
+
+    def get_verifier_tool_servers(self) -> Dict[str, str]:
+        """Map verifier tool server_type -> script path (first occurrence wins)."""
+        servers: Dict[str, str] = {}
+        for p in self.verifier_tools:
+            server_type = self._infer_server_type(p)
+            if server_type and server_type not in servers:
+                servers[server_type] = p
+        return servers
     
     def get_generator_setup_config(self) -> Dict[str, Any]:
         """Get configuration for executor setup."""
@@ -185,6 +226,8 @@ class ConfigManager:
             "thought_save": self.thought_save,
             "output_dir": self.output_dir,
             "gpu_devices": self.gpu_devices,
+            # Tool servers map for multi-server connection
+            "tool_servers": self.get_generator_tool_servers(),
         }
         
         # Add mode-specific configurations
@@ -228,6 +271,8 @@ class ConfigManager:
             "scene_server_path": None,
             "blender_file": self.blender_file,
             "web_server_path": None,  # Not used in current implementation
+            # Tool servers map for multi-server connection
+            "tool_servers": self.get_verifier_tool_servers(),
         }
         
         return verifier_config

@@ -73,6 +73,9 @@ class VerifierAgent:
         self.conversation_history = []  # Store last 6 chats for sliding window
         self.suggestions_initialized = False  # Track if suggestions have been initialized
         
+        with open('logs/verifier.log', 'a') as f:
+            f.write(f"stage2: system_prompt: {self.system_prompt}\n")
+        
     async def _ensure_server_connected(self):
         if not self._server_connected:
             await self.tool_client.connect_server(self.server_type, self.server_path, self.api_key)
@@ -301,10 +304,16 @@ def main():
             agent = VerifierAgent(**args)
             agent_holder['agent'] = agent
             # Initialize server executor
+            with open('logs/verifier.log', 'a') as f:
+                f.write(f"stage3: setup_investigator: {args}\n")
             setup_result = await agent.setup_investigator(**args)
             if setup_result.get("status") != "success":
                 return {"status": "error", "error": f"Server setup failed: {setup_result.get('error', setup_result)}"}
+            with open('logs/verifier.log', 'a') as f:
+                f.write(f"stage4: setup_result: {setup_result}\n")
             await agent._ensure_server_connected()
+            with open('logs/verifier.log', 'a') as f:
+                f.write(f"stage5: server connected\n")
             return {"status": "success", "message": "Verifier Agent initialized and tool servers connected"}
         except Exception as e:
             return {"status": "error", "error": str(e)}

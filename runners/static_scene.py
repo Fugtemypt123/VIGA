@@ -137,7 +137,6 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         "--task-name", task_name,
         "--generator-tools", args.generator_tools,
         "--verifier-tools", args.verifier_tools,
-        "--blender-server-path", args.blender_server_path,
         "--blender-command", args.blender_command,
         "--blender-file", created_blender_file,
         "--blender-script", args.blender_script,
@@ -227,7 +226,6 @@ def main():
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     
     # Blender parameters
-    parser.add_argument("--blender-server-path", default="tools/exec_blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/static_scene/empty_scene.blend", help="Empty blender file for static scenes")
     parser.add_argument("--blender-script", default="data/static_scene/pipeline_render_script.py", help="Blender execution script")

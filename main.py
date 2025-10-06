@@ -36,11 +36,10 @@ async def main():
     parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
     
     # Agent server paths 
-    parser.add_argument("--generator-script", default="agents/generator_mcp.py", help="Generator MCP script path")
-    parser.add_argument("--verifier-script", default="agents/verifier_mcp.py", help="Verifier MCP script path")
+    parser.add_argument("--generator-script", default="agents/generator.py", help="Generator MCP script path")
+    parser.add_argument("--verifier-script", default="agents/verifier.py", help="Verifier MCP script path")
     
     # Blender execution parameters (for generator)
-    parser.add_argument("--blender-server-path", default="servers/generator/blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/blendergym/blendshape1/blender_file.blend", help="Blender template file")
     parser.add_argument("--blender-script", default="data/blendergym/pipeline_render_script.py", help="Blender execution script")
