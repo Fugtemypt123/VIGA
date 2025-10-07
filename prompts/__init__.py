@@ -3,6 +3,7 @@ from .blendergym import *
 from .blendergym_hard import *
 from .design2code import *
 from .static_scene import *
+from .dynamic_scene import *
 from .prompt_manager import PromptManager, prompt_manager
 
 # Legacy prompts_dict for backward compatibility
@@ -62,16 +63,14 @@ prompts_dict = {
         'system': {
             'generator': static_scene_generator_system,
             'verifier': static_scene_verifier_system
-        },
-        'format': {
-            'generator': static_scene_generator_format,
-            'verifier': static_scene_verifier_format
-        },
-        'hints': {
-            'generator': static_scene_generator_hints,
-            'verifier': static_scene_verifier_hints
-        },
+        }
     },
+    'dynamic_scene': {
+        'system': {
+            'generator': dynamic_scene_generator_system,
+            'verifier': dynamic_scene_verifier_system
+        }
+    }
 }
 
 # Export the new prompt manager as the primary interface

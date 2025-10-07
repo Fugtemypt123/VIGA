@@ -54,6 +54,8 @@ class GeneratorAgent:
         
         # Determine tool servers and pick a primary server type for execution tools
         self.tool_servers = self.config_manager.get_generator_tool_servers()
+        with open('logs/generator.log', 'w') as f:
+            f.write(f"tool_servers: {self.tool_servers}")
         if "blender" in self.tool_servers:
             self.server_type = "blender"
         elif "html" in self.tool_servers:
@@ -291,7 +293,6 @@ def main():
         try:
             agent = GeneratorAgent(**args)
             agent_holder['agent'] = agent
-            setup_results = []
             
             # Executor setup is now handled internally in call_tool
             # No need for explicit setup here
