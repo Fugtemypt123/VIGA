@@ -2,6 +2,7 @@ data
 references
 _*
 *.json
+*.jsonl
 output
 .venv
 *.zip

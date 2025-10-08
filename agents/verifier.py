@@ -93,13 +93,6 @@ class VerifierAgent:
         """Initialize comparison suggestions for the verifier"""
         if not self.suggestions_initialized:
             suggestions = {
-                "compare_image": [
-                    "Compare overall composition and scene layout",
-                    "Check object positioning and spatial relationships", 
-                    "Verify lighting and shadow consistency",
-                    "Examine material properties and textures",
-                    "Assess camera angle and perspective"
-                ],
                 "compare_text": [
                     "Analyze scene description accuracy",
                     "Verify object count and types",
@@ -140,10 +133,10 @@ class VerifierAgent:
         if suggestions:
             suggestions_message = {
                 "role": "user",
-                "content": f"Use these comparison suggestions to guide your analysis:\n\nImage Comparison:\n" + 
-                          "\n".join([f"- {s}" for s in suggestions["compare_image"]]) +
-                          f"\n\nText Analysis:\n" + 
-                          "\n".join([f"- {s}" for s in suggestions["compare_text"]])
+                "content": (
+                    "Use these comparison suggestions to guide your analysis:\n\n"
+                    "Text Analysis:\n" + "\n".join([f"- {s}" for s in suggestions["compare_text"]])
+                )
             }
         
         # Add scene info for level4 if needed

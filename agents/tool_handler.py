@@ -233,12 +233,7 @@ class ToolHandler:
                     return {'text': f"Moved camera {function_args.get('direction', '')}", 'image': output.get('image'), 'camera_position': output.get('camera_position')}
                 else:
                     return {'text': f"Unknown operation: {op}", 'image': None, 'camera_position': None}
-            elif function_name == "compare_image":
-                output = await self.tool_client.call_tool("compare_images", {
-                    "path1": current_image_path,
-                    "path2": target_image_path
-                })
-                return {'text': output.get('description', ''), 'image': None, 'camera_position': None}
+            
             elif function_name == "set_object_visibility":
                 output = await self.tool_client.call_tool("set_object_visibility", {
                     "show_object_list": function_args.get("show_object_list", []),

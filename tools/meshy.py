@@ -634,7 +634,7 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "error": str(e)}
 
 @mcp.tool()
-def generate_and_download_3d_asset(object_name: str, reference_type: str, object_description: str = None, image_path: str = None, save_dir: str = "assets", rig_and_animate: bool = False, action_id: int = 92) -> dict:
+def generate_and_download_3d_asset(object_name: str, reference_type: str, object_description: str = None, save_dir: str = "assets", rig_and_animate: bool = False, action_id: int = 92) -> dict:
     """
     Unified Meshy tool per system prompt: generate and download a 3D asset.
     Uses text description or an image (cropped if not provided) for generation.
@@ -666,23 +666,21 @@ def generate_and_download_3d_asset(object_name: str, reference_type: str, object
                 base_result['animated_model_path'] = rigged.get('animated_model_path')
             return base_result
         elif reference_type == "image":
-            # Use given image_path if provided; otherwise crop from target image via ImageCropper
-            local_image_path = image_path
-            if not local_image_path:
-                if _image_cropper is None:
-                    return {"status": "error", "error": "ImageCropper not initialized. Call initialize with va_api_key and target_image_path."}
-                crop_resp = _image_cropper.crop_image_by_text(object_name=object_name)
-                # Expecting {'data': [[{'bounding_box': [x1,y1,x2,y2], ...}]]}
-                try:
-                    bbox = crop_resp['data'][0][0]['bounding_box']
-                    from PIL import Image as _PILImage
-                    img = _PILImage.open(_image_cropper.target_image_path)
-                    x1, y1, x2, y2 = map(int, bbox)
-                    cropped = img.crop((x1, y1, x2, y2))
-                    local_image_path = os.path.join(save_dir, f"cropped_{object_name}.png")
-                    cropped.save(local_image_path)
-                except Exception as e:
-                    return {"status": "error", "error": f"Cropping failed: {e}"}
+            # crop from target image via ImageCropper
+            if _image_cropper is None:
+                return {"status": "error", "error": "ImageCropper not initialized. Call initialize with va_api_key and target_image_path."}
+            crop_resp = _image_cropper.crop_image_by_text(object_name=object_name)
+            # Expecting {'data': [[{'bounding_box': [x1,y1,x2,y2], ...}]]}
+            try:
+                bbox = crop_resp['data'][0][0]['bounding_box']
+                from PIL import Image as _PILImage
+                img = _PILImage.open(_image_cropper.target_image_path)
+                x1, y1, x2, y2 = map(int, bbox)
+                cropped = img.crop((x1, y1, x2, y2))
+                local_image_path = os.path.join(save_dir, f"cropped_{object_name}.png")
+                cropped.save(local_image_path)
+            except Exception as e:
+                return {"status": "error", "error": f"Cropping failed: {e}"}
             if not os.path.exists(local_image_path):
                 return {"status": "error", "error": f"Image file not found: {local_image_path}"}
             base_result = download_meshy_asset_from_image(object_name=object_name, image_path=local_image_path, save_dir=save_dir, prompt=object_description, meshy_api=_meshy_api)

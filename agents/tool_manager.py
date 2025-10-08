@@ -168,27 +168,12 @@ class ToolManager:
     def get_verifier_tools(mode: str, task_name: str) -> List[Dict]:
         """Get available tools for the verifier agent based on mode.
         Policy:
-        - All modes: include init_verify tools (compare_images, generate_initialization_suggestions with target/current)
-        - Only blendergym-hard, static_scene, dynamic_scene: additionally include investigator tools
+        - All modes: include investigator and scene utility tools only (no image comparison tool)
+        - Only blendergym-hard, static_scene, dynamic_scene: investigator is applicable per prompts
         - No other tools included
         """
-        # Base tools for ALL modes per prompt: compare_image, setup_camera, investigate, set_object_visibility, set_key_frame, end
+        # Base tools for ALL modes per prompt: setup_camera, investigate, set_object_visibility, set_key_frame, end
         tools: List[Dict] = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "compare_image",
-                    "description": "Compare two images given their file paths and return a natural language description of visual differences.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "path1": {"type": "string"},
-                            "path2": {"type": "string"}
-                        },
-                        "required": ["path1", "path2"]
-                    }
-                }
-            },
             {
                 "type": "function",
                 "function": {
