@@ -176,7 +176,7 @@ def main():
         args = {
             "blender_command": os.getenv("BLENDER_COMMAND", "utils/blender/infinigen/blender/blender"),
             "blender_file": os.getenv("BLENDER_FILE", "output/test/test.blend"),
-            "blender_script": os.getenv("BLENDER_SCRIPT", "data/static_scene/pipeline_render_script.py"),
+            "blender_script": os.getenv("BLENDER_SCRIPT", "data/dynamic_scene/pipeline_render_script.py"),
             "script_save": os.getenv("SCRIPT_SAVE", "output/test/scripts"),
             "render_save": os.getenv("RENDER_SAVE", "output/test/renders"),
             "blender_save": os.getenv("BLENDER_SAVE", None),
@@ -195,19 +195,106 @@ def main():
         sample_code = """import bpy
 import math
 
-# 场景物体
-bpy.ops.mesh.primitive_plane_add(size=4, location=(0,0,0))
-bpy.ops.mesh.primitive_cube_add(size=1, location=(0,0,1))
+# ——清空场景中的物体（不包含环境光，相机）——
+for obj in bpy.context.scene.objects:
+    if obj.name not in ["Camera"]:
+        obj.select_set(True)
+bpy.ops.object.delete(use_global=False)
 
-# **加一盏灯**（否则很黑）
-bpy.ops.object.light_add(type='SUN', location=(5,5,10))
+# 设定相机位置
+bpy.context.scene.camera.location = (14, -12, 8)
+
+# ——基础地面——
+bpy.ops.mesh.primitive_plane_add(size=20, location=(0, 0, 0))
+ground = bpy.context.active_object
+ground.name = "Ground"
+
+# ——斜面——
+bpy.ops.mesh.primitive_plane_add(size=10, location=(0, 0, 2))
+slope = bpy.context.active_object
+slope.name = "Slope"
+slope.rotation_euler = (math.radians(25.0), 0.0, math.radians(20.0))  # 倾斜角度（可调）
+
+# ——小球（刚体主动）——
+bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, location=(-3, -2, 4))
+ball = bpy.context.active_object
+ball.name = "Ball"
+
+# ——灯光——
+bpy.ops.object.light_add(type='SUN', location=(8, -8, 12))
 sun = bpy.context.active_object
 sun.data.energy = 3.0
 
-# 也可以加一点环境光（可选）
+# ——环境光（世界节点）——
 bpy.context.scene.world.use_nodes = True
 bg = bpy.context.scene.world.node_tree.nodes['Background']
-bg.inputs[1].default_value = 1.0   # 强度"""
+bg.inputs[1].default_value = 1.0  # 强度
+
+# ===== 物理设置 =====
+
+# 创建/获取刚体世界
+if not bpy.context.scene.rigidbody_world:
+    bpy.ops.rigidbody.world_add()
+
+scene = bpy.context.scene
+rw = scene.rigidbody_world
+
+# 重力（默认 -9.81 m/s^2）
+scene.gravity = (0.0, 0.0, -9.81)
+
+# 时间步 / 子步 & 迭代（兼容不同版本字段）
+# 一般来说：steps_per_second（旧/常见），或 substeps_per_frame（较新）
+if hasattr(rw, "steps_per_second"):
+    rw.steps_per_second = 240
+elif hasattr(rw, "substeps_per_frame"):
+    # 子步数量（每帧的子步数）。10~20 比较常见；你也可加大以提升稳定性
+    rw.substeps_per_frame = 10
+
+# 解算迭代次数（有的版本在 world 上，有的在 constraint settings，上面这个通常可用）
+if hasattr(rw, "solver_iterations"):
+    rw.solver_iterations = 20
+
+# 帧范围
+scene.frame_start = 1
+scene.frame_end = 40
+
+# ——给对象添加刚体属性——
+# 地面：被动
+bpy.context.view_layer.objects.active = ground
+bpy.ops.rigidbody.object_add()
+ground.rigid_body.type = 'PASSIVE'
+ground.rigid_body.friction = 0.8
+ground.rigid_body.restitution = 0.0
+ground.rigid_body.use_deactivation = False
+
+# 斜面：被动
+bpy.context.view_layer.objects.active = slope
+bpy.ops.rigidbody.object_add()
+slope.rigid_body.type = 'PASSIVE'
+slope.rigid_body.friction = 0.7
+slope.rigid_body.restitution = 0.0
+slope.rigid_body.use_deactivation = False
+
+# 小球：主动
+bpy.context.view_layer.objects.active = ball
+bpy.ops.rigidbody.object_add()
+ball.rigid_body.type = 'ACTIVE'
+ball.rigid_body.mass = 1.0
+ball.rigid_body.friction = 0.5
+ball.rigid_body.restitution = 0.1      # 轻微弹性
+ball.rigid_body.collision_shape = 'SPHERE'
+ball.rigid_body.use_deactivation = False
+ball.rigid_body.linear_damping = 0.05  # 轻微阻尼
+ball.rigid_body.angular_damping = 0.05
+
+# 为了确保小球从斜面上方起步，微调初始位置（避免初始即相交）
+ball.location = (-3, -2, 5.0)
+
+# （可选）烘焙刚体缓存，后台渲染更稳定
+bpy.ops.ptcache.free_bake_all()
+bpy.ops.ptcache.bake_all(bake=True)
+
+print("Scene ready: press Play to watch the ball roll down the slope.")"""
         exec_res = exec_script(sample_code, round=1)
         print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         
@@ -218,6 +305,24 @@ bg.inputs[1].default_value = 1.0   # 强度"""
 if __name__ == "__main__":
     main()
 
+
+# static code:
+# import bpy
+# import math
+
+# # 场景物体
+# bpy.ops.mesh.primitive_plane_add(size=4, location=(0,0,0))
+# bpy.ops.mesh.primitive_cube_add(size=1, location=(0,0,1))
+
+# # **加一盏灯**（否则很黑）
+# bpy.ops.object.light_add(type='SUN', location=(5,5,10))
+# sun = bpy.context.active_object
+# sun.data.energy = 3.0
+
+# # 也可以加一点环境光（可选）
+# bpy.context.scene.world.use_nodes = True
+# bg = bpy.context.scene.world.node_tree.nodes['Background']
+# bg.inputs[1].default_value = 1.0   # 强度
 
 # # 首先检查本地assets目录是否有匹配的文件
 # if os.path.exists(assets_dir):

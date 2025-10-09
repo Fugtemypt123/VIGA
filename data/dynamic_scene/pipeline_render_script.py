@@ -1,63 +1,91 @@
 import bpy
-import random
-import json
 import os
 import sys
+
 from sys import platform
 
 if __name__ == "__main__":
 
-    code_fpath = sys.argv[6]  # Path to the code file
-    rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    # ---- 命令行参数 ----
+    code_fpath   = sys.argv[6]  # 生成/编辑场景的代码文件路径
+    rendering_dir = sys.argv[7]  # 渲染输出目录
     if len(sys.argv) > 8:
-        save_blend = sys.argv[8] # Path to save the blend file
+        save_blend = sys.argv[8]  # 可选：保存 .blend 的路径
     else:
         save_blend = None
 
-    # Enable GPU rendering
+    # ---- 渲染引擎与设备（优先 GPU，失败则回退 CPU）----
     bpy.context.scene.render.engine = 'CYCLES'
-    bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # or 'OPTIX' if your GPU supports it
-    bpy.context.preferences.addons['cycles'].preferences.get_devices()
+    try:
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        # 可选：'CUDA' 或 'OPTIX'（视你的显卡支持）
+        prefs.compute_device_type = 'CUDA'
+        prefs.get_devices()
+        # 选择所有 GPU 设备
+        for device in prefs.devices:
+            if device.type == 'GPU':
+                device.use = True
+        bpy.context.scene.cycles.device = 'GPU'
+    except Exception:
+        # 没有 GPU 或设置失败时，回退到 CPU
+        bpy.context.scene.cycles.device = 'CPU'
 
-    # Check and select the GPUs
-    for device in bpy.context.preferences.addons['cycles'].preferences.devices:
-        if device.type == 'GPU' and not device.use:
-            device.use = True
+    # ---- 基础渲染参数 ----
+    scene = bpy.context.scene
+    scene.render.resolution_x = 512
+    scene.render.resolution_y = 512
+    scene.cycles.samples = 512
+    scene.render.image_settings.color_mode = 'RGB'
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.use_file_extension = True
 
-    # Set the rendering device to GPU
-    bpy.context.scene.cycles.device = 'GPU'
-
-    # Setting up rendering resolution
-    bpy.context.scene.render.resolution_x = 512
-    bpy.context.scene.render.resolution_y = 512
-
-    # Set max samples to 1024
-    bpy.context.scene.cycles.samples = 512
-
-    # Set color mode to RGB
-    bpy.context.scene.render.image_settings.color_mode = 'RGB'
-
-    # Read and execute the code from the specified file
-    with open(code_fpath, "r") as f:
+    # ---- 执行外部代码，构建场景 ----
+    with open(code_fpath, "r", encoding="utf-8") as f:
         code = f.read()
     try:
         exec(code)
-    except:
-        raise ValueError
+    except Exception as e:
+        raise ValueError(f"Error executing scene code: {e}")
 
-    # render from all the camera, save the rendering to the rendering_dir
-    for camera in bpy.data.objects:
-        if camera.type == 'CAMERA':
-            bpy.context.scene.camera = camera
-            bpy.context.scene.render.image_settings.file_format = 'PNG'
-            bpy.context.scene.render.filepath = os.path.join(rendering_dir, f'render_{camera.name}.png')
+    # ---- 输出目录准备 ----
+    os.makedirs(rendering_dir, exist_ok=True)
+
+    # ---- 读取动画范围并计算三帧 ----
+    # 若外部代码未设置，Blender 默认 1..250
+    frame_start = scene.frame_start if scene.frame_start else 1
+    frame_end   = scene.frame_end   if scene.frame_end   else 250
+
+    # 总帧数（用于日志或扩展）
+    total_frames = max(1, frame_end - frame_start + 1)
+
+    # 中点帧（取整到整数帧）
+    frame_mid = (frame_start + frame_end) // 2
+
+    # 三帧集合（去重并排序，防止 start=end 的情况）
+    frames_to_render = sorted(set([frame_start, frame_mid, frame_end]))
+
+    print(f"[INFO] Frame range: {frame_start}..{frame_end} (total {total_frames})")
+    print(f"[INFO] Will render frames: {frames_to_render}")
+
+    # ---- 渲染（对每台相机分别渲染三帧）----
+    cameras = [obj for obj in bpy.data.objects if obj.type == 'CAMERA']
+    for cam in cameras:
+        scene.camera = cam
+
+        for f in frames_to_render:
+            scene.frame_set(f)
+            # 强制更新（有时对约束/驱动/物理更稳）
+            bpy.context.view_layer.update()
+
+            # 文件名：CameraName_fXXXX.png
+            scene.render.filepath = os.path.join(rendering_dir, f"{cam.name}_f{f:04d}.png")
+            print(f"[RENDER] {cam.name} @ frame {f} -> {scene.render.filepath}")
             bpy.ops.render.render(write_still=True)
 
-    # Save the blend file
+    # ---- 可选：保存 .blend ----
     if save_blend:
-        # Set the save version to 0
         bpy.context.preferences.filepaths.save_version = 0
-        # Save the blend file
         bpy.ops.wm.save_as_mainfile(filepath=save_blend)
+        print(f"[INFO] Saved blend to: {save_blend}")
 
-
+    print("[DONE] Rendered 3 key frames per camera.")
