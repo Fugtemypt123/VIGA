@@ -93,7 +93,7 @@ class SlidesExecutor:
 @mcp.tool()
 def initialize(args: dict) -> dict:
     """
-    初始化 Slides 执行器，设置所有必要的参数。
+    Initialize Slides executor and set all necessary parameters.
     """
     global _executor
     try:
@@ -121,66 +121,66 @@ def exec_script(code: str, round: int) -> dict:
 
 def test_specific_file():
     """
-    测试特定的文件 output/autopresent/20250817_172322/slide_11/1/refine.py 能否正常运行
+    Test if specific file output/autopresent/20250817_172322/slide_11/1/refine.py can run normally
     """
     test_file_path = "data/autopresent/examples/art_photos/slide_1/start.py"
     
-    print(f"开始测试文件: {test_file_path}")
+    print(f"Starting test file: {test_file_path}")
     print("=" * 60)
     
-    # 检查文件是否存在
+    # Check if file exists
     if not os.path.exists(test_file_path):
-        print(f"❌ 文件不存在: {test_file_path}")
+        print(f"❌ File does not exist: {test_file_path}")
         return False
     
-    print(f"✅ 文件存在: {test_file_path}")
+    print(f"✅ File exists: {test_file_path}")
     
-    # 读取文件内容
+    # Read file content
     try:
         with open(test_file_path, 'r', encoding='utf-8') as f:
             code_content = f.read()
-        print(f"✅ 文件读取成功，代码长度: {len(code_content)} 字符")
+        print(f"✅ File read successfully, code length: {len(code_content)} characters")
     except Exception as e:
-        print(f"❌ 文件读取失败: {e}")
+        print(f"❌ File read failed: {e}")
         return False
     
-    # 创建临时执行器进行测试
+    # Create temporary executor for testing
     try:
         task_dir = "data/autopresent/examples/art_photos/slide_1"
         temp_output_dir = "output/test"
         executor = SlidesExecutor(task_dir, temp_output_dir)
-        print(f"✅ 执行器初始化成功，输出目录: {temp_output_dir}")
+        print(f"✅ Executor initialized successfully, output directory: {temp_output_dir}")
     except Exception as e:
-        print(f"❌ 执行器初始化失败: {e}")
+        print(f"❌ Executor initialization failed: {e}")
         return False
     
-    # 执行代码
+    # Execute code
     try:
-        print("正在执行代码...")
+        print("Executing code...")
         result = executor.execute(code_content, 1)
         
         if result["status"] == "success":
-            print("✅ 代码执行成功!")
-            print(f"   生成的图片路径: {result.get('output', 'N/A')}")
-            print(f"   图片base64长度: {len(result.get('image_base64', ''))} 字符")
+            print("✅ Code executed successfully!")
+            print(f"   Generated image path: {result.get('output', 'N/A')}")
+            print(f"   Image base64 length: {len(result.get('image_base64', ''))} characters")
             
             return True
         else:
-            print(f"❌ 代码执行失败: {result.get('output', 'Unknown error')}")
+            print(f"❌ Code execution failed: {result.get('output', 'Unknown error')}")
             return False
             
     except Exception as e:
-        print(f"❌ 执行过程中出现异常: {e}")
+        print(f"❌ Exception occurred during execution: {e}")
         return False
 
 def main():
-    # 如果直接运行此脚本，执行测试
+    # If running this script directly, execute test
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         success = test_specific_file()
         sys.exit(0 if success else 1)
     else:
-        # 正常运行 MCP 服务
+        # Run MCP service normally
         mcp.run(transport="stdio")
 
 if __name__ == "__main__":

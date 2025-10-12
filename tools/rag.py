@@ -107,10 +107,10 @@ class BlenderInfinigenRAG:
         try:
             # Initialize ChromaDB client
             self.vector_db = chromadb.PersistentClient(
-                path="./tools/knowledge_base/chroma",              # 本地目录（会自动创建）
-                settings=Settings(),          # 可选：Settings(anonymized_telemetry=False)
-                tenant=DEFAULT_TENANT,        # 可选
-                database=DEFAULT_DATABASE     # 可选
+                path="./tools/knowledge_base/chroma",              # Local directory (will be created automatically)
+                settings=Settings(),          # Optional: Settings(anonymized_telemetry=False)
+                tenant=DEFAULT_TENANT,        # Optional
+                database=DEFAULT_DATABASE     # Optional
             )
             
             # Initialize embedding model

@@ -325,7 +325,7 @@ def crawl(seeds, out_path, delay=1.0, max_pages=50, max_bytes=2_000_000, enable_
 
         text = getattr(resp, "_text", None)
         if text is None:
-            text = ""   # 或者再次按需获取，但不要直接触发 resp.text
+            text = ""   # Or fetch again on demand, but don't directly trigger resp.text
         total += 1
         print(f"[{total}/{max_pages}] fetched: {url} ({len(text)} bytes)")
 

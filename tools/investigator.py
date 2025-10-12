@@ -85,17 +85,24 @@ tool_configs = [
                 "required": ["frame_number"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scene_info",
+            "description": "Get the scene information",
+        }
     }
 ]
 
-# 创建全局 MCP 实例
+# Create global MCP instance
 mcp = FastMCP("scene-server")
 
-# 全局工具实例
+# Global tool instance
 _investigator = None
 
 # ======================
-# 内置工具
+# Built-in tools
 # ======================
 
 class GetSceneInfo:
@@ -150,28 +157,19 @@ class GetSceneInfo:
                     "dof_aperture_fstop": cam.data.dof.aperture_fstop if cam.data.dof.use_dof else None
                 })
 
-            rnd = bpy.context.scene.render
-            scene_info["render_settings"] = {
-                "resolution_x": rnd.resolution_x,
-                "resolution_y": rnd.resolution_y,
-                "resolution_percentage": rnd.resolution_percentage,
-                "engine": rnd.engine,
-                "samples": bpy.context.scene.cycles.samples if rnd.engine == 'CYCLES' else None
-            }
-
             return scene_info
         except Exception as e:
             logging.error(f"scene info error: {e}")
             return {}
 
 # ======================
-# 相机探查器（修复：先保存路径再加载）
+# Camera investigator (Fixed: save path first then load)
 # ======================
 
 class Investigator3D:
     def __init__(self, save_dir: str, blender_path: str):
-        self.blender_path = blender_path          # 先保存路径
-        self._load_blender_file()                 # 再加载文件
+        self.blender_path = blender_path          # Save path first
+        self._load_blender_file()                 # Then load file
         self.base = Path(save_dir)
         self.base.mkdir(parents=True, exist_ok=True)
         # self.cam = self._get_or_create_cam()
@@ -209,20 +207,8 @@ class Investigator3D:
         bpy.ops.render.render(write_still=True)
         out = bpy.context.scene.render.filepath
         self.count += 1
-
-        camera_position = str({
-            "location": list(self.cam.matrix_world.translation),
-            "rotation": list(self.cam.rotation_euler),
-            "target_object": self.target.name if self.target else None,
-            "radius": self.radius,
-            "theta": self.theta,
-            "phi": self.phi
-        })
-        
-        return {
-            "image_path": out,
-            "camera_position": camera_position
-        }
+        camera_parameters = str({"position": list(self.cam.matrix_world.translation), "rotation": list(self.cam.rotation_euler)})
+        return {"image_path": out, "camera_parameters": camera_parameters}
 
     def focus_on_object(self, object_name: str) -> dict:
         obj = bpy.data.objects.get(object_name)
@@ -275,26 +261,17 @@ class Investigator3D:
         self.cam.rotation_euler = rotation_euler
 
     def init_viewpoint(self, object_names: list) -> dict:
-        """
-        计算对象列表的边界框，在四个上角放置相机，返回所有视角
-        
-        Args:
-            object_names: 要观察的对象名称列表。如果为空列表，则观察整个场景
-            
-        Returns:
-            dict: 包含所有视角的渲染结果
-        """
         try:
             objects = []
             
-            # 如果传入空列表，观察整个场景中的所有mesh对象
+            # If empty list is passed, observe all mesh objects in the entire scene
             if not object_names:
                 for obj in bpy.data.objects:
-                    if obj.type == 'MESH' and obj.name not in ['Ground', 'Plane']:  # 排除地面等辅助对象
+                    if obj.type == 'MESH' and obj.name not in ['Ground', 'Plane']:  # Exclude ground and other auxiliary objects
                         objects.append(obj)
                 logging.info(f"Observing whole scene: found {len(objects)} mesh objects")
             else:
-                # 按名称查找指定对象
+                # Find specified objects by name
                 for obj_name in object_names:
                     obj = bpy.data.objects.get(obj_name)
                     if obj:
@@ -379,20 +356,11 @@ class Investigator3D:
             return {'status': 'error', 'output': str(e)}
 
     def set_keyframe(self, frame_number: int) -> dict:
-        """
-        改变场景到指定的帧号进行观察
-        
-        Args:
-            frame_number: 要设置的帧号
-            
-        Returns:
-            dict: 包含渲染结果的字典
-        """
         try:
             scene = bpy.context.scene
             current_frame = scene.frame_current
             
-            # 确保帧号在有效范围内
+            # Ensure frame number is within valid range
             target_frame = max(scene.frame_start, min(scene.frame_end, frame_number))
             scene.frame_set(target_frame)
             logging.info(f"Changed to frame {target_frame} (was {current_frame})")
@@ -402,7 +370,7 @@ class Investigator3D:
                 'status': 'success',
                 'output': {
                     'image': render_result['image_path'],
-                    'camera_position': render_result['camera_position'],
+                    'camera_parameters': render_result['camera_parameters'],
                     'frame_info': {
                         'previous_frame': current_frame,
                         'current_frame': target_frame,
@@ -417,221 +385,120 @@ class Investigator3D:
 @mcp.tool()
 def initialize(args: dict) -> dict:
     """
-    初始化 3D 场景调查工具。
+    Initialize 3D scene investigation tool.
     """
     global _investigator
     try:
         save_dir = args.get("thought_save") + "/investigator/" + str(args.get("round_num"))
         _investigator = Investigator3D(save_dir, str(args.get("blender_file")))
-        return {"status": "success", "output": "Investigator3D initialized successfully"}
+        return {"status": "success", "output": {"text": ["Investigator3D initialized successfully"]}}
     except Exception as e:
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 def focus(object_name: str) -> dict:
-    """
-    Focus the camera on a specific object in the 3D scene.
-    
-    Args:
-        object_name: Name of the object to focus on (must exist in the scene)
-        
-    Returns:
-        dict: Status, rendered image path, and camera position information
-        
-    Example:
-        focus(object_name="Cube")
-        # Focuses camera on the object named "Cube" and renders the view
-        
-    Detailed Description:
-        This tool automatically positions the camera to focus on the specified object
-        using a track-to constraint. The camera will orbit around the object at a 
-        fixed distance, allowing you to examine the object from different angles.
-        The camera maintains a consistent distance and automatically adjusts its
-        orientation to keep the target object centered in the view.
-        
-    Best Practices:
-        - Always call this tool first before using zoom or move operations
-        - Use object names exactly as they appear in Blender (case-sensitive)
-        - This tool is ideal for examining specific objects in detail
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "error": "Investigator3D not initialized. Call initialize_investigator first."}
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
 
     try:
-        # 检查目标对象是否存在
+        # Check if target object exists
         obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {"status": "error", "output": f"Object '{object_name}' not found in scene"}
+            return {"status": "error", "output": {"text": [f"Object '{object_name}' not found in scene"]}}
 
         result = _investigator.focus_on_object(object_name)
         return {
             "status": "success", 
-            "output": {"image": result["image_path"], "camera_position": result["camera_position"]}
+            "output": {"image": [result["image_path"]], "text": [f"Camera parameters: {result["camera_parameters"]}"]}
         }
     except Exception as e:
         logging.error(f"Focus failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 def zoom(direction: str) -> dict:
-    """
-    Zoom the camera in or out from the current target object.
-    
-    Args:
-        direction: Zoom direction - "in" (closer to object) or "out" (farther from object)
-        
-    Returns:
-        dict: Status, rendered image path, and camera position information
-        
-    Example:
-        zoom(direction="in")
-        # Moves camera closer to the target object for detailed examination
-        
-    Detailed Description:
-        This tool adjusts the camera distance from the currently focused object.
-        When zooming "in", the camera moves closer to the object, allowing for
-        detailed examination of specific parts. When zooming "out", the camera
-        moves farther away, providing a broader view of the scene context.
-        
-    Best Practices:
-        - Use "in" for examining small details or specific object features
-        - Use "out" for understanding spatial relationships and overall composition
-        - Always call focus() first to establish a target object
-        - Avoid extreme zoom levels that may cause rendering issues
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": "Investigator3D not initialized. Call initialize_investigator first."}
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
 
     try:
-        # 检查是否有目标对象
+        # Check if there is a target object
         if _investigator.target is None:
-            return {"status": "error", "output": "No target object set. Call focus first."}
+            return {"status": "error", "output": {"text": ["No target object set. Call focus first."]}}
 
         result = _investigator.zoom(direction)
         return {
             "status": "success", 
-            "output": {'image': result["image_path"], 'camera_position': result["camera_position"]}
+            "output": {'image': [result["image_path"]], 'text': [f"Camera parameters: {result["camera_parameters"]}"]}
         }
     except Exception as e:
         logging.error(f"Zoom failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 def move(direction: str) -> dict:
-    """
-    Move the camera around the current target object in spherical coordinates.
-    
-    Args:
-        direction: Movement direction - "up", "down", "left", or "right"
-        
-    Returns:
-        dict: Status, rendered image path, and camera position information
-        
-    Example:
-        move(direction="left")
-        # Rotates camera around the target object to the left
-        
-    Detailed Description:
-        This tool moves the camera in spherical coordinates around the currently
-        focused object. The camera maintains a fixed distance from the target
-        while rotating around it. This allows you to examine the object from
-        different angles while keeping it centered in the view.
-        
-        Movement directions:
-        - "up": Rotate camera upward around the object
-        - "down": Rotate camera downward around the object  
-        - "left": Rotate camera left around the object
-        - "right": Rotate camera right around the object
-        
-    Best Practices:
-        - Always call focus() first to establish a target object
-        - Use this tool to examine objects from multiple angles
-        - Combine with zoom() to get both angle and distance control
-        - Avoid extreme angles that may cause disorientation
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": "Investigator3D not initialized. Call initialize_investigator first."}
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
 
     try:
-        # 检查是否有目标对象
+        # Check if there is a target object
         if _investigator.target is None:
-            return {"status": "error", "output": "No target object set. Call focus first."}
+            return {"status": "error", "output": {"text": ["No target object set. Call focus first."]}}
 
         result = _investigator.move_camera(direction)
         return {
             "status": "success", 
-            "output": {'image': result["image_path"], 'camera_position': result["camera_position"]}
+            "output": {'image': [result["image_path"]], 'text': [f"Camera parameters: {result["camera_parameters"]}"]}
         }
     except Exception as e:
         logging.error(f"Move failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
-def get_scene_info(blender_path: str) -> dict:
-    """
-    获取 Blender 场景信息，包括对象、材质、灯光、相机和渲染设置。
-    """
+@mcp.tool()
+def get_scene_info() -> dict:
     try:
-        info = GetSceneInfo(blender_path).get_info()
-        return {"status": "success", "output": info}
+        global _investigator
+        if _investigator is None:
+            return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
+        info = GetSceneInfo(_investigator.blender_path).get_info()
+        return {"status": "success", "output": {"text": [str(info)]}}
     except Exception as e:
         logging.error(f"Failed to get scene info: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
 def init_viewpoint(object_names: list) -> dict:
-    """
-    添加视角：输入对象列表，计算其边界框并在四个上角放置相机，选择最佳视角。
-    
-    Args:
-        object_names: 要观察的对象名称列表
-        
-    Returns:
-        dict: 包含最佳视角渲染结果的字典
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": "Investigator3D not initialized. Call initialize_investigator first."}
-
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
         result = _investigator.init_viewpoint(object_names)
         return result
     except Exception as e:
         logging.error(f"Add viewpoint failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
 def investigate(operation: str, object_name: str = None, direction: str = None) -> dict:
-    """
-    Unified investigation tool.
-    
-    Args:
-        operation: One of ["focus", "zoom", "move"].
-        object_name: Required when operation == "focus".
-        direction: Direction for zoom/move. For zoom: ["in","out"]. For move: ["up","down","left","right"].
-    """
     if operation == "focus":
         if not object_name:
-            return {"status": "error", "output": "object_name is required for focus"}
+            return {"status": "error", "output": {"text": ["object_name is required for focus"]}}
         return focus(object_name=object_name)
     elif operation == "zoom":
         if direction not in ("in", "out"):
-            return {"status": "error", "output": "direction must be 'in' or 'out' for zoom"}
+            return {"status": "error", "output": {"text": ["direction must be 'in' or 'out' for zoom"]}}
         return zoom(direction=direction)
     elif operation == "move":
         if direction not in ("up", "down", "left", "right"):
-            return {"status": "error", "output": "direction must be one of up/down/left/right for move"}
+            return {"status": "error", "output": {"text": ["direction must be one of up/down/left/right for move"]}}
         return move(direction=direction)
     else:
-        return {"status": "error", "output": f"Unknown operation: {operation}"}
+        return {"status": "error", "output": {"text": [f"Unknown operation: {operation}"]}}
 
 @mcp.tool()
 def set_object_visibility(show_object_list: list = None, hide_object_list: list = None) -> dict:
-    """
-    Toggle object visibility for inspection and render a view.
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": "Investigator3D not initialized. Call initialize_investigator first."}
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
         show_object_list = show_object_list or []
         hide_object_list = hide_object_list or []
@@ -644,73 +511,63 @@ def set_object_visibility(show_object_list: list = None, hide_object_list: list 
                 obj.hide_viewport = False
                 obj.hide_render = False
         result = _investigator._render()
-        return {"status": "success", "output": {'image': result["image_path"], 'camera_position': result["camera_position"]}}
+        return {"status": "success", "output": {'image': [result["image_path"]], 'text': [f"Camera parameters: {result["camera_parameters"]}"]}}
     except Exception as e:
         logging.error(f"set_object_visibility failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
 def set_keyframe(frame_number: int) -> dict:
-    """
-    设置场景到指定的帧号进行观察。
-    
-    Args:
-        frame_number: 要设置的帧号
-        
-    Returns:
-        dict: 包含渲染结果的字典
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": "Investigator3D not initialized. Call initialize_investigator first."}
-
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
         result = _investigator.set_keyframe(frame_number)
-        return result
+        if result.get("status") == "success":
+            return {"status": "success", "output": {"text": ["Successfully set the keyframe"], "image": [result.get("output", {}).get("image", [])], "text": [f"Camera parameters: {result.get("output", {}).get("camera_parameters", {})}"]}}
+        else:
+            return {"status": "error", "output": {"text": [result.get("output", {}).get("text", ["Failed to set the keyframe"])]}}
     except Exception as e:
         logging.error(f"Set keyframe failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
     
 @mcp.tool()
 def set_camera(location: list, rotation_euler: list) -> dict:
-    """
-    Set the current active camera to the given location and rotation
-    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": "Investigator3D not initialized. Call initialize_investigator first."}
+        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
         _investigator.set_camera(location, rotation_euler)
-        return {"status": "success", "output": "Successfully set the camera"}
+        return {"status": "success", "output": {"text": ["Successfully set the camera with the given location and rotation"]}}
     except Exception as e:
         logging.error(f"set_camera failed: {e}")
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 
 # ======================
-# 入口与测试
+# Entry point and testing
 # ======================
 
 def main():
-    # 检查是否直接运行此脚本（用于测试）
+    # Check if script is run directly (for testing)
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         print("Running investigator tools test...")
         test_tools()
     else:
-        # 正常运行 MCP 服务器
+        # Run MCP server normally
         mcp.run(transport="stdio")
 
 def test_tools():
-    """测试所有 investigator 工具函数（读环境变量配置）"""
+    """Test all investigator tool functions (read environment variable configuration)"""
     print("=" * 50)
     print("Testing Scene Tools")
     print("=" * 50)
 
-    # 设置测试路径（从环境变量读取）
+    # Set test paths (read from environment variables)
     blender_file = os.getenv("BLENDER_FILE", "output/test/exec_blender/test.blend")
     test_save_dir = os.getenv("THOUGHT_SAVE", "output/test/investigator/")
 
-    # 检查 blender 文件是否存在
+    # Check if blender file exists
     if not os.path.exists(blender_file):
         print(f"⚠ Blender file not found: {blender_file}")
         print("Skipping all tests.")
@@ -718,7 +575,7 @@ def test_tools():
 
     print(f"✓ Using blender file: {blender_file}")
 
-    # 测试 1: 获取场景信息
+    # Test 1: Get scene information
     print("\n1. Testing get_scene_info...")
     try:
         result = get_scene_info(blender_file)
@@ -730,11 +587,11 @@ def test_tools():
             print("✓ get_scene_info passed")
             info = result.get("output", {})
 
-            # 获取第一个对象名称用于后续测试
+            # Get first object name for subsequent tests
             objects = info.get("objects", [])
             if not objects:
                 print("⚠ No objects found in scene, skipping camera tests")
-                # 继续 Meshy 测试
+                # Continue Meshy tests
                 first_object = None
             else:
                 first_object = objects[0]['name']
@@ -746,7 +603,7 @@ def test_tools():
         print(f"✗ get_scene_info failed with exception: {e}")
         first_object = None
 
-    # 测试 2: 初始化调查工具
+    # Test 2: Initialize investigation tool
     print("\n2. Testing initialize_investigator...")
     try:
         args = {"thought_save": test_save_dir, "blender_file": blender_file, "round_num": 0}
@@ -758,12 +615,12 @@ def test_tools():
     except Exception as e:
         print(f"✗ initialize_investigator failed with exception: {e}")
         
-    # 尝试渲染
+    # Attempt rendering
     global _investigator
     result = _investigator._render()
     print(f"Result: {result}")
         
-    # 测试 6: 添加视角功能（指定对象）
+    # Test 6: Add viewpoint functionality (specified objects)
     print("\n6. Testing init_viewpoint with specific objects...")
     try:
         test_objects = [obj['name'] for obj in objects]
@@ -783,10 +640,10 @@ def test_tools():
     except Exception as e:
         print(f"✗ init_viewpoint failed with exception: {e}")
     
-    # 测试 7: 添加视角功能（整个场景）
+    # Test 7: Add viewpoint functionality (entire scene)
     print("\n7. Testing init_viewpoint with whole scene...")
     try:
-        result = init_viewpoint(object_names=[])  # 空列表表示观察整个场景
+        result = init_viewpoint(object_names=[])  # Empty list means observe entire scene
         print(f"Result: {result}")
         if result.get("status") == "success":
             print("✓ init_viewpoint (whole scene) passed")
@@ -802,7 +659,7 @@ def test_tools():
         print(f"✗ init_viewpoint (whole scene) failed with exception: {e}")
 
     if first_object:        
-        # 测试 3: 聚焦对象（如果有对象）
+        # Test 3: Focus on object (if objects exist)
         print("\n3. Testing focus...")
         try:
             result = focus(object_name=first_object)
@@ -816,7 +673,7 @@ def test_tools():
         except Exception as e:
             print(f"✗ focus failed with exception: {e}")
 
-        # 测试 4: 缩放功能
+        # Test 4: Zoom functionality
         print("\n4. Testing zoom...")
         try:
             result = zoom(direction="in")
@@ -829,7 +686,7 @@ def test_tools():
         except Exception as e:
             print(f"✗ zoom failed with exception: {e}")
 
-        # 测试 5: 移动功能
+        # Test 5: Move functionality
         print("\n5. Testing move...")
         try:
             result = move(direction="up")
@@ -842,7 +699,7 @@ def test_tools():
         except Exception as e:
             print(f"✗ move failed with exception: {e}")
 
-        # 测试 8: 设置关键帧功能
+        # Test 8: Set keyframe functionality
         print("\n8. Testing set_keyframe...")
         try:
             result = set_keyframe(frame_number=1)
@@ -873,7 +730,7 @@ if __name__ == "__main__":
 
 
 # ======================
-# MCP 工具
+# MCP Tools
 # ======================
 
 

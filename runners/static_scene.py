@@ -210,10 +210,11 @@ def run_static_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int = 
 
 def main():
     parser = argparse.ArgumentParser(description="Static Scene Runner for AgenticVerifier")
+    time_str = time.strftime('%Y%m%d_%H%M%S')
     
     # Dataset parameters
     parser.add_argument("--dataset-path", default="data/static_scene", help="Path to static scene dataset root directory")
-    parser.add_argument("--output-dir", default=f"output/static_scene/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
+    parser.add_argument("--output-dir", default=f"output/static_scene/{time_str}", help="Output directory for results")
     
     # Task selection
     parser.add_argument("--task", default="all", help="Specific task to run (default: all)")
@@ -229,7 +230,7 @@ def main():
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/static_scene/empty_scene.blend", help="Empty blender file for static scenes")
     parser.add_argument("--blender-script", default="data/static_scene/pipeline_render_script.py", help="Blender execution script")
-    parser.add_argument("--save-blender-file", action="store_true", help="Save blender file")
+    parser.add_argument("--blender-save", default=f"output/static_scene/{time_str}/blender_file.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
     parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py", help="Comma-separated list of generator tool server scripts")

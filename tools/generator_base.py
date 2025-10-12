@@ -35,11 +35,12 @@ def init_plan(overall_description: str, object_list: list, object_relations: lis
     """
     Store the detailed scene plan to a file and return the path.
     """
-    return {"status": "success", "output": {'overall_description': overall_description, 'object_list': object_list, 'object_relations': object_relations, 'initial_layout': initial_layout}}
+    output_text = f"Overall Description: {overall_description}\nObject List: {object_list}\nObject Relations: {object_relations}\nInitial Layout: {initial_layout}"
+    return {"status": "success", "output": {"text": [output_text]}}
 
 @mcp.tool()
 def end() -> dict:
     """
     No-op tool used to indicate the process should end.
     """
-    return {"status": "success", "output": "END THE PROCESS"}
+    return {"status": "success", "output": {"text": ["END THE PROCESS"]}}

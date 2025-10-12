@@ -3,7 +3,7 @@ import json
 from typing import Dict, List, Optional
 from openai import OpenAI
 from prompts import prompt_manager
-from agents.utils import get_image_base64
+from utils.common import get_image_base64
 
 class PromptBuilder:
     """Helper class for building system prompts for generator and verifier agents."""
@@ -16,40 +16,24 @@ class PromptBuilder:
         """Generic method to build generator prompts based on mode and config."""
         mode = config.get("mode")
         task_name = config.get("task_name")
-        
-        # Extract level for blendergym-hard mode
-        level = None
-        if mode == "blendergym-hard":
-            level = task_name.split('-')[0] if task_name else None
+        level = config.get("level")
         
         # Get system prompt only (format/hints embedded in system)
         prompts = prompt_manager.get_all_prompts(mode, "generator", task_name, level)
         
         # Build the prompt based on mode
         if mode == "blendergym":
-            return self._build_blendergym_generator_prompt(
-                config, prompts
-            )
+            return self._build_blendergym_generator_prompt(config, prompts)
         elif mode == "autopresent":
-            return self._build_autopresent_generator_prompt(
-                config, prompts
-            )
+            return self._build_autopresent_generator_prompt(config, prompts)
         elif mode == "blendergym-hard":
-            return self._build_blendergym_hard_generator_prompt(
-                config, prompts
-            )
+            return self._build_blendergym_hard_generator_prompt(config, prompts)
         elif mode == "design2code":
-            return self._build_design2code_generator_prompt(
-                config, prompts
-            )
+            return self._build_design2code_generator_prompt(config, prompts)
         elif mode == "static_scene":
-            return self._build_static_scene_generator_prompt(
-                config, prompts
-            )
+            return self._build_static_scene_generator_prompt(config, prompts)
         elif mode == "dynamic_scene":
-            return self._build_dynamic_scene_generator_prompt(
-                config, prompts
-            )
+            return self._build_dynamic_scene_generator_prompt(config, prompts)
         else:
             raise NotImplementedError(f"Mode {mode} not implemented")
     
@@ -57,52 +41,30 @@ class PromptBuilder:
         """Generic method to build verifier prompts based on mode and config."""
         mode = config.get("mode")
         task_name = config.get("task_name")
-        
-        # Extract level for blendergym-hard mode
-        level = None
-        if mode == "blendergym-hard":
-            level = task_name.split('-')[0] if task_name else None
+        level = config.get("level")
         
         # Get system prompt only (format/hints embedded in system)
         prompts = prompt_manager.get_all_prompts(mode, "verifier", task_name, level)
         
         # Build the prompt based on mode
         if mode == "blendergym":
-            return self._build_blendergym_verifier_prompt(
-                config, prompts
-            )
+            return self._build_blendergym_verifier_prompt(config, prompts)
         elif mode == "autopresent":
-            return self._build_autopresent_verifier_prompt(
-                config, prompts
-            )
+            return self._build_autopresent_verifier_prompt(config, prompts)
         elif mode == "blendergym-hard":
-            return self._build_blendergym_hard_verifier_prompt(
-                config, prompts
-            )
+            return self._build_blendergym_hard_verifier_prompt(config, prompts)
         elif mode == "design2code":
-            return self._build_design2code_verifier_prompt(
-                config, prompts
-            )
+            return self._build_design2code_verifier_prompt(config, prompts)
         elif mode == "static_scene":
-            return self._build_static_scene_verifier_prompt(
-                config, prompts
-            )
+            return self._build_static_scene_verifier_prompt(config, prompts)
         elif mode == "dynamic_scene":
-            return self._build_dynamic_scene_verifier_prompt(
-                config, prompts
-            )
+            return self._build_dynamic_scene_verifier_prompt(config, prompts)
         else:
             raise NotImplementedError(f"Mode {mode} not implemented")
     
     def build_verify_message(self, config: Dict, code: str, render_path: str, current_image_path_ref: List) -> Dict:
         """Generic method to build verify messages based on mode and config."""
         mode = config.get("mode")
-        task_name = config.get("task_name")
-        
-        # Extract level for blendergym-hard mode
-        level = None
-        if mode == "blendergym-hard":
-            level = task_name.split('-')[0] if task_name else None
         
         # No separate format prompt needed; system includes format/hints
         format_prompt = ""
@@ -248,43 +210,14 @@ class PromptBuilder:
     
     def _build_static_scene_generator_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
         """Build generator prompt for static_scene mode using prompt manager."""
-        from agents.config_manager import ConfigManager
-        config_manager = ConfigManager(config)
-        
         # Get system prompt from prompt manager
         system_prompt = prompts.get('system', '')
-        
-        # Add available assets information
-        available_assets = config_manager.get_available_assets() 
-        if available_assets:
-            assets_info = f"\n\nAvailable 3D Assets:\n"
-            for asset in available_assets:
-                asset_name = os.path.splitext(asset)[0]  # Remove .glb extension
-                assets_info += f"- {asset_name}: {asset}\n"
-            assets_info += f"\nTo import an asset, use: bpy.ops.import_scene.gltf(filepath='{config_manager.get_assets_path()}/{{asset_name}}.glb')\n"
-            system_prompt += assets_info
-            
         return [{"role": "system", "content": system_prompt}]
     
     def _build_dynamic_scene_generator_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:
         """Build generator prompt for dynamic_scene mode using prompt manager."""
-        from agents.config_manager import ConfigManager
-        config_manager = ConfigManager(config)
-        
         # Get system prompt from prompt manager
         system_prompt = prompts.get('system', '')
-        
-        # Add available assets information
-        available_assets = config_manager.get_available_assets()
-        if available_assets:
-            assets_info = f"\n\nAvailable 3D Assets:\n"
-            for asset in available_assets:
-                asset_name = os.path.splitext(asset)[0]  # Remove .glb extension
-                assets_info += f"- {asset_name}: {asset}\n"
-            assets_info += f"\nTo import an asset, use: bpy.ops.import_scene.gltf(filepath='{config_manager.get_assets_path()}/{{asset_name}}.glb')\n"
-            assets_info += f"\nFor animated assets, you can also use: bpy.ops.import_scene.gltf(filepath='{config_manager.get_assets_path()}/{{asset_name}}.glb', import_animations=True)\n"
-            system_prompt += assets_info
-        
         return [{"role": "system", "content": system_prompt}]
     
     def _build_static_scene_verifier_prompt(self, config: Dict, prompts: Dict) -> List[Dict]:

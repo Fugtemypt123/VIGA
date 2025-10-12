@@ -39,7 +39,7 @@ _image_cropper = None
 _meshy_api = None
 
 class MeshyAPI:
-    """Meshy API 客户端：Text-to-3D 生成 + 轮询 + 下载"""
+    """Meshy API client: Text-to-3D generation + polling + download"""
     def __init__(self, api_key: str = None, save_dir: str = "assets", previous_assets_dir: str = None):
         self.api_key = api_key or os.getenv("MESHY_API_KEY")
         if not self.api_key:
@@ -53,29 +53,31 @@ class MeshyAPI:
         os.makedirs(self.save_dir, exist_ok=True)
         if self.previous_assets_dir:
             os.makedirs(self.previous_assets_dir, exist_ok=True)
+        with open('logs/meshy.log', 'w') as f:
+            f.write(f"MeshyAPI initialized with save_dir: {self.save_dir} and previous_assets_dir: {self.previous_assets_dir}\n")
 
     def normalize_name(self, name: str) -> str:
         """
-        标准化名称用于模糊匹配：去除大小写、空格、下划线、单复数差异
+        Normalize name for fuzzy matching: remove case, spaces, underscores, singular/plural differences
         """
         if not name:
             return ""
         
-        # 转换为小写
+        # Convert to lowercase
         normalized = name.lower()
         
-        # 去除空格和下划线
+        # Remove spaces and underscores
         normalized = re.sub(r'[\s_]+', '', normalized)
         
-        # 处理单复数差异
-        # 移除常见的复数后缀
+        # Handle singular/plural differences
+        # Remove common plural suffixes
         plural_endings = ['s', 'es', 'ies', 'ves']
         for ending in plural_endings:
             if normalized.endswith(ending) and len(normalized) > len(ending) + 1:
-                # 特殊情况：以y结尾的复数形式
+                # Special case: plural forms ending with y
                 if ending == 'ies' and normalized.endswith('ies'):
                     normalized = normalized[:-3] + 'y'
-                # 特殊情况：以f/fe结尾的复数形式
+                # Special case: plural forms ending with f/fe
                 elif ending == 'ves' and (normalized.endswith('ves') and 
                                          (normalized[-4] == 'f' or normalized[-4] == 'e')):
                     normalized = normalized[:-3] + 'f'
@@ -87,15 +89,15 @@ class MeshyAPI:
 
     def find_matching_files(self, target_name: str, extensions: List[str], prefix: str = "") -> List[str]:
         """
-        在previous_assets目录中查找匹配的文件
+        Find matching files in previous_assets directory
         
         Args:
-            target_name: 目标对象名称
-            extensions: 文件扩展名列表
-            prefix: 文件名前缀（如"animated_", "rigged_"）
+            target_name: Target object name
+            extensions: File extension list
+            prefix: File name prefix (e.g., "animated_", "rigged_")
             
         Returns:
-            List[str]: 匹配的文件路径列表
+            List[str]: List of matching file paths
         """
         if not self.previous_assets_dir or not os.path.exists(self.previous_assets_dir):
             return []
@@ -105,22 +107,22 @@ class MeshyAPI:
         
         try:
             for filename in os.listdir(self.previous_assets_dir):
-                # 检查文件扩展名
+                # Check file extension
                 if not any(filename.lower().endswith(ext.lower()) for ext in extensions):
                     continue
                 
-                # 移除扩展名和前缀
+                # Remove extension and prefix
                 base_name = filename
                 for ext in extensions:
                     if base_name.lower().endswith(ext.lower()):
                         base_name = base_name[:-len(ext)]
                         break
                 
-                # 移除前缀
+                # Remove prefix
                 if prefix and base_name.lower().startswith(prefix.lower()):
                     base_name = base_name[len(prefix):]
                 
-                # 标准化并比较
+                # Normalize and compare
                 base_normalized = self.normalize_name(base_name)
                 if base_normalized == target_normalized:
                     matching_files.append(os.path.join(self.previous_assets_dir, filename))
@@ -132,20 +134,20 @@ class MeshyAPI:
 
     def check_previous_asset(self, object_name: str, is_animated: bool = False, is_rigged: bool = False) -> Optional[str]:
         """
-        检查previous_assets目录中是否存在对应的资产文件（支持模糊匹配）
+        Check if corresponding asset file exists in previous_assets directory (supports fuzzy matching)
         
         Args:
-            object_name: 对象名称
-            is_animated: 是否为动画文件
-            is_rigged: 是否为绑定文件
+            object_name: Object name
+            is_animated: Whether it is an animation file
+            is_rigged: Whether it is a rigged file
             
         Returns:
-            str: 如果找到文件，返回文件路径；否则返回None
+            str: If file is found, return file path; otherwise return None
         """
         if not self.previous_assets_dir:
             return None
             
-        # 根据设置确定搜索参数
+        # Determine search parameters based on settings
         if is_animated:
             extensions = [".glb"]
             prefix = "animated_"
@@ -153,15 +155,15 @@ class MeshyAPI:
             extensions = [".fbx"]
             prefix = "rigged_"
         else:
-            # 静态文件，尝试常见的扩展名
+            # Static files, try common extensions
             extensions = [".glb", ".gltf", ".fbx", ".obj", ".zip"]
             prefix = ""
         
-        # 使用模糊匹配查找文件
+        # Use fuzzy matching to find files
         matching_files = self.find_matching_files(object_name, extensions, prefix)
         
         if matching_files:
-            # 返回第一个匹配的文件
+            # Return the first matching file
             matched_file = matching_files[0]
             logging.info(f"Found previous asset (fuzzy match): {matched_file}")
             return matched_file
@@ -170,7 +172,7 @@ class MeshyAPI:
 
     def create_text_to_3d_preview(self, prompt: str, **kwargs) -> str:
         """
-        创建 Text-to-3D 预览任务（无贴图）
+        Create Text-to-3D preview task (no texture)
         Returns: task_id (str)
         """
         url = f"{self.base_url}/openapi/v2/text-to-3d"
@@ -182,13 +184,13 @@ class MeshyAPI:
         resp = requests.post(url, headers=self.headers, data=json.dumps(payload))
         resp.raise_for_status()
         data = resp.json()
-        # 有的环境返回 {"result": "<id>"}，有的返回 {"id": "<id>"}
+        # Some environments return {"result": "<id>"}, some return {"id": "<id>"}
         return data.get("result") or data.get("id")
 
     def poll_text_to_3d(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
         """
-        轮询 Text-to-3D 任务直到结束
-        Returns: 任务 JSON（包含 status / model_urls 等）
+        Poll Text-to-3D task until completion
+        Returns: Task JSON (containing status / model_urls etc.)
         """
         url = f"{self.base_url}/openapi/v2/text-to-3d/{task_id}"
         deadline = time.time() + timeout_sec
@@ -205,7 +207,7 @@ class MeshyAPI:
 
     def create_text_to_3d_refine(self, preview_task_id: str, **kwargs) -> str:
         """
-        基于 preview 发起 refine 贴图任务
+        Launch refine texture task based on preview
         Returns: refine_task_id (str)
         """
         url = f"{self.base_url}/openapi/v2/text-to-3d"
@@ -221,7 +223,7 @@ class MeshyAPI:
 
     def download_model_url(self, file_url: str, filename: str) -> str:
         """
-        从 model_urls 的直链下载文件到本地
+        Download file from model_urls direct link to local
         """
         r = requests.get(file_url, stream=True)
         r.raise_for_status()
@@ -230,31 +232,33 @@ class MeshyAPI:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+        with open('logs/meshy.log', 'a') as f:
+            f.write(f"Downloaded {filename} from {file_url} to {output_path}\n")
         return output_path
 
     def create_image_to_3d_preview(self, image_path: str, prompt: str = None, **kwargs) -> str:
         """
-        创建 Image-to-3D 预览任务（无贴图）
+        Create Image-to-3D preview task (no texture)
         
         Args:
-            image_path: 输入图片路径
-            prompt: 可选的文本提示
-            **kwargs: 其他参数
+            image_path: Input image path
+            prompt: Optional text prompt
+            **kwargs: Other parameters
             
         Returns: task_id (str)
         """
         url = f"{self.base_url}/openapi/v1/image-to-3d"
         
-        # 准备文件上传
+        # Prepare file upload
         with open(image_path, 'rb') as f:
-            # 将image转为base64格式
+            # Convert image to base64 format
             image_base64 = base64.b64encode(f.read()).decode('utf-8')
             files = {
                 'image_url': f"data:image/png;base64,{image_base64}",
                 'enable_pbr': True,
             }
             
-            # 发送请求（注意：这里不使用JSON headers，因为要上传文件）
+            # Send request (note: JSON headers not used here because we need to upload files)
             headers = {
                 "Authorization": f"Bearer {self.api_key}"
             }
@@ -266,8 +270,8 @@ class MeshyAPI:
 
     def poll_image_to_3d(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
         """
-        轮询 Image-to-3D 任务直到结束
-        Returns: 任务 JSON（包含 status / model_urls 等）
+        Poll Image-to-3D task until completion
+        Returns: Task JSON (containing status / model_urls etc.)
         """
         url = f"{self.base_url}/openapi/v1/image-to-3d/{task_id}"
         deadline = time.time() + timeout_sec
@@ -284,10 +288,10 @@ class MeshyAPI:
 
     def create_rigging_task(self, model_url: str) -> str:
         """
-        创建自动绑定任务
+        Create automatic rigging task
         
         Args:
-            model_url: 需要绑定的3D模型的URL
+            model_url: URL of 3D model that needs rigging
             
         Returns: task_id (str)
         """
@@ -302,14 +306,14 @@ class MeshyAPI:
 
     def poll_rigging_task(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
         """
-        轮询绑定任务直到结束
+        Poll rigging task until completion
         
         Args:
-            task_id: 任务ID
-            interval_sec: 轮询间隔（秒）
-            timeout_sec: 超时时间（秒）
+            task_id: Task ID
+            interval_sec: Polling interval (seconds)
+            timeout_sec: Timeout time (seconds)
             
-        Returns: 任务 JSON（包含 status / result 等）
+        Returns: Task JSON (containing status / result etc.)
         """
         url = f"{self.base_url}/openapi/v1/rigging/{task_id}"
         deadline = time.time() + timeout_sec
@@ -326,11 +330,11 @@ class MeshyAPI:
 
     def create_animation_task(self, rig_task_id: str, action_description: str) -> str:
         """
-        创建动画任务
+        Create animation task
         
         Args:
-            rig_task_id: 成功完成的绑定任务的ID
-            action_id: 要应用的动画动作的标识符，默认 92
+            rig_task_id: ID of successfully completed rigging task
+            action_id: Identifier of animation action to apply, default 92
             
         Returns: task_id (str)
         """
@@ -348,14 +352,14 @@ class MeshyAPI:
 
     def poll_animation_task(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
         """
-        轮询动画任务直到结束
+        Poll animation task until completion
         
         Args:
-            task_id: 任务ID
-            interval_sec: 轮询间隔（秒）
-            timeout_sec: 超时时间（秒）
+            task_id: Task ID
+            interval_sec: Polling interval (seconds)
+            timeout_sec: Timeout time (seconds)
             
-        Returns: 任务 JSON（包含 status / result 等）
+        Returns: Task JSON (containing status / result etc.)
         """
         url = f"{self.base_url}/openapi/v1/animations/{task_id}"
         deadline = time.time() + timeout_sec
@@ -372,7 +376,7 @@ class MeshyAPI:
 
 
 class ImageCropper:
-    """图片截取工具，支持基于文本描述的智能截取（Grounding DINO + SAM / YOLO / OpenAI 兜底）"""
+    """Image cropping tool, supports intelligent cropping based on text description (Grounding DINO + SAM / YOLO / OpenAI fallback)"""
 
     def __init__(self, api_key: str, target_image_path: str):
         self.url = "https://api.va.landing.ai/v1/tools/agentic-object-detection"
@@ -382,7 +386,7 @@ class ImageCropper:
         self.target_image_path = target_image_path
 
     # ---------------------------
-    # 对外：裁剪（签名与返回结构保留）
+    # External: cropping (signature and return structure preserved)
     # ---------------------------
     def crop_image_by_text(self, object_name: str) -> dict:
         files = {
@@ -398,34 +402,34 @@ class ImageCropper:
 
 def download_meshy_asset(object_name: str, description: str) -> dict:
     """
-    下载 Meshy Text-to-3D 资产
+    Download Meshy Text-to-3D asset
     
     Args:
-        object_name: 对象名称
-        description: 对象描述
+        object_name: Object name
+        description: Object description
     """
     try:
         global _meshy_api
         if _meshy_api is None:
             return {"status": "error", "output": "Meshy API not initialized"}
 
-        # 检查previous_assets目录中是否已存在静态文件
+        # Check if static file already exists in previous_assets directory
         previous_asset = _meshy_api.check_previous_asset(object_name, is_animated=False, is_rigged=False)
         if previous_asset:
             print(f"[Meshy] Using previous static asset: {previous_asset}")
             return {'status': 'success', 'output': {'path': previous_asset, 'model_url': None, 'from_cache': True}}
 
-        # 1) 创建 preview 任务
+        # 1) Create preview task
         print(f"[Meshy] Creating preview task for: {description}")
         preview_id = _meshy_api.create_text_to_3d_preview(description)
 
-        # 2) 轮询 preview
+        # 2) Poll preview
         preview_task = _meshy_api.poll_text_to_3d(preview_id, interval_sec=5, timeout_sec=900)
         if preview_task.get("status") != "SUCCEEDED":
             return {"status": "error", "output": f"Preview failed: {preview_task.get('status')}"}
         final_task = preview_task
 
-        # 3) refine（贴图）
+        # 3) refine (texture)
         print(f"[Meshy] Starting refine for preview task: {preview_id}")
         refine_id = _meshy_api.create_text_to_3d_refine(preview_id)
         refine_task = _meshy_api.poll_text_to_3d(refine_id, interval_sec=5, timeout_sec=1800)
@@ -433,7 +437,7 @@ def download_meshy_asset(object_name: str, description: str) -> dict:
             return {"status": "error", "output": f"Refine failed: {refine_task.get('status')}"}
         final_task = refine_task
 
-        # 4) 从 model_urls 取下载链接
+        # 4) Get download link from model_urls
         model_urls = (final_task or {}).get("model_urls", {}) or {}
         candidate_keys = ["glb", "fbx", "obj", "zip"]
         file_url = None
@@ -444,11 +448,8 @@ def download_meshy_asset(object_name: str, description: str) -> dict:
         if not file_url:
             return {"status": "error", "output": "No downloadable model_urls found"}
         
-        # 5) 下载模型到本地
-        guessed_ext = os.path.splitext(file_url.split("?")[0])[1].lower()
-        if guessed_ext not in [".glb", ".gltf", ".fbx", ".obj", ".zip"]:
-            guessed_ext = ".glb"
-        result_path = _meshy_api.download_model_url(file_url, f"{object_name}{guessed_ext}")
+        # 5) Download model to local
+        result_path = _meshy_api.download_model_url(file_url, f"{object_name}_0.glb")
         print(f"[Meshy] Downloading Meshy asset to: {result_path}")
         
         return {'status': 'success', 'output': {'path': result_path, 'model_url': file_url}}
@@ -460,15 +461,15 @@ def download_meshy_asset(object_name: str, description: str) -> dict:
 
 def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: str = None) -> dict:
     """
-    使用 Meshy Image-to-3D 根据输入图片生成资产并下载到本地（生成→轮询→下载）
+    Use Meshy Image-to-3D to generate asset from input image and download to local (generate→poll→download)
 
     Args:
-        object_name: 对象名称
-        image_path: 输入图片路径
-        prompt: 可选的文本提示，用于指导生成
+        object_name: Object name
+        image_path: Input image path
+        prompt: Optional text prompt for guiding generation
     """
     try:
-        # 检查图片文件是否存在
+        # Check if image file exists
         if not os.path.exists(image_path):
             return {"status": "error", "output": f"Image file not found: {image_path}"}
 
@@ -476,26 +477,26 @@ def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: s
         if _meshy_api is None:
             return {"status": "error", "output": "Meshy API not initialized"}
 
-        # 检查previous_assets目录中是否已存在静态文件
+        # Check if static file already exists in previous_assets directory
         previous_asset = _meshy_api.check_previous_asset(object_name, is_animated=False, is_rigged=False)
         if previous_asset:
             print(f"[Meshy] Using previous static asset from image: {previous_asset}")
             return {'status': 'success', 'output': {'path': previous_asset, 'model_url': None, 'from_cache': True}}
 
-        # 1) 创建 Image-to-3D preview 任务
+        # 1) Create Image-to-3D preview task
         print(f"[Meshy] Creating Image-to-3D preview task for: {image_path}")
         if prompt:
             print(f"[Meshy] Using prompt: {prompt}")
         
         preview_id = _meshy_api.create_image_to_3d_preview(image_path, prompt)
 
-        # 2) 轮询 preview
+        # 2) Poll preview
         preview_task = _meshy_api.poll_image_to_3d(preview_id, interval_sec=5, timeout_sec=900)
         if preview_task.get("status") != "SUCCEEDED":
             return {"status": "error", "output": f"Image-to-3D preview failed: {preview_task.get('status')}"}
         final_task = preview_task
 
-        # 3) 从 model_urls 取下载链接
+        # 3) Get download link from model_urls
         model_urls = (final_task or {}).get("model_urls", {}) or {}
         candidate_keys = ["glb", "fbx", "obj", "zip"]
         file_url = None
@@ -506,12 +507,9 @@ def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: s
         if not file_url:
             return {"status": "error", "output": "No downloadable model_urls found"}
 
-        # 4) 下载模型到本地持久目录
-        # 处理无扩展名直链：默认 .glb
-        guessed_ext = os.path.splitext(file_url.split("?")[0])[1].lower()
-        if guessed_ext not in [".glb", ".gltf", ".fbx", ".obj", ".zip"]:
-            guessed_ext = ".glb"
-        result_path = _meshy_api.download_model_url(file_url, f"{object_name}{guessed_ext}")
+        # 4) Download model to local persistent directory
+        # Handle extensionless direct links: default .glb
+        result_path = _meshy_api.download_model_url(file_url, f"{object_name}_0.glb")
         print(f"[Meshy] Downloading Image-to-3D model to: {result_path}")
 
         return {'status': 'success', 'output': {'path': result_path, 'model_url': file_url}}
@@ -523,20 +521,20 @@ def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: s
 
 def create_rigged_character(model_url: str, object_name: str) -> dict:
     """
-    创建带有绑定的角色模型
+    Create character model with rigging
     
     Args:
-        model_url: 3D模型的URL
+        model_url: URL of 3D model
         
     Returns:
-        dict: 包含绑定结果的字典
+        dict: Dictionary containing rigging results
     """
     try:
         global _meshy_api
         if _meshy_api is None:
             return {"status": "error", "output": "Meshy API not initialized"}
 
-        # 检查previous_assets目录中是否已存在绑定文件
+        # Check if rigged file already exists in previous_assets directory
         previous_asset = _meshy_api.check_previous_asset(object_name, is_animated=False, is_rigged=True)
         if previous_asset:
             print(f"[Meshy] Using previous rigged asset: {previous_asset}")
@@ -545,23 +543,23 @@ def create_rigged_character(model_url: str, object_name: str) -> dict:
                 'output': {'task_id': 'cached', 'path': previous_asset, 'model_url': None, 'from_cache': True}
             }
 
-        # 1) 创建绑定任务
+        # 1) Create rigging task
         print(f"[Meshy] Creating rigging task for: {model_url}")
         rig_task_id = _meshy_api.create_rigging_task(model_url=model_url)
 
-        # 2) 轮询绑定任务
+        # 2) Poll rigging task
         rig_task = _meshy_api.poll_rigging_task(rig_task_id, interval_sec=5, timeout_sec=1800)
         if rig_task.get("status") != "SUCCEEDED":
             return {"status": "error", "output": f"Rigging failed: {rig_task.get('status')}"}
 
-        # 3) 从结果中获取绑定的模型下载链接
+        # 3) Get rigged model download link from result
         result = rig_task.get("result", {})
         rigged_model_url = result.get("rigged_character_fbx_url")
         if not rigged_model_url:
             return {"status": "error", "output": "No rigged model URL found in result"}
 
-        # 4) 下载绑定的模型到本地
-        local_path = _meshy_api.download_model_url(rigged_model_url, f"rigged_{object_name}.fbx")
+        # 4) Download rigged model to local
+        local_path = _meshy_api.download_model_url(rigged_model_url, f"{object_name}_1.fbx")
         print(f"[Meshy] Downloading rigged model to: {local_path}")
 
         return {
@@ -576,21 +574,21 @@ def create_rigged_character(model_url: str, object_name: str) -> dict:
 
 def create_animated_character(rig_task_id: str, action_description: str, object_name: str) -> dict:
     """
-    为绑定的角色创建动画
+    Create animation for rigged character
     
     Args:
-        rig_task_id: 绑定任务的ID
-        action_description: 动画动作描述
+        rig_task_id: ID of rigging task
+        action_description: Animation action description
         
     Returns:
-        dict: 包含动画结果的字典
+        dict: Dictionary containing animation results
     """
     try:
         global _meshy_api
         if _meshy_api is None:
             return {"status": "error", "output": "Meshy API not initialized"}
 
-        # 检查previous_assets目录中是否已存在动画文件
+        # Check if animation file already exists in previous_assets directory
         previous_asset = _meshy_api.check_previous_asset(object_name, is_animated=True, is_rigged=False)
         if previous_asset:
             print(f"[Meshy] Using previous animated asset: {previous_asset}")
@@ -599,23 +597,23 @@ def create_animated_character(rig_task_id: str, action_description: str, object_
                 'output': {'task_id': 'cached', 'path': previous_asset, 'model_url': None, 'from_cache': True}
             }
 
-        # 1) 创建动画任务
+        # 1) Create animation task
         print(f"[Meshy] Creating animation task for rig_task_id: {rig_task_id}")
         anim_task_id = _meshy_api.create_animation_task(rig_task_id=rig_task_id, action_description=action_description)
 
-        # 2) 轮询动画任务
+        # 2) Poll animation task
         anim_task = _meshy_api.poll_animation_task(anim_task_id, interval_sec=5, timeout_sec=1800)
         if anim_task.get("status") != "SUCCEEDED":
             return {"status": "error", "output": f"Animation failed: {anim_task.get('status')}"}
 
-        # 3) 从结果中获取动画文件下载链接
+        # 3) Get animation file download link from result
         result = anim_task.get("result", {})
         animated_model_url = result.get("animation_glb_url")
         if not animated_model_url:
             return {"status": "error", "output": "No animated model URL found in result"}
 
-        # 4) 下载动画模型到本地
-        local_path = _meshy_api.download_model_url(animated_model_url, f"animated_{object_name}.glb")
+        # 4) Download animated model to local
+        local_path = _meshy_api.download_model_url(animated_model_url, f"{object_name}_2.glb")
         print(f"[Meshy] Downloading animated model to: {local_path}")
 
         return {
@@ -630,37 +628,37 @@ def create_animated_character(rig_task_id: str, action_description: str, object_
 
 def create_rigged_and_animated_character(model_url: str, action_description: str, object_name: str) -> dict:
     """
-    完整的流程：创建绑定角色并添加动画
+    Complete process: create rigged character and add animation
     
     Args:
-        model_url: 3D模型的URL
-        action_description: 动画动作描述
+        model_url: URL of 3D model
+        action_description: Animation action description
         
     Returns:
-        dict: 包含完整结果的字典
+        dict: Dictionary containing complete results
     """
     try:
         global _meshy_api
         if _meshy_api is None:
             return {"status": "error", "output": "Meshy API not initialized"}
         
-        # 1) 首先创建绑定角色
+        # 1) First create rigged character
         rigging_result = create_rigged_character(model_url=model_url, object_name=object_name)
         if rigging_result.get("status") != "success":
             return rigging_result
 
-        # 2) 然后创建动画
+        # 2) Then create animation
         rig_task_id = rigging_result["output"]["task_id"]
-        # 如果绑定结果来自缓存，我们需要检查是否已经有完整的动画缓存
+        # If rigging result comes from cache, we need to check if there is already complete animation cache
         if rigging_result["output"].get("from_cache"):
-            # 检查是否已有动画缓存
+            # Check if animation cache already exists
             animation_result = create_animated_character(rig_task_id="cached", action_description=action_description, object_name=object_name)
             if animation_result["output"].get("from_cache"):
                 return animation_result
-            # 如果没有动画缓存，需要重新生成绑定（因为我们需要真实的rig_task_id）
+            # If no animation cache, need to regenerate rigging (because we need real rig_task_id)
             if not model_url:
                 return {"status": "error", "output": "Cannot create animation without model_url when rigging is cached"}
-            # 重新创建绑定以获得真实的task_id
+            # Recreate rigging to get real task_id
             rigging_result = create_rigged_character(model_url=model_url, object_name=object_name)
             if rigging_result.get("status") != "success":
                 return rigging_result
@@ -679,16 +677,7 @@ def create_rigged_and_animated_character(model_url: str, action_description: str
     
 @mcp.tool()
 def initialize(args: dict) -> dict:
-    """
-    Initialize Meshy server context.
-    
-    Args:
-        args:
-          - va_api_key: VA API key for ImageCropper (optional)
-          - target_image_path: path to the target image for cropping (optional)
-          - save_dir: path to the directory to save the generated asset
-          - previous_assets_dir: path to the directory containing previous assets (optional)
-    """
+
     global _image_cropper
     try:
         va_api_key = args.get("va_api_key")
@@ -697,7 +686,7 @@ def initialize(args: dict) -> dict:
         save_dir = args.get("save_dir")
         previous_assets_dir = args.get("previous_assets_dir")
         
-        # 如果没有指定previous_assets_dir，默认使用target_image_path同目录下的assets文件夹
+        # If previous_assets_dir is not specified, default to assets folder in same directory as target_image_path
         if not previous_assets_dir and target_image_path:
             target_dir = os.path.dirname(target_image_path)
             previous_assets_dir = os.path.join(target_dir, "assets")
@@ -708,29 +697,17 @@ def initialize(args: dict) -> dict:
         if meshy_api_key:
             global _meshy_api
             _meshy_api = MeshyAPI(meshy_api_key, save_dir, previous_assets_dir)
-        return {"status": "success", "output": "Meshy initialize completed"}
+        return {"status": "success", "output": {"text": ["Meshy initialize completed"]}}
     except Exception as e:
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
 def generate_and_download_3d_asset(object_name: str, reference_type: str, object_description: str = None, rig_and_animate: bool = False, action_description: str = None) -> dict:
-    """
-    Unified Meshy tool per system prompt: generate and download a 3D asset.
-    Uses text description or an image (cropped if not provided) for generation.
-
-    Args:
-        object_name: Asset/object name, e.g., 'table', 'chair'.
-        reference_type: 'text' or 'image'.
-        object_description: Optional detailed description; if absent, falls back to object_name.
-        image_path: Optional path to a reference image; if not provided and reference_type=='image', will crop from target image using ImageCropper.
-        rig_and_animate: Whether to rig and animate the generated asset.
-        action_description: The description of the action to apply to the generated asset.
-    """
     try:
         if reference_type == "text":
             description = (object_description or object_name or "").strip()
             if not description:
-                return {"status": "error", "output": "object_description or object_name must be provided"}
+                return {"status": "error", "output": {"text": ["object_description or object_name must be provided"]}}
             static_result = download_meshy_asset(object_name=object_name, description=description)
             
         elif reference_type == "image":
@@ -753,18 +730,20 @@ def generate_and_download_3d_asset(object_name: str, reference_type: str, object
                 return {"status": "error", "output": f"Image file not found: {local_image_path}"}
             staticmethod_result = download_meshy_asset_from_image(object_name=object_name, image_path=local_image_path)
         
-        if static_result.get('status') != 'success' or not rig_and_animate:
-            return static_result
-        model_url = static_result.get('model_url')
-        if not model_url:
-            return static_result
+        if static_result.get('status') != 'success':
+            return {"status": "error", "output": {"text": [static_result.get('output', {}).get('text', ['Failed to generate static asset'])]}}
+        if not rig_and_animate:
+            return {"status": "success", "output": {"text": ["Successfully generated static asset, downloaded to: ", static_result.get('output', {}).get('path', [])]}}
+        
+        model_url = static_result.get('model_url', None)
         dynamic_result = create_rigged_and_animated_character(model_url=model_url, action_description=action_description, object_name=object_name)
         if dynamic_result.get('status') == 'success':
-            dynamic_result['output'] = dynamic_result.get('output')
-        return dynamic_result
+            return {"status": "success", "output": {"text": ["Successfully generated dynamic asset, downloaded to: ", dynamic_result.get('output', {}).get('path', [])]}}
+        else:
+            return {"status": "error", "output": {"text": [dynamic_result.get('output', {}).get('text', ['Failed to generate dynamic asset'])]}}
     
     except Exception as e:
-        return {"status": "error", "output": str(e)}
+        return {"status": "error", "output": {"text": [str(e)]}}
 
 def main():
     # Test entry similar to investigator.py
