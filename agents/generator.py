@@ -8,32 +8,33 @@ import copy
 from mcp.server.fastmcp import FastMCP
 from agents.tool_client import ExternalToolClient
 from agents.verifier import VerifierAgent
-from prompts import prompt_manager
-from utils.common import save_thought_process, get_scene_info, get_image_base64
+from agents.prompt_builder import PromptBuilder
+from utils.common import get_image_base64
 
 class GeneratorAgent:
-    """
-    An MCP agent that takes code modification suggestions and implements them.
-    This agent follows the MCP server pattern for better encapsulation and tool integration.
-    """
-    
-    def __init__(self, **kwargs):
-        """
-        Initialize the Generator Agent.
-        """
-        self.config = kwargs
+    def __init__(self, args):
+        self.config = args
         self.memory = []
+        self.init_plan = None
         
-        # Connect to tool servers
-        self.tool_client = ExternalToolClient()
-        
+        # Initialize chat args
+        self.init_chat_args = {}
+        if 'gpt' in self.config.get("model"):
+            self.init_chat_args['parallel_tool_calls'] = False
+        if self.config.get("model") != 'Qwen2-VL-7B-Instruct':
+            self.init_chat_args['tool_choice'] = "auto"
+            
+        # Initialize tool client
+        self.tool_client = ExternalToolClient(self.config.get("tool_servers"), self.config)
         
         # Initialize OpenAI client
         client_kwargs = {"api_key": self.config.get("api_key"), 'base_url': self.config.get("api_base_url") or os.getenv("OPENAI_BASE_URL") or 'https://api.openai.com/v1'}
         self.client = OpenAI(**client_kwargs)
         
         # Initialize system prompt
-        self.system_prompt = prompt_manager.get_all_prompts(self.config.get("mode"), "generator", self.config.get("task_name"), self.config.get("level")).get("system", "")
+        self.prompt_builder = PromptBuilder(self.client, self.config)
+        self.system_prompt = self.prompt_builder.build_prompt("generator", "system")
+        self.memory.append(self.system_prompt)
 
     async def run(self, verifier: VerifierAgent) -> Dict[str, Any]:
         """
@@ -46,158 +47,69 @@ class GeneratorAgent:
         Returns:
             Dict containing the generated code, metadata, and verifier flag
         """
-        for i in range(self.max_rounds):
-            memory = [self.system_prompt] + self.memory[-12:] if len(self.memory) > 12 else self.memory
-            chat_args = {
-                "model": self.model,
-                "messages": memory,
-            }
-            tools = self._get_tools()
-            if tools:
-                chat_args['tools'] = tools
-                if 'gpt' in self.model:
-                    chat_args['parallel_tool_calls'] = False
-                if self.model != 'Qwen2-VL-7B-Instruct':
-                    chat_args['tool_choice'] = "auto"
-
+        for i in range(self.config.get("max_rounds")):
+            # Prepare chat args
+            memory = ([self.memory[0]] + self.memory[-self.config.get("memory_length")+1:]) if len(self.memory) > self.config.get("memory_length") else self.memory
+            tools = self.tool_client.tool_configs
+            chat_args = {"model": self.config.get("model"), "messages": memory, "tools": tools, **self.init_chat_args}
+            
+            # Generate response
             response = self.client.chat.completions.create(**chat_args)
             message = response.choices[0].message
+            if not message.tool_calls:
+                continue
+            tool_call = message.tool_calls[0]
             
-            # Store assistant message in conversation history
-            self.conversation_history.append(message.model_dump())
-            
-            if message.tool_calls:
-                # Tool was called - this is what we want
-                tool_called = True
-                full_code = None
-                execution_result = None
-                call_verifier = False
-                
-                # Handle tool calls (only first one)
-                for i, tool_call in enumerate(message.tool_calls):
-                    if i > 0:
-                        self.conversation_history.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": tool_call.function.name,
-                            "content": "You can only call a tool once per conversation round."
-                        })
-                        continue
-                        
-                    tool_response = await self._handle_tool_call(tool_call)
-                    
-                    # Store tool response in conversation history
-                    self.conversation_history.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_call.function.name,
-                        "content": tool_response['text']
-                    })
-                    
-                    # Check if this was an execute_and_evaluate tool call
-                    if tool_call.function.name == "execute_and_evaluate":
-                        call_verifier = True
-                        execution_result = tool_response.get('execution_result')
-                        full_code = tool_response.get('full_code')
-                        # Internally handle feedback and add to memory
-                        try:
-                            if execution_result:
-                                if execution_result.get("status") == "success":
-                                    result_obj = execution_result.get("result", {})
-                                    if result_obj.get("status") == "success":
-                                        # Provide the render output (path/dir) back into memory
-                                        await self.add_feedback(result_obj.get("output"))
-                                    else:
-                                        await self.add_feedback(f"Execution error: {result_obj.get('output')}")
-                                else:
-                                    await self.add_feedback(f"Execution error: {execution_result.get('error', 'Unknown error')}")
-                            else:
-                                await self.add_feedback("No execution result available. Please ensure you're calling the execute_and_evaluate tool.")
-                        except Exception as e:
-                            logging.error(f"Failed to add execution feedback to memory: {e}")
-                    else:
-                        execution_result = {"status": "success", "result": {"status": "success", "output": tool_response['text']}}
-                    
-                    break
-                
-                return {
-                    "status": "success",
-                    "code": full_code,
-                    "response": tool_response['text'],
-                    "round": self.current_round,
-                    "execution_result": execution_result,
-                    "call_verifier": call_verifier
-                }
+            # If the tool is execute_and_evaluate, run the verifier
+            if tool_call.function.name == "execute_and_evaluate":
+                tool_arguments = {'round': i, **tool_call.function.arguments}
+                tool_response = await self.tool_client.call_tool(tool_call.function.name, tool_arguments)
+                verifier_result = await verifier.run({"argument": tool_arguments, "execution": tool_response, "init_plan": self.init_plan})
+                tool_response['verifier_result'] = verifier_result
             else:
-                # No tool called - this violates the requirement
-                if attempt < max_attempts - 1:
-                    # Add feedback to encourage tool calling
-                    self.conversation_history.append({
-                        "role": "user",
-                        "content": "You must call a tool in each interaction. Please use one of the available tools to proceed with your task."
-                    })
-                    continue
-                else:
-                    # Final attempt failed - return error
-                    return {
-                        "status": "error",
-                        "error": "No tool was called after multiple attempts. Tool calling is mandatory.",
-                        "round": self.current_round
-                    }
+                tool_response = await self.tool_client.call_tool(tool_call.function.name, tool_call.function.arguments)
+                
+            # Update and save memory
+            self._update_memory({"assistant": message, "user": tool_response})
+            self._save_memory()
+            
+            if tool_call.function.name == "end":
+                break
+    
+    def _update_memory(self, message: Dict):
+        """Update the memory with the new message"""
+        # Add tool calling
+        assistant_content = message['assistant'].content
+        assistant_tool_calls = message['assistant'].tool_calls[0]
+        self.memory.append({"role": "assistant", "content": assistant_content, "tool_calls": [assistant_tool_calls]})
+        
+        # Add tool response
+        tool_call_id = message['assistant'].tool_calls[0]['id']
+        tool_call_name = message['assistant'].tool_calls[0]['function']['name']
+        tool_response = []
+        if 'image' in message['user']:
+            for text, image in zip(message['user']['text'], message['user']['image']):
+                tool_response.append({"type": "text", "text": text})
+                tool_response.append({"type": "image_url", "image_url": {"url": get_image_base64(image)}})
+                tool_response.append({"type": "text", "text": f"Image loaded from local path: {image}"})
+        else:
+            for text in message['user']['text']:
+                tool_response.append({"type": "text", "text": text})
+        if 'verifier_result' in message['user']:
+            tool_response.extend(message['user']['verifier_result'])
+            
+        self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
+        
+        # Add initial plan
+        if tool_call_name == "init_plan":
+            self.init_plan = "\n".join(message['user']['text'])
+    
+    def _save_memory(self):
+        """Save the memory to the file"""
+        output_file = self.config.get("output_dir") + "/generator_memory.json"
+        with open(output_file, "w") as f:
+            json.dump(self.memory, f, indent=4, ensure_ascii=False)
     
     async def cleanup(self) -> None:
         """Clean up external connections."""
         await self.tool_client.cleanup()
-
-
-mcp = FastMCP("generator")
-_generator = None
-
-@mcp.tool()
-async def initialize_generator(args: dict) -> dict:
-    """
-    Initialize a new Generator Agent with optional Blender or Slides executor setup.
-    """
-    try:
-        global _generator
-        _generator = GeneratorAgent(**args)
-        return {
-            "status": "success",
-            "output": {"text": ["Generator Agent initialized successfully. Executor will be setup automatically when needed."]}
-        }
-    except Exception as e:
-        return {"status": "error", "output": {"text": [str(e)]}}
-
-@mcp.tool()
-async def run(verifier: VerifierAgent) -> dict:
-    """
-    Generate code using the initialized Generator Agent.
-    """
-    try:
-        global _generator
-        if _generator is None:
-            return {"status": "error", "output": {"text": ["Generator Agent not initialized. Call initialize_generator first."]}}
-        result = await _generator.run(verifier=verifier)
-        return result
-    except Exception as e:
-        return {"status": "error", "output": {"text": [str(e)]}}
-
-@mcp.tool()
-async def cleanup_generator() -> dict:
-    """
-    Clean up the Generator Agent and its connections.
-    """
-    try:
-        global _generator
-        if _generator is None:
-            return {"status": "error", "output": {"text": ["Generator Agent not initialized. Call initialize_generator first."]}}
-        await _generator.cleanup()
-        return {"status": "success", "output": {"text": ["Generator Agent cleaned up successfully"]}}
-    except Exception as e:
-        return {"status": "error", "output": {"text": [str(e)]}}
-
-def main():
-    mcp.run(transport="stdio")
-
-if __name__ == "__main__":
-    main()

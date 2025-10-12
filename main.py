@@ -8,7 +8,8 @@ import argparse
 import os
 import shutil
 import asyncio
-from utils.clients import GeneratorAgentClient, VerifierAgentClient
+from agents.generator import GeneratorAgent
+from agents.verifier import VerifierAgent
 
 # ========== Main Dual-Agent Loop ==========
 
@@ -19,6 +20,7 @@ async def main():
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--max-rounds", type=int, default=10, help="Max interaction rounds")
+    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     parser.add_argument("--init-code-path", default="data/blendergym/blendshape1/start.py", help="Path to initial code file")
     parser.add_argument("--init-image-path", default="data/blendergym/blendshape1/renders/start", help="Path to initial images")
     parser.add_argument("--target-image-path", default="data/blendergym/blendshape1/renders/goal", help="Path to target images")
@@ -60,38 +62,21 @@ async def main():
         args.target_description = args.target_description 
 
     # Init agents
-    generator = GeneratorAgentClient(args.generator_script)
-    verifier = VerifierAgentClient(args.verifier_script)
+    generator = GeneratorAgent(args)
+    verifier = VerifierAgent(args)
+    await generator.tool_client.connect_servers()
+    await verifier.tool_client.connect_servers()
 
-    try:
-        # Connect to agents
-        await generator.connect()
-        await verifier.connect()
-        
-        await generator.create_session(**args)
-        await verifier.create_session(**args)
-        
-        # Main loop
-        await generator.run(verifier=verifier)
-            
-    except Exception as e:
-        print(f"Error in main loop: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        # Cleanup
-        print("Cleaning up...")
-        try:
-            await generator.cleanup()
-        except Exception as e:
-            print(f"Warning: Generator cleanup failed: {e}")
-        
-        try:
-            await verifier.cleanup()
-        except Exception as e:
-            print(f"Warning: Verifier cleanup failed: {e}")
+    # Main loop
+    print("=== Starting dual-agent interaction ===")
+    await generator.run(verifier=verifier)
+    print("=== Dual-agent interaction finished ===")
     
-    print("\n=== Dual-agent interaction finished ===")
+    # Cleanup
+    print("=== Cleaning up ===")
+    await generator.cleanup()
+    await verifier.cleanup()
+    print("=== Cleanup finished ===")
 
 if __name__ == "__main__":
     try:

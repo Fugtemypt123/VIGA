@@ -697,7 +697,7 @@ def initialize(args: dict) -> dict:
         if meshy_api_key:
             global _meshy_api
             _meshy_api = MeshyAPI(meshy_api_key, save_dir, previous_assets_dir)
-        return {"status": "success", "output": {"text": ["Meshy initialize completed"]}}
+        return {"status": "success", "output": {"text": ["Meshy initialize completed"], "tool_configs": tool_configs}}
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 

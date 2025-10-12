@@ -31,6 +31,13 @@ tool_configs = [
 ]
 
 @mcp.tool()
+def initialize(args: dict) -> dict:
+    """
+    Initialize the generator base.
+    """
+    return {"status": "success", "output": {"text": ["Generator base initialized successfully"], "tool_configs": tool_configs}}
+
+@mcp.tool()
 def init_plan(overall_description: str, object_list: list, object_relations: list, initial_layout: list) -> dict:
     """
     Store the detailed scene plan to a file and return the path.

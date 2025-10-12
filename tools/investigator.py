@@ -360,9 +360,9 @@ def initialize(args: dict) -> dict:
     """
     global _investigator
     try:
-        save_dir = args.get("thought_save") + "/investigator/" + str(args.get("round_num"))
+        save_dir = args.get("thought_save") + "/investigator/" + str(args.get("round"))
         _investigator = Investigator3D(save_dir, str(args.get("blender_file")))
-        return {"status": "success", "output": {"text": ["Investigator3D initialized successfully"]}}
+        return {"status": "success", "output": {"text": ["Investigator3D initialized successfully"], "tool_configs": tool_configs}}
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
@@ -577,7 +577,7 @@ def test_tools():
     # Test 2: Initialize investigation tool
     print("\n2. Testing initialize_investigator...")
     try:
-        args = {"thought_save": test_save_dir, "blender_file": blender_file, "round_num": 0}
+        args = {"thought_save": test_save_dir, "blender_file": blender_file, "round": 0}
         result = initialize(args)
         if result.get("status") == "success":
             print("✓ initialize_investigator passed")
@@ -706,7 +706,7 @@ if __name__ == "__main__":
 
 
 # @mcp.tool()
-# def set_key_frame(target_frame: int, round_num: int = 0) -> dict:
+# def set_key_frame(target_frame: int, round: int = 0) -> dict:
 #     """
 #     Jump to a specific keyframe (absolute frame index) and render a view.
 #     """
@@ -715,7 +715,7 @@ if __name__ == "__main__":
 #         return {"status": "error", "error": "Investigator3D not initialized. Call initialize_investigator first."}
 #     try:
 #         bpy.context.scene.frame_set(int(target_frame))
-#         result = _investigator._render(round_num)
+#         result = _investigator._render(round)
 #         return {
 #             "status": "success",
 #             "image": result["image_path"],
@@ -728,19 +728,19 @@ if __name__ == "__main__":
 
 
 
-# def set_camera_starting_position(direction: str = "z", round_num: int = 0) -> dict:
+# def set_camera_starting_position(direction: str = "z", round: int = 0) -> dict:
 #     """
 #     Set the camera to a fixed starting position for 3D scene investigation.
     
 #     Args:
 #         direction: Starting camera direction - "z" (from above), "x" (from side), "y" (from front), or "bbox" (above bounding box)
-#         round_num: Current round number for file organization
+#         round: Current round number for file organization
         
 #     Returns:
 #         dict: Status and camera position information
         
 #     Example:
-#         set_camera_starting_position(direction="z", round_num=1)
+#         set_camera_starting_position(direction="z", round=1)
 #         # Sets camera to look down from above the scene
         
 #     Detailed Description:
@@ -757,7 +757,7 @@ if __name__ == "__main__":
     
 #     try:
 #         _investigator._set_camera_to_position(_investigator.cam, direction)
-#         result = _investigator._render(round_num)
+#         result = _investigator._render(round)
 #         return {
 #             "status": "success",
 #             "output": {'image': result["image_path"], 'camera_position': result["camera_position"]}
@@ -766,13 +766,13 @@ if __name__ == "__main__":
 #         return {"status": "error", "output": str(e)}
 
 # @mcp.tool()
-# def setup_camera(view: str = "top", round_num: int = 0) -> dict:
+# def setup_camera(view: str = "top", round: int = 0) -> dict:
 #     """
 #     Setup an observer camera to a canonical view.
     
 #     Args:
 #         view: One of ["top", "front", "side", "oblique"].
-#         round_num: Current round number for file organization.
+#         round: Current round number for file organization.
 #     Returns:
 #         dict: status, image path, camera position
 #     """
@@ -783,4 +783,4 @@ if __name__ == "__main__":
 #         "oblique": "bbox",
 #     }
 #     direction = mapping.get(view, "z")
-#     return set_camera_starting_position(direction=direction, round_num=round_num)
+#     return set_camera_starting_position(direction=direction, round=round)

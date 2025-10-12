@@ -61,6 +61,7 @@ class Executor:
         self.render_path = Path(render_save)
         self.blend_path = blender_save
         self.gpu_devices = gpu_devices  # e.g.: "0,1" or "0"
+        self.image_count = 0
 
         self.script_path.mkdir(parents=True, exist_ok=True)
         self.render_path.mkdir(parents=True, exist_ok=True)
@@ -102,15 +103,26 @@ class Executor:
         img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode()
 
-    def execute(self, code: str, round: int) -> Dict:
-        script_file = self.script_path / f"{round}.py"
-        render_file = self.render_path / f"{round}"
+    def _parse_code(self, full_code: str) -> str:
+        if full_code.startswith("```python") and full_code.endswith("```"):
+            return full_code[len("```python"):-len("```")]
+        return full_code
+
+    def execute(self, thought: str, code_edition: str, full_code: str) -> Dict:
+        self.image_count += 1
+        code_file = self.script_path / f"{self.image_count}.py"
+        render_file = self.render_path / f"{self.image_count}"
+        code = self._parse_code(full_code)
+        
+        # File operations
+        with open(code_file, "w") as f:
+            f.write(code)
         os.makedirs(render_file, exist_ok=True)
         for img in os.listdir(render_file):
             os.remove(os.path.join(render_file, img))
-        with open(script_file, "w") as f:
-            f.write(code)
-        success, stdout, stderr = self._execute_blender(str(script_file), str(render_file))
+            
+        # Execute Blender
+        success, stdout, stderr = self._execute_blender(code, str(render_file))
         if not success or not os.path.exists(render_file):
             return {"status": "error", "output": {"text": [stderr or stdout]}}
         return {"status": "success", "output": {"image": [stdout]}}
@@ -136,8 +148,7 @@ def initialize(args: dict) -> dict:
             - target_image_path: Target image path (optional)
     """
     global _executor
-    global _meshy_api
-    global _image_cropper
+    global tool_configs
     try:
         _executor = Executor(
             blender_command=args.get("blender_command"),
@@ -149,12 +160,12 @@ def initialize(args: dict) -> dict:
             gpu_devices=args.get("gpu_devices")
         )
         
-        return {"status": "success", "output": {"text": ["Executor initialized successfully"]}}
+        return {"status": "success", "output": {"text": ["Executor initialized successfully"], "tool_configs": tool_configs}}
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def exec_script(code: str, round: int) -> dict:
+def execute_and_evaluate(thought: str, code_edition: str, full_code: str) -> dict:
     """
     Execute the passed Blender Python script code and return base64 encoded rendered image.
     Need to call initialize_executor first for initialization.
@@ -163,7 +174,7 @@ def exec_script(code: str, round: int) -> dict:
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
     try:
-        result = _executor.execute(code, round)
+        result = _executor.execute(thought, code_edition, full_code)
         return result
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -296,7 +307,7 @@ bpy.ops.ptcache.free_bake_all()
 bpy.ops.ptcache.bake_all(bake=True)
 
 print("Scene ready: press Play to watch the ball roll down the slope.")"""
-        exec_res = exec_script(sample_code, round=1)
+        exec_res = execute_and_evaluate(thought="", code_edition="", full_code=sample_code)
         print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         
     else:

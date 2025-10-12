@@ -496,7 +496,7 @@ def initialize(args: dict) -> dict:
             openai_api_key=args.get("openai_api_key"),
             knowledge_file=args.get("knowledge_file", "tools/knowledge_base/rag_kb_deduplicated.jsonl")
         )
-        return {"status": "success", "output": "RAG tool initialized successfully with vector database"}
+        return {"status": "success", "output": {"text": ["RAG tool initialized successfully with vector database"], "tool_configs": tool_configs}}
     except Exception as e:
         return {"status": "error", "output": str(e)}
 

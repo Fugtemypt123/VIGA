@@ -132,6 +132,7 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         "--api-key", args.api_key,
         "--openai-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
         "--max-rounds", str(args.max_rounds),
+        "--memory-length", str(args.memory_length),
         "--target-image-path", task_config["target_image_path"],
         "--output-dir", task_config["output_dir"],
         "--task-name", task_name,
@@ -225,6 +226,7 @@ def main():
     parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
     parser.add_argument("--openai-base-url", default=OPENAI_BASE_URL, help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
+    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
@@ -233,8 +235,8 @@ def main():
     parser.add_argument("--blender-save", default=f"output/static_scene/{time_str}/blender_file.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/comp_image.py,tools/investigator.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py, tools_generator_base.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/comp_image.py,tools/investigator.py, tools_verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # API keys
     parser.add_argument("--meshy_api_key", default=MESHY_API_KEY, help="Meshy API key")
