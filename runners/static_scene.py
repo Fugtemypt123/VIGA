@@ -222,7 +222,7 @@ def main():
     
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=100, help="Maximum number of interaction rounds")
-    parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
+    parser.add_argument("--model", default="gpt-5", help="OpenAI vision model to use")
     parser.add_argument("--api-base-url", default=OPENAI_BASE_URL, help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")

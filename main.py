@@ -44,8 +44,6 @@ async def main():
     
     args = parser.parse_args()
     
-    args.blender_file = "output/blendergym_hard/gpt-4o/level4/christmas1/blender_file.blend"
-    
     # Prepare target description
     if args.target_description and os.path.exists(args.target_description):
         with open(args.target_description, 'r') as f:

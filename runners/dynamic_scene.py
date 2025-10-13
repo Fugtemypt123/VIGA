@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Dynamic Scene Runner for AgenticVerifier
-Loads dynamic scene dataset and runs the dual-agent system for 3D dynamic scene generation from scratch with animation/rigging.
+Loads dynamic scene dataset and runs the dual-agent system for 3D dynamic scene generation from scratch.
 """
 import os
 import sys
@@ -14,7 +14,7 @@ import signal
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from _api_keys import OPENAI_API_KEY
+from _api_keys import OPENAI_API_KEY, MESHY_API_KEY, VA_API_KEY, OPENAI_BASE_URL
 import threading
 
 
@@ -37,7 +37,7 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
     
     tasks = []
     
-    # For dynamic scenes, we typically have target animations/videos and descriptions
+    # For dynamic scenes, we typically have target images and descriptions
     if task_name == "all":
         # Load all available dynamic scene tasks
         task_dirs = [d for d in base_path.iterdir() if d.is_dir()]
@@ -51,14 +51,12 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
         if not task_path.exists():
             print(f"Warning: Task directory not found: {task_path}")
             continue
+        
+        print("task_path:", task_path)
             
-        # Look for target animation/video
+        # Look for target images
         target_image_path = None
-        if (task_path / "target.mp4").exists():
-            target_image_path = str(task_path / "target.mp4")
-        elif (task_path / "target.gif").exists():
-            target_image_path = str(task_path / "target.gif")
-        elif (task_path / "target.png").exists():
+        if (task_path / "target.png").exists():
             target_image_path = str(task_path / "target.png")
         elif (task_path / "target.jpg").exists():
             target_image_path = str(task_path / "target.jpg")
@@ -66,7 +64,7 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
             target_image_path = str(task_path / "target")
         
         if not target_image_path:
-            print(f"Warning: No target animation/video found for task: {task}")
+            print(f"Warning: No target image found for task: {task}")
             continue
         
         # Look for description file
@@ -75,13 +73,6 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
         if description_path.exists():
             with open(description_path, 'r') as f:
                 target_description = f.read().strip()
-        
-        # Look for animation parameters
-        animation_config_path = task_path / "animation_config.json"
-        animation_config = {}
-        if animation_config_path.exists():
-            with open(animation_config_path, 'r') as f:
-                animation_config = json.load(f)
         
         # Check for assets directory
         assets_path = task_path / "assets"
@@ -92,11 +83,10 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
             "task_id": task,
             "target_image_path": target_image_path,
             "target_description": target_description,
-            "animation_config": animation_config,
             "assets_dir": assets_dir,  # Add assets directory path
             "output_dir": f"output/dynamic_scene/{test_id or time.strftime('%Y%m%d_%H%M%S')}/{task}",
-            "init_code_path": None,  # Dynamic scenes start from scratch
-            "init_image_path": None,  # No initial scene
+            "init_code_path": "",  # Dynamic scenes start from scratch
+            "init_image_path": "",  # No initial scene
         }
         
         tasks.append(task_config)
@@ -116,8 +106,6 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         Tuple of (task_name, success, error_message)
     """
     task_name = task_config["task_name"]
-    task_id = task_config["task_id"]
-    
     print(f"Running dynamic scene task: {task_name}")
     
     # Create output directory
@@ -148,13 +136,13 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         "--task-name", task_name,
         "--generator-tools", args.generator_tools,
         "--verifier-tools", args.verifier_tools,
-        "--blender-server-path", args.blender_server_path,
         "--blender-command", args.blender_command,
         "--blender-file", created_blender_file,
         "--blender-script", args.blender_script,
-        "--blender-save", args.blender_save,
         "--meshy_api_key", args.meshy_api_key,
         "--va_api_key", args.va_api_key,
+        "--blender-save", args.blender_save,
+        "--assets-dir", task_config["assets_dir"],
         "--init-code-path", task_config["init_code_path"],
         "--init-image-path", task_config["init_image_path"],
     ]
@@ -165,15 +153,8 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
     if task_config["target_description"]:
         cmd.extend(["--target-description", task_config["target_description"]])
     
-    # Add animation-specific parameters
-    if task_config["animation_config"]:
-        animation_config_path = os.path.join(task_config["output_dir"], "animation_config.json")
-        with open(animation_config_path, 'w') as f:
-            json.dump(task_config["animation_config"], f)
-        cmd.extend(["--animation-config", animation_config_path])
-    
     try:
-        result = subprocess.run(cmd, check=False)  # 2 hour timeout for dynamic scenes
+        result = subprocess.run(cmd, check=False)  # 1 hour timeout
         
         if result.returncode == 0:
             print(f"✅ Dynamic scene task {task_name} completed successfully")
@@ -184,7 +165,7 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
             return task_name, False, error_msg
             
     except subprocess.TimeoutExpired:
-        error_msg = f"Task timed out after 2 hours"
+        error_msg = f"Task timed out after 1 hour"
         print(f"⏰ Dynamic scene task {task_name} timed out")
         return task_name, False, error_msg
     except Exception as e:
@@ -193,8 +174,8 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         return task_name, False, error_msg
 
 
-def run_dynamic_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int = 2):
-    """Run dynamic scene tasks in parallel (fewer workers due to higher resource requirements)."""
+def run_dynamic_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int = 4):
+    """Run dynamic scene tasks in parallel."""
     print(f"Running {len(tasks)} dynamic scene tasks with {max_workers} workers")
     
     successful_tasks = 0
@@ -229,39 +210,39 @@ def run_dynamic_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int =
 
 def main():
     parser = argparse.ArgumentParser(description="Dynamic Scene Runner for AgenticVerifier")
+    time_str = time.strftime('%Y%m%d_%H%M%S')
     
     # Dataset parameters
     parser.add_argument("--dataset-path", default="data/dynamic_scene", help="Path to dynamic scene dataset root directory")
-    parser.add_argument("--output-dir", default=f"output/dynamic_scene/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
+    parser.add_argument("--output-dir", default=f"output/dynamic_scene/{time_str}", help="Output directory for results")
     
     # Task selection
     parser.add_argument("--task", default="all", help="Specific task to run (default: all)")
     parser.add_argument("--test-id", help="Test ID for output directory naming")
     
     # Main.py parameters
-    parser.add_argument("--max-rounds", type=int, default=15, help="Maximum number of interaction rounds (higher for dynamic scenes)")
-    parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--api-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
+    parser.add_argument("--max-rounds", type=int, default=100, help="Maximum number of interaction rounds")
+    parser.add_argument("--model", default="gpt-5", help="OpenAI vision model to use")
+    parser.add_argument("--api-base-url", default=OPENAI_BASE_URL, help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
-    parser.add_argument("--blender-server-path", default="tools/exec_blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/dynamic_scene/empty_scene.blend", help="Empty blender file for dynamic scenes")
     parser.add_argument("--blender-script", default="data/dynamic_scene/pipeline_render_script.py", help="Blender execution script")
-    parser.add_argument("--blender-save", default="output/test/dynamic_scene/blender_file.blend", help="Save blender file")
+    parser.add_argument("--blender-save", default=f"output/dynamic_scene/{time_str}/blender_file.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py, tools_generator_base.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/init_verify.py,tools/investigator.py, tools_verifier_base.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # API keys
-    parser.add_argument("--meshy_api_key", default=os.getenv("MESHY_API_KEY"), help="Meshy API key")
-    parser.add_argument("--va_api_key", default=os.getenv("VA_API_KEY"), help="VA API key")
+    parser.add_argument("--meshy_api_key", default=MESHY_API_KEY, help="Meshy API key")
+    parser.add_argument("--va_api_key", default=VA_API_KEY, help="VA API key")
     
     # Execution parameters
-    parser.add_argument("--max-workers", type=int, default=2, help="Maximum number of parallel workers (lower for dynamic scenes)")
+    parser.add_argument("--max-workers", type=int, default=1, help="Maximum number of parallel workers")
     parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
     
     args = parser.parse_args()
@@ -282,8 +263,6 @@ def main():
     print(f"Found {len(tasks)} dynamic scene tasks")
     for task in tasks:
         print(f"  - {task['task_name']}: {task['target_image_path']}")
-        if task['animation_config']:
-            print(f"    Animation config: {task['animation_config']}")
     
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)

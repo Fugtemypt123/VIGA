@@ -36,7 +36,8 @@ class VerifierAgent:
         Only called when generator uses execute_and_evaluate tool.
         """
         print("\n=== Running verifier agent ===\n")
-        await self.tool_client.connect_servers()
+        for path, handle in self.tool_client.handles.items():
+            await handle.call_tool("initialize", {"args": self.config})
         
         user_message = self.prompt_builder.build_prompt("verifier", "user", user_message)
         self.memory.extend(user_message)
