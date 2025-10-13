@@ -124,8 +124,8 @@ class Executor:
         # Execute Blender
         success, stdout, stderr = self._execute_blender(str(code_file), str(render_file))
         if not success or not os.path.exists(render_file):
-            return {"status": "error", "output": {"text": [stderr or stdout]}}
-        return {"status": "success", "output": {"image": [stdout], "text": ["Rendering successful"]}}
+            return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
+        return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))]}}
 
 
 

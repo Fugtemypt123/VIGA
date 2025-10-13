@@ -142,7 +142,7 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         "--blender-script", args.blender_script,
         "--meshy_api_key", args.meshy_api_key,
         "--va_api_key", args.va_api_key,
-        "--blender-save", args.blender_save,
+        "--blender-save", created_blender_file,
         "--assets-dir", task_config["assets_dir"],
         "--init-code-path", task_config["init_code_path"],
         "--init-image-path", task_config["init_image_path"],
@@ -232,7 +232,7 @@ def main():
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/dynamic_scene/empty_scene.blend", help="Empty blender file for dynamic scenes")
     parser.add_argument("--blender-script", default="data/dynamic_scene/pipeline_render_script.py", help="Blender execution script")
-    parser.add_argument("--blender-save", default=f"output/dynamic_scene/{time_str}/blender_file.blend", help="Save blender file")
+    parser.add_argument("--blender-save", default=f"data/dynamic_scene/empty_scene.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
     parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")

@@ -99,7 +99,8 @@ class GeneratorAgent:
             for text in message['user']['text']:
                 tool_response.append({"type": "text", "text": text})
         if 'verifier_result' in message['user']:
-            tool_response.extend(message['user']['verifier_result'])
+            for text in message['user']['verifier_result']['text']:
+                tool_response.append({"type": "text", "text": text})
         
         self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
         if user_response:

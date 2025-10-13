@@ -43,13 +43,6 @@ async def main():
     parser.add_argument("--verifier-tools", default="tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     args = parser.parse_args()
-    
-    # Prepare target description
-    if args.target_description and os.path.exists(args.target_description):
-        with open(args.target_description, 'r') as f:
-            args.target_description = f.read().strip()
-            
-    # turn args into dictionary
     args = vars(args)
     
     # Init agents

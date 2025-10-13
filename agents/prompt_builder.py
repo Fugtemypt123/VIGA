@@ -37,6 +37,8 @@ class PromptBuilder:
         return [{"role": "system", "content": prompts.get('system', '')}, {"role": "user", "content": content}]
     
     def _build_user_prompt(self, prompts: Dict) -> List[Dict]:
+        with open('logs/prompts.json', 'w') as f:
+            json.dump(prompts, f, indent=4, ensure_ascii=False)
         content = [
             {"type": "text", "text": f"Initial plan: {prompts.get('init_plan', '')}"},
             {"type": "text", "text": f"Thought: {prompts['argument'].get('thought', '')}"},
