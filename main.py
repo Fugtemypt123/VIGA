@@ -56,23 +56,23 @@ async def main():
     
     # Init agents
     print("\n=== Initializing agents ===\n")
-    generator = GeneratorAgent(args)
     verifier = VerifierAgent(args)
-    await generator.tool_client.connect_servers()
     await verifier.tool_client.connect_servers()
+    generator = GeneratorAgent(args, verifier)
+    await generator.tool_client.connect_servers()
 
     try:
         # Main loop
         print("=== Starting dual-agent interaction ===")
-        await generator.run(verifier=verifier)
+        await generator.run()
         print("=== Dual-agent interaction finished ===")
     except Exception as e:
         print(f"Error: {e}\n\n")
     finally:
         # Cleanup
         print("=== Cleaning up ===")
-        await generator.cleanup()
         await verifier.cleanup()
+        await generator.cleanup()
         print("=== Cleanup finished ===")
 
 if __name__ == "__main__":

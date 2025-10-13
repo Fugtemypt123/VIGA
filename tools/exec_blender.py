@@ -1,4 +1,5 @@
 # blender_executor_server.py
+from asyncio.proactor_events import streams
 import os
 import subprocess
 import base64
@@ -61,6 +62,7 @@ class Executor:
         self.render_path = Path(render_save)
         self.blend_path = blender_save
         self.gpu_devices = gpu_devices  # e.g.: "0,1" or "0"
+        self.count = 0
 
         self.script_path.mkdir(parents=True, exist_ok=True)
         self.render_path.mkdir(parents=True, exist_ok=True)
@@ -107,9 +109,10 @@ class Executor:
             return full_code[len("```python"):-len("```")]
         return full_code
 
-    def execute(self, thought: str, code_edition: str, full_code: str, round: int) -> Dict:
-        code_file = self.script_path / f"{round}.py"
-        render_file = self.render_path / f"{round}"
+    def execute(self, thought: str, code_edition: str, full_code: str) -> Dict:
+        self.count += 1
+        code_file = self.script_path / f"{self.count}.py"
+        render_file = self.render_path / f"{self.count}"
         code = self._parse_code(full_code)
         
         # File operations
@@ -161,7 +164,7 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def execute_and_evaluate(thought: str, code_edition: str, full_code: str, round: int) -> dict:
+def execute_and_evaluate(thought: str, code_edition: str, full_code: str) -> dict:
     """
     Execute the passed Blender Python script code and return base64 encoded rendered image.
     Need to call initialize_executor first for initialization.
@@ -170,7 +173,7 @@ def execute_and_evaluate(thought: str, code_edition: str, full_code: str, round:
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
     try:
-        result = _executor.execute(thought, code_edition, full_code, round)
+        result = _executor.execute(thought, code_edition, full_code)
         return result
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}

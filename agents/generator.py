@@ -8,10 +8,11 @@ from agents.prompt_builder import PromptBuilder
 from utils.common import get_image_base64
 
 class GeneratorAgent:
-    def __init__(self, args):
+    def __init__(self, args, verifier: VerifierAgent):
         self.config = args
         self.memory = []
         self.init_plan = None
+        self.verifier = verifier
         
         # Initialize chat args
         self.init_chat_args = {}
@@ -32,7 +33,7 @@ class GeneratorAgent:
         self.system_prompt = self.prompt_builder.build_prompt("generator", "system")
         self.memory.extend(self.system_prompt)
 
-    async def run(self, verifier: VerifierAgent) -> Dict[str, Any]:
+    async def run(self) -> Dict[str, Any]:
         """
         Generate code based on current memory and optional feedback.
         Now enforces tool calling and returns verifier flag.
@@ -65,7 +66,7 @@ class GeneratorAgent:
             
             # If the tool is execute_and_evaluate, run the verifier
             if tool_call.function.name == "execute_and_evaluate":
-                verifier_result = await verifier.run({"argument": tool_arguments, "execution": tool_response, "init_plan": self.init_plan})
+                verifier_result = await self.verifier.run({"argument": tool_arguments, "execution": tool_response, "init_plan": self.init_plan})
                 tool_response['verifier_result'] = verifier_result
                 
             # Update and save memory
