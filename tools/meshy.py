@@ -703,6 +703,12 @@ def initialize(args: dict) -> dict:
 @mcp.tool()
 def generate_and_download_3d_asset(object_name: str, reference_type: str, object_description: str = None, rig_and_animate: bool = False, action_description: str = None) -> dict:
     try:
+        global _meshy_api
+        previous_asset = _meshy_api.check_previous_asset(object_name, is_animated=rig_and_animate, is_rigged=rig_and_animate)
+        if previous_asset:
+            print(f"[Meshy] Using previous static asset from image: {previous_asset}")
+            return {'status': 'success', 'output': {'path': previous_asset, 'model_url': None, 'from_cache': True}}
+        
         if reference_type == "text":
             description = (object_description or object_name or "").strip()
             if not description:
