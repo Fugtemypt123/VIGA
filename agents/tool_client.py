@@ -35,8 +35,9 @@ class ExternalToolClient:
                 print(f"Adding tool: {tool.name} to server")
                 self.tool_to_server[tool.name] = path
                 self.mcp_sessions[path] = session
-            tool_config = await session.call_tool(name="initialize", arguments={"args": self.args})
-            self.tool_configs[path] = tool_config
+            tool_configs = await session.call_tool(name="initialize", arguments={"args": self.args})
+            tool_configs = json.loads(tool_configs.content[0].text)
+            self.tool_configs[path] = tool_configs['output']['tool_configs']
         
     async def call_tool(self, tool_name: str, tool_args: dict = None) -> Any:
         """Call a specific tool by name with timeout. Server is inferred from known mappings."""
