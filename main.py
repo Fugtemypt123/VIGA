@@ -23,7 +23,7 @@ async def main():
     parser.add_argument("--init-code-path", default=None, help="Path to initial code file")
     parser.add_argument("--init-image-path", default=None, help="Path to initial images")
     parser.add_argument("--target-image-path", default=None, help="Path to target images")
-    parser.add_argument("--target-description", default=None, help="Target description for 2D mode")
+    parser.add_argument("--target-description", default=None, help="Target description")
     parser.add_argument("--output-dir", default=None, help="Output directory")
     parser.add_argument("--task-name", default=None, help="Task name for hints extraction")
     parser.add_argument("--assets-dir", default=None, help="Assets directory path for static_scene and dynamic_scene modes")

@@ -34,6 +34,8 @@ class PromptBuilder:
             {"type": "image_url", "image_url": {"url": get_image_base64(self.config.get("target_image_path"))}},
             {"type": "text", "text": f"Target image loaded from local path: {self.config.get('target_image_path')}"}
         ]
+        if self.config.get("task_description") != "":
+            content.append({"type": "text", "text": f"Task description: {self.config.get('task_description')}"})
         return [{"role": "system", "content": prompts.get('system', '')}, {"role": "user", "content": content}]
     
     def _build_user_prompt(self, prompts: Dict) -> List[Dict]:
