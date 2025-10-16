@@ -76,7 +76,8 @@ def load_static_scene_dataset(base_path: str, task_name: str, test_id: Optional[
         
         # Check for assets directory
         assets_path = task_path / "assets"
-        assets_dir = str(assets_path) if assets_path.exists() else None
+        os.makedirs(assets_path, exist_ok=True)
+        assets_dir = str(assets_path)
         
         task_config = {
             "task_name": task,
@@ -152,6 +153,8 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
     
     if task_config["target_description"]:
         cmd.extend(["--target-description", task_config["target_description"]])
+        
+    print("cmd:", cmd)
 
     try:
         result = subprocess.run(cmd, check=False)  # 1 hour timeout
