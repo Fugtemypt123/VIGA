@@ -47,6 +47,7 @@ class VerifierAgent:
         
         for i in range(self.config.get("max_rounds")):
             # Prepare chat args
+            print(f"=== Round {i} ===\n")
             if len(self.memory) > self.config.get("memory_length")+1:
                 if self.memory[-self.config.get("memory_length")+1]['role'] == 'tool':
                     memory = self.memory[:2] + self.memory[-self.config.get("memory_length"):]
@@ -55,15 +56,18 @@ class VerifierAgent:
             else:
                 memory = self.memory
             
+            print("Prepare chat args...")
             tool_configs = self.tool_client.tool_configs
             tool_configs = [x for v in tool_configs.values() for x in v]
             chat_args = {"model": self.config.get("model"), "messages": memory, "tools": tool_configs, **self.init_chat_args}
             
             # Generate response
+            print("Generate response...")
             response = self.client.chat.completions.create(**chat_args)
             message = response.choices[0].message
             
             # Handle tool call
+            print("Handle tool call...")
             if not message.tool_calls:
                 tool_response = {'text': ['Each return message must contain a tool call. Your previous message did not contain a tool call. Please reconsider.']}
                 self.memory.append({"role": "assistant", "content": message.content})
@@ -72,9 +76,11 @@ class VerifierAgent:
                 continue
             else:
                 tool_call = message.tool_calls[0]
+                print(f"Call tool {tool_call.function.name}...")
                 tool_response = await self.tool_client.call_tool(tool_call.function.name, json.loads(tool_call.function.arguments))
                 
             # Update and save memory
+            print("Update and save memory...")
             self._update_memory({"assistant": message, "user": tool_response})
             self._save_memory()
 
