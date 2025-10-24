@@ -10,71 +10,6 @@ import json
 import traceback
 from typing import Optional, Dict, Any
 
-# Local lightweight Executor for running Blender with our verifier script
-class Executor:
-    def __init__(self,
-                 blender_command: str,
-                 blender_file: str,
-                 blender_script: str,
-                 script_save: str,
-                 render_save: str,
-                 blender_save: Optional[str] = None,
-                 gpu_devices: Optional[str] = None):
-        self.blender_command = blender_command
-        self.blender_file = blender_file
-        self.blender_script = blender_script
-        self.script_path = Path(script_save)
-        self.render_path = Path(render_save)
-        self.blender_save = blender_save
-        self.gpu_devices = gpu_devices
-        self.count = 0
-
-        self.script_path.mkdir(parents=True, exist_ok=True)
-        self.render_path.mkdir(parents=True, exist_ok=True)
-
-    def next_run_dir(self) -> Path:
-        self.count += 1
-        run_dir = self.render_path / f"{self.count}"
-        run_dir.mkdir(parents=True, exist_ok=True)
-        # Clean old images if any
-        for p in run_dir.glob("*"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
-        return run_dir
-
-    def _execute_blender(self, code_file: Path, run_dir: Path) -> Dict[str, Any]:
-        cmd = [
-            self.blender_command,
-            "--background", self.blender_file,
-            "--python", self.blender_script,
-            "--", str(code_file), str(run_dir)
-        ]
-        if self.blender_save:
-            cmd.append(self.blender_save)
-
-        env = os.environ.copy()
-        if self.gpu_devices:
-            env["CUDA_VISIBLE_DEVICES"] = self.gpu_devices
-
-        try:
-            # Propagate render directory to scripts
-            env["RENDER_DIR"] = str(run_dir)
-            proc = subprocess.run(" ".join(cmd), shell=True, check=True, capture_output=True, text=True, env=env)
-            imgs = sorted([str(p) for p in run_dir.glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg"]])
-            return {"status": "success", "output": {"image": imgs, "text": [proc.stdout]}}
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Blender failed: {e.stderr}")
-            return {"status": "error", "output": {"text": [e.stderr or e.stdout]}}
-
-    def execute(self, full_code: str) -> Dict[str, Any]:
-        run_dir = self.next_run_dir()
-        code_file = self.script_path / f"{self.count}.py"
-        with open(code_file, "w") as f:
-            f.write(full_code)
-        return self._execute_blender(code_file, run_dir)
-
 # tool config for agent (only the function w/ @mcp.tools)
 tool_configs = [
     {
@@ -205,6 +140,71 @@ _investigator = None
 # Camera investigator (Fixed: save path first then load)
 # ======================
 
+# Local lightweight Executor for running Blender with our verifier script
+class Executor:
+    def __init__(self,
+                 blender_command: str,
+                 blender_file: str,
+                 blender_script: str,
+                 script_save: str,
+                 render_save: str,
+                 blender_save: Optional[str] = None,
+                 gpu_devices: Optional[str] = None):
+        self.blender_command = blender_command
+        self.blender_file = blender_file
+        self.blender_script = blender_script
+        self.script_path = Path(script_save)
+        self.render_path = Path(render_save)
+        self.blender_save = blender_save
+        self.gpu_devices = gpu_devices
+        self.count = 0
+
+        self.script_path.mkdir(parents=True, exist_ok=True)
+        self.render_path.mkdir(parents=True, exist_ok=True)
+
+    def next_run_dir(self) -> Path:
+        self.count += 1
+        run_dir = self.render_path / f"{self.count}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        # Clean old images if any
+        for p in run_dir.glob("*"):
+            try:
+                p.unlink()
+            except Exception:
+                pass
+        return run_dir
+
+    def _execute_blender(self, code_file: Path, run_dir: Path) -> Dict[str, Any]:
+        cmd = [
+            self.blender_command,
+            "--background", self.blender_file,
+            "--python", self.blender_script,
+            "--", str(code_file), str(run_dir)
+        ]
+        if self.blender_save:
+            cmd.append(self.blender_save)
+
+        env = os.environ.copy()
+        if self.gpu_devices:
+            env["CUDA_VISIBLE_DEVICES"] = self.gpu_devices
+
+        try:
+            # Propagate render directory to scripts
+            env["RENDER_DIR"] = str(run_dir)
+            proc = subprocess.run(" ".join(cmd), shell=True, check=True, capture_output=True, text=True, env=env)
+            imgs = sorted([str(p) for p in run_dir.glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg"]])
+            return {"status": "success", "output": {"image": imgs, "text": [proc.stdout]}}
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Blender failed: {e.stderr}")
+            return {"status": "error", "output": {"text": [e.stderr or e.stdout]}}
+
+    def execute(self, full_code: str) -> Dict[str, Any]:
+        run_dir = self.next_run_dir()
+        code_file = self.script_path / f"{self.count}.py"
+        with open(code_file, "w") as f:
+            f.write(full_code)
+        return self._execute_blender(code_file, run_dir)
+
 class Investigator3D:
     def __init__(self, save_dir: str, blender_path: str, blender_command: str, blender_script: str, gpu_devices: str):
         self.blender_file = blender_path
@@ -233,54 +233,54 @@ class Investigator3D:
 
     def _generate_scene_info_script(self) -> str:
         """Generate script to get scene information"""
-        return '''import bpy
+        return f'''import bpy
 import json
 import sys
 
 # Get scene information
-scene_info = {"objects": [], "materials": [], "lights": [], "cameras": []}
+scene_info = {{"objects": [], "materials": [], "lights": [], "cameras": []}}
 
 for obj in bpy.data.objects:
     if obj.type == 'CAMERA' or obj.type == 'LIGHT':
         continue
-    scene_info["objects"].append({
+    scene_info["objects"].append({{
         "name": obj.name, 
         "type": obj.type,
         "location": list(obj.matrix_world.translation),
         "rotation": list(obj.rotation_euler),
         "scale": list(obj.scale),
         "visible": not (obj.hide_viewport or obj.hide_render)
-    })
+    }})
 
 for mat in bpy.data.materials:
-    scene_info["materials"].append({
+    scene_info["materials"].append({{
         "name": mat.name,
         "use_nodes": mat.use_nodes,
         "diffuse_color": list(mat.diffuse_color),
-    })
+    }})
 
 for light in [o for o in bpy.data.objects if o.type == 'LIGHT']:
-    scene_info["lights"].append({
+    scene_info["lights"].append({{
         "name": light.name,
         "type": light.data.type,
         "energy": light.data.energy,
         "color": list(light.data.color),
         "location": list(light.matrix_world.translation),
         "rotation": list(light.rotation_euler)
-    })
+    }})
 
 for cam in [o for o in bpy.data.objects if o.type == 'CAMERA']:
     scene = bpy.context.scene
-    scene_info["cameras"].append({
+    scene_info["cameras"].append({{
         "name": cam.name,
         "lens": cam.data.lens,
         "location": list(cam.matrix_world.translation),
         "rotation": list(cam.rotation_euler),
         "is_active": cam == scene.camera,
-    })
+    }})
 
 # Save to file for retrieval
-with open("/tmp/scene_info.json", "w") as f:
+with open("{self.base}/tmp/scene_info.json", "w") as f:
     json.dump(scene_info, f)
 
 print("Scene info extracted successfully")
@@ -545,6 +545,7 @@ if not camera:
 # Store original position
 original_location = camera.location.copy()
 original_rotation = camera.rotation_euler.copy()
+camera_infos = []
 
 # Set up viewpoints and render each
 render_dir = os.environ.get("RENDER_DIR", "/tmp")
@@ -562,7 +563,12 @@ for i, pos in enumerate(camera_positions):
     bpy.context.scene.render.resolution_y = 512
     bpy.context.scene.render.filepath = os.path.join(render_dir, str(i+1)+".png")
     bpy.ops.render.render(write_still=True)
-
+    
+    camera_infos.append({{"camera_parameters": {{"location": list(camera.location), "rotation": list(camera.rotation_euler)}}, "image_path": bpy.context.scene.render.filepath}})
+    
+with open("{self.base}/tmp/camera_info.json", "w") as f:
+    json.dump(camera_infos, f)
+    
 # Restore original position
 camera.location = original_location
 camera.rotation_euler = original_rotation
@@ -607,17 +613,17 @@ print("Viewpoints initialized and rendered for", len(objects), "objects")
             if self.scene_info_cache:
                 return self.scene_info_cache
                 
+            os.makedirs(f"{self.base}/tmp", exist_ok=True)
             script = self._generate_scene_info_script()
             result = self._execute_script(script, "Extract scene information")
             
             # Try to read the scene info from the temporary file
             try:
                 import json
-                if os.path.exists("/tmp/scene_info.json"):
-                    with open("/tmp/scene_info.json", "r") as f:
-                        scene_info = json.load(f)
-                        self.scene_info_cache = scene_info
-                        return scene_info
+                with open(f"{self.base}/tmp/scene_info.json", "r") as f:
+                    scene_info = json.load(f)
+                    self.scene_info_cache = scene_info
+                    return scene_info
             except Exception:
                 pass
                 
@@ -700,7 +706,13 @@ print("Viewpoints initialized and rendered for", len(objects), "objects")
         """Initialize viewpoints around specified objects"""
         try:
             script = self._generate_viewpoint_script(object_names)
-            result = self._execute_script(script, f"Initialize viewpoints for objects: {object_names}")
+            _ = self._execute_script(script, f"Initialize viewpoints for objects: {object_names}")
+            result = {"status": "success", "output": {"image": [], "text": []}}
+            with open(f"{self.base}/tmp/camera_info.json", "r") as f:
+                camera_infos = json.load(f)
+                for i, camera_info in enumerate(camera_infos):
+                    result['output']['image'].append(camera_info['image_path'])
+                    result['output']['text'].append(f"[Viewpoint {i+1}] Camera parameters: {camera_info['camera_parameters']}")
             return result
         except Exception as e:
             return {'status': 'error', 'output': {'text': [str(e)]}}
@@ -789,7 +801,7 @@ def get_scene_info() -> dict:
         if _investigator is None:
             return {"status": "error", "output": {"text": ["SceneInfo not initialized. Call initialize first."]}}
         info = _investigator.get_info()
-        return {"status": "success", "output": {"text": [str(info)]}}
+        return {"status": "success", "output": {"text": [str(info)], "json": [info]}}
     except Exception as e:
         logging.error(f"Failed to get scene info: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -920,33 +932,22 @@ def test_tools():
         
     # Test 2: Get scene info
     print("\n2. Testing get_scene_info...")
-    scene_info_result = get_scene_info()
-    # print(f"Result: {scene_info_result}")
+    scene_info = get_scene_info()
+    print(f"Result: {scene_info}")
     
     # Test 3: Reload scene
     print("\n3. Testing reload_scene...")
     reload_result = reload_scene()
-    # print(f"Result: {reload_result}")
+    print(f"Result: {reload_result}")
     
-    # Extract object list from scene info for later tests
-    object_names = []
-    if scene_info_result.get("status") == "success":
-        scene_info_text = scene_info_result.get("output", {}).get("text", [])
-        if scene_info_text:
-            import json
-            try:
-                scene_info_text = scene_info_text[0].replace("'", '"')
-                scene_info = json.loads(scene_info_text)
-                print(scene_info)
-                object_names = [obj["name"] for obj in scene_info.get("objects", [])]
-                print(f"Found {len(object_names)} objects: {object_names}")
-            except Exception as e:
-                print(f"Error parsing scene info: {e}")
+    object_names = [obj['name'] for obj in scene_info['output']['json'][0]['objects']]
+    print(f"Object names: {object_names}")
         
     # Test 4: Initialize viewpoint
     print("\n4. Testing initialize_viewpoint...")
     viewpoint_result = initialize_viewpoint(object_names=object_names)
     print(f"Result: {viewpoint_result}")
+    raise NotImplementedError("Not implemented")
 
     # Test 5: Focus, zoom, move, set_keyframe if objects exist
     if object_names:
@@ -987,3 +988,5 @@ def test_tools():
 
 if __name__ == "__main__":
     main()
+    
+{"objects": [{"name": "Ceiling", "type": "MESH", "location": [0.0, 0.0, 2.700000047683716], "rotation": [0.0, 0.0, 0.0], "scale": [2.5, 2.200000047683716, 1.0], "visible": True}, {"name": "Cone", "type": "MESH", "location": [1.899999976158142, -0.699999988079071, 1.0499999523162842], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.001", "type": "MESH", "location": [-1.9299999475479126, 0.3499999940395355, 0.949999988079071], "rotation": [0.0, 0.0, 0.13962633907794952], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.002", "type": "MESH", "location": [0.8999999761581421, 2.180000066757202, 1.7000000476837158], "rotation": [1.5707963705062866, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.003", "type": "MESH", "location": [1.059999942779541, 2.180000066757202, 1.7000000476837158], "rotation": [1.5707963705062866, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.004", "type": "MESH", "location": [2.490000009536743, 1.4199999570846558, 1.100000023841858], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.005", "type": "MESH", "location": [2.490000009536743, 1.9500000476837158, 1.25], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.006", "type": "MESH", "location": [1.350000023841858, 1.899999976158142, 1.1699999570846558], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.007", "type": "MESH", "location": [1.850000023841858, 1.899999976158142, 1.1699999570846558], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cone.008", "type": "MESH", "location": [0.029999999329447746, -0.11999999731779099, 0.5899999737739563], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "CornerCap", "type": "MESH", "location": [2.4700000286102295, 2.1700000762939453, 1.350000023841858], "rotation": [0.0, 0.0, 0.0], "scale": [0.07000000029802322, 0.07000000029802322, 2.700000047683716], "visible": True}, {"name": "Cube", "type": "MESH", "location": [1.2999999523162842, 1.600000023841858, 0.5], "rotation": [0.0, 0.0, 0.0], "scale": [0.11999999731779099, 0.30000001192092896, 0.5], "visible": True}, {"name": "Cube.001", "type": "MESH", "location": [1.899999976158142, 1.600000023841858, 0.5], "rotation": [0.0, 0.0, 0.0], "scale": [0.11999999731779099, 0.30000001192092896, 0.5], "visible": True}, {"name": "Cube.002", "type": "MESH", "location": [1.600000023841858, 1.600000023841858, 1.0499999523162842], "rotation": [0.0, 0.0, 0.0], "scale": [0.5, 0.30000001192092896, 0.07999999821186066], "visible": True}, {"name": "Cube.003", "type": "MESH", "location": [1.600000023841858, 1.2999999523162842, 0.07999999821186066], "rotation": [0.0, 0.0, 0.0], "scale": [0.6000000238418579, 0.25, 0.07999999821186066], "visible": True}, {"name": "Cube.004", "type": "MESH", "location": [1.600000023841858, 1.6200000047683716, 0.550000011920929], "rotation": [0.0, 0.0, 0.0], "scale": [0.36000001430511475, 0.11999999731779099, 0.2800000011920929], "visible": True}, {"name": "Cube.005", "type": "MESH", "location": [1.899999976158142, 0.20000000298023224, 0.4000000059604645], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 0.44999998807907104, 0.4000000059604645], "visible": True}, {"name": "Cube.006", "type": "MESH", "location": [1.7000000476837158, 0.3499999940395355, 0.6200000047683716], "rotation": [0.0, 0.0, 0.0], "scale": [0.22499999403953552, 0.14000000059604645, 0.05000000074505806], "visible": True}, {"name": "Cube.007", "type": "MESH", "location": [1.899999976158142, -0.699999988079071, 0.2750000059604645], "rotation": [0.0, 0.0, 0.0], "scale": [0.25, 0.25, 0.2750000059604645], "visible": True}, {"name": "Cube.008", "type": "MESH", "location": [0.20000000298023224, -0.10000000149011612, 0.4399999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [0.5, 0.30000001192092896, 0.03999999910593033], "visible": True}, {"name": "Cube.009", "type": "MESH", "location": [-2.2799999713897705, 0.44999998807907104, 0.1899999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cube.010", "type": "MESH", "location": [-2.2799999713897705, 0.44999998807907104, 0.3799999952316284], "rotation": [0.0, 0.0, 0.0], "scale": [0.019999999552965164, 0.1899999976158142, 0.004999999888241291], "visible": True}, {"name": "Cube.011", "type": "MESH", "location": [-2.2799999713897705, 0.44999998807907104, 0.3799999952316284], "rotation": [0.0, 0.0, 0.0], "scale": [0.1899999976158142, 0.019999999552965164, 0.004999999888241291], "visible": True}, {"name": "Cube.012", "type": "MESH", "location": [-1.7300000190734863, 0.20000000298023224, 0.1599999964237213], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cube.013", "type": "MESH", "location": [-1.7300000190734863, 0.20000000298023224, 0.3199999928474426], "rotation": [0.0, 0.0, 0.0], "scale": [0.019999999552965164, 0.1599999964237213, 0.004000000189989805], "visible": True}, {"name": "Cube.014", "type": "MESH", "location": [-1.7300000190734863, 0.20000000298023224, 0.3199999928474426], "rotation": [0.0, 0.0, 0.0], "scale": [0.1599999964237213, 0.019999999552965164, 0.004000000189989805], "visible": True}, {"name": "Cube.015", "type": "MESH", "location": [-1.600000023841858, 2.190000057220459, 1.350000023841858], "rotation": [0.0, 0.0, 0.0], "scale": [0.2800000011920929, 0.009999999776482582, 0.2199999988079071], "visible": True}, {"name": "Cube.016", "type": "MESH", "location": [-1.600000023841858, 2.194999933242798, 1.350000023841858], "rotation": [0.0, 0.0, 0.0], "scale": [0.25, 0.0020000000949949026, 0.1899999976158142], "visible": True}, {"name": "Cube.017", "type": "MESH", "location": [2.497999906539917, 0.8999999761581421, 1.5], "rotation": [0.0, 0.0, 5.235987663269043], "scale": [0.0020000000949949026, 0.10999999940395355, 0.004999999888241291], "visible": True}, {"name": "Cube.018", "type": "MESH", "location": [2.497999906539917, 0.8999999761581421, 1.5], "rotation": [0.0, 0.0, 1.0471975803375244], "scale": [0.0020000000949949026, 0.14000000059604645, 0.004999999888241291], "visible": True}, {"name": "Cube.019", "type": "MESH", "location": [1.350000023841858, 1.2999999523162842, 0.9200000166893005], "rotation": [0.0, 0.0, 0.0], "scale": [0.05999999865889549, 0.009999999776482582, 0.11999999731779099], "visible": True}, {"name": "Cube.020", "type": "MESH", "location": [1.350000023841858, 1.2999999523162842, 1.0199999809265137], "rotation": [0.0, 0.0, 0.0], "scale": [0.06499999761581421, 0.012000000104308128, 0.019999999552965164], "visible": True}, {"name": "Cube.021", "type": "MESH", "location": [1.600000023841858, 1.2999999523162842, 0.9200000166893005], "rotation": [0.0, 0.0, 0.0], "scale": [0.05999999865889549, 0.009999999776482582, 0.11999999731779099], "visible": True}, {"name": "Cube.022", "type": "MESH", "location": [1.600000023841858, 1.2999999523162842, 1.0199999809265137], "rotation": [0.0, 0.0, 0.0], "scale": [0.06499999761581421, 0.012000000104308128, 0.019999999552965164], "visible": True}, {"name": "Cube.023", "type": "MESH", "location": [1.850000023841858, 1.2999999523162842, 0.9200000166893005], "rotation": [0.0, 0.0, 0.0], "scale": [0.05999999865889549, 0.009999999776482582, 0.11999999731779099], "visible": True}, {"name": "Cube.024", "type": "MESH", "location": [1.850000023841858, 1.2999999523162842, 1.0199999809265137], "rotation": [0.0, 0.0, 0.0], "scale": [0.06499999761581421, 0.012000000104308128, 0.019999999552965164], "visible": True}, {"name": "Cylinder", "type": "MESH", "location": [0.20000000298023224, 0.0, 2.640000104904175], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.001", "type": "MESH", "location": [1.899999976158142, -0.699999988079071, 0.800000011920929], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.002", "type": "MESH", "location": [-0.05000000074505806, -0.30000001192092896, 0.1899999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.003", "type": "MESH", "location": [0.44999998807907104, -0.30000001192092896, 0.1899999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.004", "type": "MESH", "location": [-0.05000000074505806, 0.10000000149011612, 0.1899999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.005", "type": "MESH", "location": [0.44999998807907104, 0.10000000149011612, 0.1899999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.006", "type": "MESH", "location": [0.20000000298023224, -0.10000000149011612, 0.004000000189989805], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.007", "type": "MESH", "location": [0.20000000298023224, -0.10000000149011612, 0.0044999998062849045], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.008", "type": "MESH", "location": [0.20000000298023224, -0.10000000149011612, 0.004699999932199717], "rotation": [0.0, 0.0, 0.0], "scale": [0.8880000114440918, 0.8880000114440918, 1.0], "visible": True}, {"name": "Cylinder.009", "type": "MESH", "location": [-1.9299999475479126, 0.3499999940395355, 0.05000000074505806], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.010", "type": "MESH", "location": [-2.2799999713897705, 0.44999998807907104, 1.1200000047683716], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.011", "type": "MESH", "location": [2.490000009536743, 0.8999999761581421, 1.5], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.012", "type": "MESH", "location": [2.494999885559082, 0.8999999761581421, 1.5], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.013", "type": "MESH", "location": [2.484999895095825, 1.4199999570846558, 0.9800000190734863], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.014", "type": "MESH", "location": [2.484999895095825, 1.9500000476837158, 1.1299999952316284], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.015", "type": "MESH", "location": [1.350000023841858, 1.899999976158142, 1.0499999523162842], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.016", "type": "MESH", "location": [1.850000023841858, 1.899999976158142, 1.0499999523162842], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.017", "type": "MESH", "location": [1.600000023841858, 1.899999976158142, 1.149999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.018", "type": "MESH", "location": [0.07999999821186066, -0.07999999821186066, 0.5], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.019", "type": "MESH", "location": [0.25, -0.05000000074505806, 0.5], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.020", "type": "MESH", "location": [0.0, -0.11999999731779099, 0.6600000262260437], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Cylinder.021", "type": "MESH", "location": [0.0, -0.11999999731779099, 0.6399999856948853], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Floor", "type": "MESH", "location": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0], "scale": [2.5, 2.200000047683716, 1.0], "visible": True}, {"name": "Garland", "type": "CURVE", "location": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Icosphere", "type": "MESH", "location": [1.600000023841858, 1.899999976158142, 1.2200000286102295], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Plane", "type": "MESH", "location": [0.0, 2.180000066757202, 1.350000023841858], "rotation": [1.5707963705062866, 0.0, 0.0], "scale": [2.5, 1.350000023841858, 1.0], "visible": True}, {"name": "Plane.001", "type": "MESH", "location": [2.4800000190734863, 0.0, 1.350000023841858], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [2.200000047683716, 1.350000023841858, 1.0], "visible": True}, {"name": "Plane.002", "type": "MESH", "location": [1.600000023841858, 1.6200000047683716, 0.44999998807907104], "rotation": [1.5707963705062866, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere", "type": "MESH", "location": [-1.5115982294082642, 0.31339457631111145, 1.2000000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.001", "type": "MESH", "location": [-1.6890978813171387, 0.6940438747406006, 1.2000000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.002", "type": "MESH", "location": [-2.107499599456787, 0.7306492924690247, 1.2000000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.003", "type": "MESH", "location": [-2.3484017848968506, 0.3866054117679596, 1.2000000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.004", "type": "MESH", "location": [-2.1709020137786865, 0.0059561352245509624, 1.2000000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.005", "type": "MESH", "location": [-1.752500295639038, -0.030649276450276375, 1.2000000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.006", "type": "MESH", "location": [-1.4319026470184326, 0.3064221143722534, 1.3200000524520874], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.007", "type": "MESH", "location": [-1.6432117223739624, 0.7595760226249695, 1.3200000524520874], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.008", "type": "MESH", "location": [-2.1413090229034424, 0.8031538724899292, 1.3200000524520874], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.009", "type": "MESH", "location": [-2.4280972480773926, 0.3935778737068176, 1.3200000524520874], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.010", "type": "MESH", "location": [-2.2167880535125732, -0.05957602709531784, 1.3200000524520874], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.011", "type": "MESH", "location": [-1.7186908721923828, -0.10315389931201935, 1.3200000524520874], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.012", "type": "MESH", "location": [-1.4717503786087036, 0.30990836024284363, 1.4500000476837158], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.013", "type": "MESH", "location": [-1.4826477766036987, 0.14139622449874878, 1.2599999904632568], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.014", "type": "MESH", "location": [-1.4775670766830444, 0.47122901678085327, 1.3300000429153442], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.015", "type": "MESH", "location": [-1.5296869277954102, 0.6627587676048279, 1.399999976158142], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.016", "type": "MESH", "location": [0.9800000190734863, 2.197000026702881, 1.7899999618530273], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.017", "type": "MESH", "location": [-2.0, 2.190000057220459, 2.4000000953674316], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.018", "type": "MESH", "location": [-1.7423988580703735, 2.16595721244812, 2.374239921569824], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.019", "type": "MESH", "location": [-1.484797716140747, 2.1419143676757812, 2.348479747772217], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.020", "type": "MESH", "location": [-1.2271965742111206, 2.1178717613220215, 2.3227198123931885], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.021", "type": "MESH", "location": [-0.9695954322814941, 2.0938289165496826, 2.296959638595581], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.022", "type": "MESH", "location": [-0.5, 2.049999952316284, 2.25], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.023", "type": "MESH", "location": [-0.24044868350028992, 2.049999952316284, 2.2347323894500732], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.024", "type": "MESH", "location": [0.019102632999420166, 2.049999952316284, 2.2194645404815674], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.025", "type": "MESH", "location": [0.27865391969680786, 2.049999952316284, 2.2041969299316406], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.026", "type": "MESH", "location": [0.5382052659988403, 2.049999952316284, 2.1889290809631348], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.027", "type": "MESH", "location": [0.797756552696228, 2.049999952316284, 2.173661470413208], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.028", "type": "MESH", "location": [1.2000000476837158, 2.049999952316284, 2.1500000953674316], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.029", "type": "MESH", "location": [1.451940894126892, 2.037402868270874, 2.2129852771759033], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.030", "type": "MESH", "location": [1.7038817405700684, 2.024805784225464, 2.275970458984375], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.031", "type": "MESH", "location": [-0.20000000298023224, 2.069999933242798, 2.259999990463257], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.032", "type": "MESH", "location": [0.20000000298023224, 2.059999942779541, 2.2799999713897705], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.033", "type": "MESH", "location": [-0.05000000074505806, 2.069999933242798, 2.2699999809265137], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.034", "type": "MESH", "location": [0.05000000074505806, 2.059999942779541, 2.2799999713897705], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.035", "type": "MESH", "location": [0.0, -0.11999999731779099, 0.47999998927116394], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Sphere.036", "type": "MESH", "location": [0.0, -0.11999999731779099, 0.5899999737739563], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "StringCable", "type": "CURVE", "location": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.004", "type": "MESH", "location": [-2.2799999713897705, 0.44999998807907104, 0.38999998569488525], "rotation": [0.0, -0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.005", "type": "MESH", "location": [-2.2799999713897705, 0.44999998807907104, 1.2000000476837158], "rotation": [0.0, -0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.006", "type": "MESH", "location": [0.9200000166893005, 2.194999933242798, 1.7899999618530273], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.007", "type": "MESH", "location": [1.0399999618530273, 2.194999933242798, 1.7899999618530273], "rotation": [0.0, 1.5707963705062866, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.008", "type": "MESH", "location": [0.12999999523162842, -0.07999999821186066, 0.5199999809265137], "rotation": [0.0, -0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.009", "type": "MESH", "location": [0.30000001192092896, -0.05000000074505806, 0.5199999809265137], "rotation": [0.0, -0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.015", "type": "MESH", "location": [-1.9299999475479126, 0.3499999940395355, 1.0499999523162842], "rotation": [0.20943951606750488, -0.0, 0.13617655634880066], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.016", "type": "MESH", "location": [-1.9299999475479126, 0.3499999940395355, 1.2999999523162842], "rotation": [0.1745329201221466, -0.0, 0.12574441730976105], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "Torus.017", "type": "MESH", "location": [-1.9299999475479126, 0.3499999940395355, 1.5499999523162842], "rotation": [0.24434609711170197, -0.0, 0.423566609621048], "scale": [1.0, 1.0, 1.0], "visible": True}, {"name": "TreeStar", "type": "MESH", "location": [-1.9299999475479126, 0.3499999940395355, 1.8600000143051147], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0], "visible": True}], "materials": [{"name": "Mat_Art", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Art.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bauble_0.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bauble_0.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bauble_1.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bauble_1.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bauble_2.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bauble_2.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bell", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bell.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bow", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bow.003", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bow.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bow.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Brick", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Brick.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_0", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_0.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_1", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_1.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_2", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_2.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_3", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Bulb_3.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Cable", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Cable.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Candle", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Candle.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_CandleFlame", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_CandleFlame.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_CandyCane.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_CandyCane.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Carrot", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Carrot.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ceiling", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ceiling.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_ClockFace", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_ClockFace.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_ClockHand", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_ClockHand.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_ClockRim", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_ClockRim.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Cushion.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Cushion.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Fire", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Fire.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Firebox.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Firebox.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Fixture", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Fixture.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Floor", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Floor.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Frame", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Frame.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Garland", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Garland.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_GiftGreen", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_GiftGreen.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_GiftRed", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_GiftRed.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Gold.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Gold.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Hat", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Hat.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_LampShade", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_LampShade.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTree", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTree.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTree.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTree.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTreeTop", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTreeTop.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTreeTop.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_MiniTreeTop.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Mug", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Mug.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Mug.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Mug.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Pot", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Pot.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Pot.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Pot.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_PotTop", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_PotTop.001", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_PotTop.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_PotTop.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon.003", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon2.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon2.003", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon2.004", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Ribbon2.005", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_RugCream", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_RugCream.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_RugRed", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_RugRed.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_RugRed2", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_RugRed2.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Snow", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Snow.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Sofa", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Sofa.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_StockingRed", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_StockingRed.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_StockingWhite", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_StockingWhite.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Table", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Table.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Tree", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Tree.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_TreeBase", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_TreeBase.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Wall_Red", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Wall_Red.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Wall_Wood", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}, {"name": "Mat_Wall_Wood.002", "use_nodes": True, "diffuse_color": [0.800000011920929, 0.800000011920929, 0.800000011920929, 1.0]}], "lights": [{"name": "CeilingArea", "type": "AREA", "energy": 180.0, "color": [1.0, 0.7300000190734863, 0.5], "location": [0.20000000298023224, 0.0, 2.619999885559082], "rotation": [0.0, 0.0, 0.0]}, {"name": "FillArea", "type": "AREA", "energy": 210.0, "color": [1.0, 0.7799999713897705, 0.5799999833106995], "location": [-1.100000023841858, -1.5499999523162842, 1.5499999523162842], "rotation": [1.4485357999801636, -5.419956039531826e-08, -0.6790053844451904]}, {"name": "FirePoint", "type": "POINT", "energy": 900.0, "color": [1.0, 0.5, 0.20000000298023224], "location": [1.600000023841858, 1.5499999523162842, 0.550000011920929], "rotation": [0.0, 0.0, 0.0]}, {"name": "LeftWallFill", "type": "AREA", "energy": 120.0, "color": [1.0, 0.7799999713897705, 0.5799999833106995], "location": [-0.20000000298023224, 2.0999999046325684, 1.600000023841858], "rotation": [1.1502618789672852, -1.0831571017888564e-07, -2.6779448986053467]}, {"name": "WallBounce", "type": "AREA", "energy": 110.0, "color": [1.0, 0.7799999713897705, 0.5799999833106995], "location": [-2.4000000953674316, 0.10000000149011612, 1.7999999523162842], "rotation": [1.4104933738708496, 4.532386554956247e-08, -1.3258177042007446]}], "cameras": [{"name": "Camera", "lens": 32.0, "location": [-2.559999942779541, -1.659999966621399, 1.5], "rotation": [1.4976924657821655, -3.6556357940753514e-10, -0.8738518357276917], "is_active": True}]}
