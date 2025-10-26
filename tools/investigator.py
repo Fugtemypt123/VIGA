@@ -153,6 +153,7 @@ class Executor:
         self.blender_command = blender_command
         self.blender_file = blender_file
         self.blender_script = blender_script
+        self.base = os.path.dirname(script_save)
         self.script_path = Path(script_save)
         self.render_path = Path(render_save)
         self.blender_save = blender_save
@@ -257,9 +258,9 @@ for obj in bpy.data.objects:
     scene_info["objects"].append({{
         "name": obj.name, 
         "type": obj.type,
-        "location": list(obj.matrix_world.translation),
-        "rotation": list(obj.rotation_euler),
-        "scale": list(obj.scale),
+        "location": [round(x, 2) for x in obj.matrix_world.translation],
+        "rotation": [round(x, 2) for x in obj.rotation_euler],
+        "scale": [round(x, 2) for x in obj.scale],
         "visible": not (obj.hide_viewport or obj.hide_render)
     }})
 
@@ -267,7 +268,7 @@ for mat in bpy.data.materials:
     scene_info["materials"].append({{
         "name": mat.name,
         "use_nodes": mat.use_nodes,
-        "diffuse_color": list(mat.diffuse_color),
+        "diffuse_color": [round(x, 2) for x in mat.diffuse_color],
     }})
 
 for light in [o for o in bpy.data.objects if o.type == 'LIGHT']:
@@ -275,9 +276,9 @@ for light in [o for o in bpy.data.objects if o.type == 'LIGHT']:
         "name": light.name,
         "type": light.data.type,
         "energy": light.data.energy,
-        "color": list(light.data.color),
-        "location": list(light.matrix_world.translation),
-        "rotation": list(light.rotation_euler)
+        "color": [round(x, 2) for x in light.data.color],
+        "location": [round(x, 2) for x in light.matrix_world.translation],
+        "rotation": [round(x, 2) for x in light.rotation_euler]
     }})
 
 for cam in [o for o in bpy.data.objects if o.type == 'CAMERA']:
@@ -285,8 +286,8 @@ for cam in [o for o in bpy.data.objects if o.type == 'CAMERA']:
     scene_info["cameras"].append({{
         "name": cam.name,
         "lens": cam.data.lens,
-        "location": list(cam.matrix_world.translation),
-        "rotation": list(cam.rotation_euler),
+        "location": [round(x, 2) for x in cam.matrix_world.translation],
+        "rotation": [round(x, 2) for x in cam.rotation_euler],
         "is_active": cam == scene.camera,
     }})
 
@@ -765,7 +766,8 @@ def focus(object_name: str) -> dict:
         return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
         # Object existence check is now handled in the script execution
-        return _investigator.focus_on_object(object_name)
+        result = _investigator.focus_on_object(object_name)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     except Exception as e:
         logging.error(f"Focus failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -778,7 +780,8 @@ def zoom(direction: str) -> dict:
         # Check if there is a target object
         if _investigator.target is None:
             return {"status": "error", "output": {"text": ["No target object set. Call focus first."]}}
-        return _investigator.zoom(direction)
+        result = _investigator.zoom(direction)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     except Exception as e:
         logging.error(f"Zoom failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -791,7 +794,8 @@ def move(direction: str) -> dict:
         # Check if there is a target object
         if _investigator.target is None:
             return {"status": "error", "output": {"text": ["No target object set. Call focus first."]}}
-        return _investigator.move_camera(direction)
+        result = _investigator.move_camera(direction)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     except Exception as e:
         logging.error(f"Move failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -813,7 +817,9 @@ def initialize_viewpoint(object_names: list) -> dict:
     if _investigator is None:
         return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
-        return _investigator.initialize_viewpoint(object_names)
+        result = _investigator.initialize_viewpoint(object_names)
+        result['text'] = [f"[Viewpoint {i+1}] Camera parameters: {[round(x, 2) for x in result['camera_parameters'][i]]}" for i in range(len(result['image']))]
+        return {"status": "success", "output": {"image": result["image"], "text": result['text']}}
     except Exception as e:
         logging.error(f"Add viewpoint failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -823,15 +829,18 @@ def investigate(operation: str, object_name: str = None, direction: str = None) 
     if operation == "focus":
         if not object_name:
             return {"status": "error", "output": {"text": ["object_name is required for focus"]}}
-        return focus(object_name=object_name)
+        result = focus(object_name=object_name)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     elif operation == "zoom":
         if direction not in ("in", "out"):
             return {"status": "error", "output": {"text": ["direction must be 'in' or 'out' for zoom"]}}
-        return zoom(direction=direction)
+        result = zoom(direction=direction)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     elif operation == "move":
         if direction not in ("up", "down", "left", "right"):
             return {"status": "error", "output": {"text": ["direction must be one of up/down/left/right for move"]}}
-        return move(direction=direction)
+        result = move(direction=direction)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     else:
         return {"status": "error", "output": {"text": [f"Unknown operation: {operation}"]}}
 
@@ -841,7 +850,8 @@ def set_visibility(show_objects: list = None, hide_objects: list = None) -> dict
     if _investigator is None:
         return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
-        return _investigator.set_visibility(show_objects, hide_objects)
+        result = _investigator.set_visibility(show_objects, hide_objects)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     except Exception as e:
         logging.error(f"set_visibility failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -852,7 +862,8 @@ def set_keyframe(frame_number: int) -> dict:
     if _investigator is None:
         return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
-        return _investigator.set_keyframe(frame_number)
+        result = _investigator.set_keyframe(frame_number)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     except Exception as e:
         logging.error(f"Set keyframe failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}, "status": "error"}
@@ -863,7 +874,8 @@ def set_camera(location: list, rotation_euler: list) -> dict:
     if _investigator is None:
         return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize_investigator first."]}}
     try:
-        return _investigator.set_camera(location, rotation_euler)
+        result = _investigator.set_camera(location, rotation_euler)
+        return {"status": "success", "output": {"image": result["image"], "text": [f"Camera parameters: {[round(x, 2) for x in result['camera_parameters']]}"]}}
     except Exception as e:
         logging.error(f"set_camera failed: {e}")
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -922,18 +934,13 @@ def test_tools():
     scene_info = get_scene_info()
     print(f"Result: {scene_info}")
     
-    # Test 3: Reload scene
-    print("\n3. Testing reload_scene...")
-    reload_result = reload_scene()
-    print(f"Result: {reload_result}")
-    
-    object_names = [obj['name'] for obj in scene_info['output']['json'][0]['objects']]
+    object_names = ['CornerCap']
     print(f"Object names: {object_names}")
         
     # Test 4: Initialize viewpoint
-    # print("\n4. Testing initialize_viewpoint...")
-    # viewpoint_result = initialize_viewpoint(object_names=object_names)
-    # print(f"Result: {viewpoint_result}")
+    print("\n4. Testing initialize_viewpoint...")
+    viewpoint_result = initialize_viewpoint(object_names=object_names)
+    print(f"Result: {viewpoint_result}")
 
     # Test 5: Focus, zoom, move, set_keyframe if objects exist
     first_object = object_names[0]
@@ -963,6 +970,16 @@ def test_tools():
     print("\n5.5. Testing set_visibility...")
     visibility_result = set_visibility(hide_objects=[first_object])
     print(f"Result: {visibility_result}")
+    
+    # Test 3: Reload scene
+    print("\n3. Testing reload_scene...")
+    reload_result = reload_scene()
+    print(f"Result: {reload_result}")
+
+    # Test focus
+    print("\n5.1. Testing focus...")
+    focus_result = focus(object_name=first_object)
+    print(f"Result: {focus_result}")
 
     print("\n" + "=" * 50)
     print("Test completed!")
