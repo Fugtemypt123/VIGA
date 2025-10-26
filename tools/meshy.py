@@ -119,12 +119,15 @@ class MeshyAPI:
                         break
                 
                 # Remove prefix
-                if prefix and base_name.lower().startswith(prefix.lower()):
-                    base_name = base_name[len(prefix):]
+                if prefix:
+                    if base_name.lower().startswith(prefix.lower()):
+                        base_name = base_name[len(prefix):]
+                    else:
+                        continue
                 
                 # Normalize and compare
                 base_normalized = self.normalize_name(base_name)
-                if base_normalized == target_normalized:
+                if base_normalized in target_normalized or target_normalized in base_normalized:
                     matching_files.append(os.path.join(self.previous_assets_dir, filename))
                     
         except OSError as e:
