@@ -577,7 +577,6 @@ def meshy_get_better_object(object_name: str, reference_type: str, object_descri
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
-        logging.info("Running Meshy tools test (rig_and_animate)...")
         meshy_api_key = os.getenv("MESHY_API_KEY")
         va_api_key = os.getenv("VA_API_KEY")
         save_dir = "test/meshy/assets"
@@ -589,22 +588,17 @@ def main():
             "save_dir": save_dir,
             "previous_assets_dir": previous_assets_dir,
         }
-        logging.info("[test] initialize(...) with:", init_payload)
-        init_res = initialize(init_payload)
-        logging.info("[test:init]", json.dumps(init_res, ensure_ascii=False))
-        if init_res.get("status") != "success":
-            logging.info("Initialization failed; aborting test.")
-            return
+        result = initialize(init_payload)
+        print("initialize result:", result)
 
-        logging.info("\n[test] Text reference: humanoid, rig_and_animate=True")
-        text_res = meshy_get_better_object(
+        result = meshy_get_better_object(
             object_name="cat",
             reference_type="text",
             object_description="Realistic domestic short-hair bicolor cat with gray and white coat similar to a tuxedo pattern: gray cap over head and ears, gray back and tail, white face blaze, chest, belly, and legs. Medium adult size with short fur. Blender-compatible quadruped rig suitable for walk cycle. Include natural materials with slight fur roughness and subtle color variation.",
             rig_and_animate=True,
             action_description="walk",
         )
-        logging.info(json.dumps(text_res, ensure_ascii=False, indent=2))
+        print("meshy_get_better_object result:", result)
     else:
         mcp.run()
         
