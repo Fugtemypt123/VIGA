@@ -267,6 +267,8 @@ def download_meshy_asset(object_name: str, description: str) -> dict:
 
         logging.info(f"[Meshy] Creating preview task for: {description}")
         preview_id = _meshy_api.create_text_to_3d_preview(description)
+        with open('logs/meshy.log', 'a') as f:
+            f.write(f"Preview ID: {preview_id}\n")
 
         preview_task = _meshy_api.poll_text_to_3d(preview_id, interval_sec=5, timeout_sec=900)
         if preview_task.get("status") != "SUCCEEDED":
@@ -275,6 +277,9 @@ def download_meshy_asset(object_name: str, description: str) -> dict:
 
         logging.info(f"[Meshy] Starting refine for preview task: {preview_id}")
         refine_id = _meshy_api.create_text_to_3d_refine(preview_id)
+        with open('logs/meshy.log', 'a') as f:
+            f.write(f"Refine ID: {refine_id}\n")
+            
         refine_task = _meshy_api.poll_text_to_3d(refine_id, interval_sec=5, timeout_sec=1800)
         if refine_task.get("status") != "SUCCEEDED":
             return {"status": "error", "output": f"Refine failed: {refine_task.get('status')}"}
@@ -327,6 +332,8 @@ def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: s
             logging.info(f"[Meshy] Using prompt: {prompt}")
         
         preview_id = _meshy_api.create_image_to_3d_preview(image_path, prompt)
+        with open('logs/meshy.log', 'a') as f:
+            f.write(f"Preview ID: {preview_id}\n")
 
         preview_task = _meshy_api.poll_image_to_3d(preview_id, interval_sec=5, timeout_sec=900)
         if preview_task.get("status") != "SUCCEEDED":
@@ -377,6 +384,8 @@ def create_rigged_character(model_url: str, object_name: str) -> dict:
 
         logging.info(f"[Meshy] Creating rigging task for: {model_url}")
         rig_task_id = _meshy_api.create_rigging_task(model_url=model_url)
+        with open('logs/meshy.log', 'a') as f:
+            f.write(f"Rig task ID: {rig_task_id}\n")
 
         rig_task = _meshy_api.poll_rigging_task(rig_task_id, interval_sec=5, timeout_sec=1800)
         if rig_task.get("status") != "SUCCEEDED":
@@ -426,6 +435,8 @@ def create_animated_character(rig_task_id: str, action_description: str, object_
 
         logging.info(f"[Meshy] Creating animation task for rig_task_id: {rig_task_id}")
         anim_task_id = _meshy_api.create_animation_task(rig_task_id=rig_task_id, action_description=action_description)
+        with open('logs/meshy.log', 'a') as f:
+            f.write(f"Anim task ID: {anim_task_id}\n")
 
         anim_task = _meshy_api.poll_animation_task(anim_task_id, interval_sec=5, timeout_sec=1800)
         if anim_task.get("status") != "SUCCEEDED":
