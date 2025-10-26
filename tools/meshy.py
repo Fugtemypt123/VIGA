@@ -738,12 +738,12 @@ def meshy_get_better_object(object_name: str, reference_type: str, object_descri
         if static_result.get('status') != 'success':
             return {"status": "error", "output": {"text": [static_result.get('output', {}).get('text', ['Failed to generate static asset'])]}}
         if not rig_and_animate:
-            return {"status": "success", "output": {"text": ["Successfully generated static asset, downloaded to: ", static_result.get('output', {}).get('path', [])]}}
+            return {"status": "success", "output": {"text": ["Successfully generated static asset, downloaded to: " + static_result.get('output', {}).get('path', '')]}}
         
         model_url = static_result.get('model_url', None)
         dynamic_result = create_rigged_and_animated_character(model_url=model_url, action_description=action_description, object_name=object_name)
         if dynamic_result.get('status') == 'success':
-            return {"status": "success", "output": {"text": ["Successfully generated dynamic asset, downloaded to: ", dynamic_result.get('output', {}).get('path', [])]}}
+            return {"status": "success", "output": {"text": ["Successfully generated dynamic asset, downloaded to: " + dynamic_result.get('output', {}).get('path', '')]}}
         else:
             return {"status": "error", "output": {"text": [dynamic_result.get('output', {}).get('text', ['Failed to generate dynamic asset'])]}}
     
