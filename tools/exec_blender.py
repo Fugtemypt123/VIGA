@@ -150,7 +150,7 @@ class Executor:
         elif len(os.listdir(render_file)) == 0:
             return {"status": "success", "output": {"text": ['Code Executed Successfully, but no images were generated. Please make sure you have added a camera in your code.']}}
         else:
-            return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))]}}
+            return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
 
 
 

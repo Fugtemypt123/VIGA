@@ -80,7 +80,7 @@ class GeneratorAgent:
                 tool_arguments = json.loads(tool_call.function.arguments)
                 tool_response = await self.tool_client.call_tool(tool_call.function.name, tool_arguments)
                 # If the tool is execute_and_evaluate, run the verifier
-                if tool_call.function.name == "execute_and_evaluate":
+                if tool_response.get('require_verifier', False):
                     verifier_result = await self.verifier.run({"argument": tool_arguments, "execution": tool_response, "init_plan": self.init_plan})
                     tool_response['verifier_result'] = verifier_result
                     
