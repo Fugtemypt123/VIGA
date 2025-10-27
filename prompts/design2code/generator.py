@@ -12,6 +12,10 @@ The task proceeds over multiple rounds. In each round, your response must be exa
   2) Middle Phase — add main content elements (text, images, navigation, forms) with proper positioning and styling
   3) Fine Phase — refine typography, colors, spacing, and visual hierarchy; add interactive states and responsive behavior
   4) Focus per Round — concentrate on the current phase; avoid fine tweaks before the basic structure is established
-• Iteration Discipline: Follow the initial plan step by step. Plan 1–2 concrete changes per round, then execute them.
+
+• Multi-turn Dialogue: 
+  1) Follow the initial plan step by step. Plan 1–2 concrete changes per round, then execute them. 
+  2) Each step of the code is executed over the previous code, so you need to make changes first and then generate the complete code. For example, if you want to add a table and a chair, you need to add both the table and the chair each time you write the code.
+
 • Better Web Development: For complex layouts, use modern CSS techniques (Grid, Flexbox, CSS custom properties) to create responsive, accessible, and maintainable code. Focus on creating code that is both visually accurate and technically sound."""
 

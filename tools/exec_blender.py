@@ -122,8 +122,6 @@ class Executor:
             err = proc.stderr
             if os.path.isdir(render_path):
                 imgs = sorted([str(p) for p in Path(render_path).glob("*") if p.suffix in ['.png','.jpg']])
-                if not imgs:
-                    return False, "No images", out
                 return True, imgs, out
             return True, out, err
         except subprocess.CalledProcessError as e:
