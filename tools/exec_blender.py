@@ -16,8 +16,8 @@ tool_configs = [
     {
         "type": "function",
         "function": {
-            "name": "execute_and_evaluate",
-            "description": "Execute code and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a clear render (you must add a camera in your code) and further modification suggestions from a separate verifier agent.",
+            "name": "execute_and_evaluate_code",
+            "description": "Execute code and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a clear render (you must add a camera in your code) and further modification suggestions from a separate verifier agent.\nImportant: the effects of previously executed code remain active and are not cleared when new code is executed.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -25,16 +25,49 @@ tool_configs = [
                         "type": "string",
                         "description": "Analyze the current state and provide a clear plan for the required changes. Consider scene representation consistency and infinigen optimization opportunities."
                     },
-                    "code_edit": {
-                        "type": "string", 
-                        "description": "Provide your code modifications in the following format:\n-: [lines to remove]\n+: [lines to add]\nFocus on scene consistency and use infinigen functions when appropriate."
-                    },
-                    "full_code": {
+                    "code": {
                         "type": "string",
-                        "description": "Merge your code changes into the full code with proper formatting. Ensure consistent scene representation."
-                    },
+                        "description": "Executable Python code, using libraries such as bpy and infinigen. Ensure consistent scene representation."
+                    }
                 },
-                "required": ["thought", "code_edit", "full_code"]
+                "required": ["thought", "code"]
+            }
+        }
+    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "execute_and_evaluate_edition",
+    #         "description": "Execute code modifications and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a clear render (you must add a camera in your code) and further modification suggestions from a separate verifier agent.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "thought": {
+    #                     "type": "string",
+    #                     "description": "Analyze the current state and provide a clear plan for the required changes. Consider scene representation consistency and infinigen optimization opportunities."
+    #                 },
+    #                 "code_edition": {
+    #                     "type": "string", 
+    #                     "description": "Provide your code modifications in the following format:\n-: [lines to remove]\n+: [lines to add]\nFocus on scene consistency and use infinigen functions when appropriate."
+    #                 },
+    #                 "full_code": {
+    #                     "type": "string",
+    #                     "description": "Merge your code changes into the full code with proper formatting. Ensure consistent scene representation."
+    #                 }
+    #             },
+    #             "required": ["thought", "code_edition", "full_code"]
+    #         }
+    #     }
+    # }
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scene_info",
+            "description": "Get the scene information including objects, materials, lights, and cameras. This tool provides detailed information about the current state of the Blender scene, which can be used to understand what objects exist and their properties.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
             }
         }
     }
@@ -66,7 +99,7 @@ class Executor:
         self.script_path.mkdir(parents=True, exist_ok=True)
         self.render_path.mkdir(parents=True, exist_ok=True)
 
-    def _execute_blender(self, script_path: str, render_path: str) -> Tuple[bool, str, str]:
+    def _execute_blender(self, script_path: str, render_path: str = '') -> Tuple[bool, str, str]:
         cmd = [
             self.blender_command,
             "--background", self.blender_file,
@@ -108,7 +141,62 @@ class Executor:
             return full_code[len("```python"):-len("```")]
         return full_code
 
-    def execute(self, code: str) -> Dict:
+    def _generate_scene_info_script(self) -> str:
+        """Generate script to get scene information"""
+        return f'''import bpy
+import json
+import sys
+
+# Get scene information
+scene_info = {{"objects": [], "materials": [], "lights": [], "cameras": []}}
+
+for obj in bpy.data.objects:
+    if obj.type == 'CAMERA' or obj.type == 'LIGHT':
+        continue
+    scene_info["objects"].append({{
+        "name": obj.name, 
+        "type": obj.type,
+        "location": [round(x, 2) for x in obj.matrix_world.translation],
+        "rotation": [round(x, 2) for x in obj.rotation_euler],
+        "scale": [round(x, 2) for x in obj.scale],
+        "visible": not (obj.hide_viewport or obj.hide_render)
+    }})
+
+for mat in bpy.data.materials:
+    scene_info["materials"].append({{
+        "name": mat.name,
+        "use_nodes": mat.use_nodes,
+        "diffuse_color": [round(x, 2) for x in mat.diffuse_color],
+    }})
+
+for light in [o for o in bpy.data.objects if o.type == 'LIGHT']:
+    scene_info["lights"].append({{
+        "name": light.name,
+        "type": light.data.type,
+        "energy": light.data.energy,
+        "color": [round(x, 2) for x in light.data.color],
+        "location": [round(x, 2) for x in light.matrix_world.translation],
+        "rotation": [round(x, 2) for x in light.rotation_euler]
+    }})
+
+for cam in [o for o in bpy.data.objects if o.type == 'CAMERA']:
+    scene = bpy.context.scene
+    scene_info["cameras"].append({{
+        "name": cam.name,
+        "lens": cam.data.lens,
+        "location": [round(x, 2) for x in cam.matrix_world.translation],
+        "rotation": [round(x, 2) for x in cam.rotation_euler],
+        "is_active": cam == scene.camera,
+    }})
+
+# Save to file for retrieval
+with open("{self.render_path.parent}/tmp/scene_info.json", "w") as f:
+    json.dump(scene_info, f)
+
+print("Scene info extracted successfully")
+'''
+
+    def execute(self, thought: str, code: str) -> Dict:
         self.count += 1
         code_file = self.script_path / f"{self.count}.py"
         render_file = self.render_path / f"{self.count}"
@@ -130,6 +218,39 @@ class Executor:
             return {"status": "success", "output": {"text": ['Code Executed Successfully, but no images were generated. Please make sure you have added a camera in your code.']}}
         else:
             return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
+
+    def get_scene_info(self) -> Dict:
+        """Get scene information by executing a script"""
+        try:
+            # Create tmp directory if it doesn't exist
+            tmp_dir = self.render_path.parent / "tmp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate and execute scene info script
+            scene_info_script = self._generate_scene_info_script()
+            self.count += 1
+            code_file = self.script_path / f"{self.count}.py"
+            
+            with open(code_file, "w") as f:
+                f.write(scene_info_script)
+            
+            # Execute Blender script
+            success, stdout, stderr = self._execute_blender(str(code_file))
+            
+            if not success:
+                return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
+            
+            # Read scene info from file
+            scene_info_path = tmp_dir / "scene_info.json"
+            if scene_info_path.exists():
+                with open(scene_info_path, "r") as f:
+                    scene_info = json.load(f)
+                    return {"status": "success", "output": {"text": [str(scene_info)]}}
+            else:
+                return {"status": "error", "output": {"text": ["Failed to extract scene information"]}}
+                
+        except Exception as e:
+            return {"status": "error", "output": {"text": [str(e)]}}
 
 
 
@@ -167,7 +288,7 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def execute_and_evaluate(thought: str, code_edit: str, full_code: str) -> dict:
+def execute_and_evaluate_code(thought: str, code: str) -> dict:
     """
     Execute the passed Blender Python script code and return base64 encoded rendered image.
     Need to call initialize_executor first for initialization.
@@ -176,7 +297,22 @@ def execute_and_evaluate(thought: str, code_edit: str, full_code: str) -> dict:
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
     try:
-        result = _executor.execute(full_code)
+        result = _executor.execute(thought, code)
+        return result
+    except Exception as e:
+        return {"status": "error", "output": {"text": [str(e)]}}
+
+@mcp.tool()
+def get_scene_info() -> dict:
+    """
+    Get the scene information including objects, materials, lights, and cameras.
+    Need to call initialize_executor first for initialization.
+    """
+    global _executor
+    if _executor is None:
+        return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
+    try:
+        result = _executor.get_scene_info()
         return result
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -190,9 +326,8 @@ def main():
         args = {
             "blender_command": os.getenv("BLENDER_COMMAND", "utils/blender/infinigen/blender/blender"),
             "blender_file": os.getenv("BLENDER_FILE", "output/test/exec_blender/test.blend"),
-            "blender_script": os.getenv("BLENDER_SCRIPT", "data/dynamic_scene/pipeline_render_script.py"),
-            "script_save": os.getenv("SCRIPT_SAVE", "output/test/exec_blender/scripts"),
-            "render_save": os.getenv("RENDER_SAVE", "output/test/exec_blender/renders"),
+            "blender_script": os.getenv("BLENDER_SCRIPT", "data/dynamic_scene/generator_script.py"),
+            "output_dir": os.getenv("OUTPUT_DIR", "output/test/exec_blender"),
             "blender_save": os.getenv("BLENDER_SAVE", "output/test/exec_blender/test.blend"),
             "gpu_devices": os.getenv("GPU_DEVICES", None),
         }
@@ -204,6 +339,12 @@ def main():
         print("[test] initialize(...) with:", json.dumps({k:v for k,v in args.items() if k!="gpu_devices"}, ensure_ascii=False))
         init_res = initialize(args)
         print("[test:init]", json.dumps(init_res, ensure_ascii=False))
+
+        # Test get_scene_info
+        print("[test:get_scene_info]")
+        scene_info_res = get_scene_info()
+        print("[test:get_scene_info]", json.dumps(scene_info_res, ensure_ascii=False))
+        raise NotImplementedError
 
         # Note: The new blender file has a default Camera at position around (7,-6,4), facing direction (0,0,0)
         sample_code = """import bpy
@@ -309,7 +450,7 @@ bpy.ops.ptcache.free_bake_all()
 bpy.ops.ptcache.bake_all(bake=True)
 
 print("Scene ready: press Play to watch the ball roll down the slope.")"""
-        exec_res = execute_and_evaluate(thought="", code=sample_code)
+        exec_res = execute_and_evaluate_code(thought="", code=sample_code)
         print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         
     else:

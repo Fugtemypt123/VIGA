@@ -8,13 +8,28 @@ from sys import platform
 if __name__ == "__main__":
 
     code_fpath = sys.argv[6]  # Path to the code file
-    rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    if len(sys.argv) > 7:
+        rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    else:
+        rendering_dir = None
     if len(sys.argv) > 8:
         save_blend = sys.argv[8] # Path to save the blend file
     else:
         save_blend = None
 
-    # Enable GPU rendering
+    # Read and execute the code from the specified file
+    with open(code_fpath, "r") as f:
+        code = f.read()
+    try:
+        exec(code)
+    except:
+        raise ValueError
+
+    if not rendering_dir:
+        print("[INFO] No rendering directory provided, skipping rendering.")
+        exit(0)
+        
+        # Enable GPU rendering
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # or 'OPTIX' if your GPU supports it
     bpy.context.preferences.addons['cycles'].preferences.get_devices()
@@ -36,14 +51,6 @@ if __name__ == "__main__":
 
     # Set color mode to RGB
     bpy.context.scene.render.image_settings.color_mode = 'RGB'
-
-    # Read and execute the code from the specified file
-    with open(code_fpath, "r") as f:
-        code = f.read()
-    try:
-        exec(code)
-    except:
-        raise ValueError
 
     # render from all the camera, save the rendering to the rendering_dir
     for camera in bpy.data.objects:

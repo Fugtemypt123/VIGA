@@ -8,13 +8,27 @@ if __name__ == "__main__":
 
     # ---- 命令行参数 ----
     code_fpath   = sys.argv[6]  # 生成/编辑场景的代码文件路径
-    rendering_dir = sys.argv[7]  # 渲染输出目录
+    if len(sys.argv) > 7:
+        rendering_dir = sys.argv[7]  # 渲染输出目录
+    else:
+        rendering_dir = None
     if len(sys.argv) > 8:
         save_blend = sys.argv[8]  # 可选：保存 .blend 的路径
     else:
         save_blend = None
 
-    # ---- 渲染引擎与设备（优先 GPU，失败则回退 CPU）----
+    # ---- 执行外部代码，构建场景 ----
+    with open(code_fpath, "r", encoding="utf-8") as f:
+        code = f.read()
+    try:
+        exec(code)
+    except Exception as e:
+        raise ValueError(f"Error executing scene code: {e}")
+
+    if not rendering_dir:
+        print("[INFO] No rendering directory provided, skipping rendering.")
+        exit(0)
+        
     bpy.context.scene.render.engine = 'CYCLES'
     try:
         prefs = bpy.context.preferences.addons['cycles'].preferences
@@ -39,15 +53,7 @@ if __name__ == "__main__":
     scene.render.image_settings.file_format = 'PNG'
     scene.render.use_file_extension = True
 
-    # ---- 执行外部代码，构建场景 ----
-    with open(code_fpath, "r", encoding="utf-8") as f:
-        code = f.read()
-    try:
-        exec(code)
-    except Exception as e:
-        raise ValueError(f"Error executing scene code: {e}")
-
-    # ---- 输出目录准备 ----
+    # ---- 输出目录准备 ----            
     os.makedirs(rendering_dir, exist_ok=True)
 
     # ---- 读取动画范围并计算三帧 ----
