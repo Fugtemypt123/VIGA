@@ -113,10 +113,11 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     cmd = [
         sys.executable, "main.py",
         "--mode", "blendergym",
-        "--vision-model", args.vision_model,
+        "--model", args.model,
         "--api-key", args.api_key,
-        "--openai-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
+        "--api-base-url", args.api_base_url if args.api_base_url else "https://api.openai.com/v1",
         "--max-rounds", str(args.max_rounds),
+        "--memory-length", str(args.memory_length),
         "--task-name", task_config["task_name"],
         "--init-code-path", str(task_config["init_code_path"]),
         "--init-image-path", str(task_config["init_image_path"]),
@@ -222,19 +223,19 @@ def main():
     
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
-    parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
+    parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
+    parser.add_argument("--api-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
+    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
-    parser.add_argument("--blender-server-path", default="tools/exec_blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-script", default="data/blendergym/pipeline_render_script.py", help="Blender execution script")
     parser.add_argument("--save-blender-file", action="store_true", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/rag.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/init_verify.py,tools/investigator.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # Parallel execution parameters
     parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")

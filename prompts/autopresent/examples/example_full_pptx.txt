@@ -1,0 +1,70 @@
+# Examples
+
+## Example 1
+Instruction: Create slide with the title 'NLP Can Answer Questions' in large, bolded font in the top center of the page. Below it, use the provided screenshot of the google search result of the question 'Where was the first movie theater in the U.S?' in the middle of the page.
+
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[0] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+
+# add text title
+text = "NLP Can Answer Questions"
+text_box = slide.shapes.add_textbox(Inches(1), Inches(0.5), Inches(8), Inches(1))
+lines = text.split("\n")
+adjusted_height = len(lines)  # Adjust height based on the number of lines
+text_box.height = Inches(adjusted_height)
+text_box.text_frame.word_wrap = True
+
+p = text_box.text_frame.add_paragraph()
+p.text = text
+p.font.size = Pt(36)
+
+# insert google search screenshot
+image_path = "screenshot.png"
+slide.shapes.add_picture(image_path, Inches(2.5), Inches(2), Inches(6), Inches(4))
+
+presentation.save("target_path.pptx")
+```
+
+## Example 2
+Instruction: Create a slide titled 'Interior Design' in bold, dark-green color in the center of the page. Use the provided color background image, ensure enough contrast between the colors of text and background, add a half-transparent layer to hide the colors if necessary.
+
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[5] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+
+# add text title
+text = "Interior Design"
+text_box = slide.shapes.add_textbox(Inches(1), Inches(0.5), Inches(8), Inches(1))
+lines = text.split("\n")
+adjusted_height = len(lines)  # Adjust height based on the number of lines
+text_box.height = Inches(adjusted_height)
+text_box.bold = True
+text_box.text_frame.word_wrap = True
+
+p = text_box.text_frame.add_paragraph()
+p.text = text
+p.font.size = Pt(48)
+
+# insert google search screenshot
+image_path = "colorful.png"
+slide.shapes.add_picture(image_path, Inches(0), Inches(0), Inches(16), Inches(9))
+
+presentation.save("path.pptx")
+```

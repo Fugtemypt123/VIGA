@@ -204,11 +204,12 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     # Build main.py command
     cmd = [
         sys.executable, "main.py",
-        "--mode", "blendergym-hard",
-        "--vision-model", args.vision_model,
+        "--mode", "blenderstudio",
+        "--model", args.model,
         "--api-key", args.api_key,
-        "--openai-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
+        "--api-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
         "--max-rounds", str(args.max_rounds),
+        "--memory-length", str(args.memory_length),
         "--task-name", task_config["task_name"],
         "--init-code-path", str(task_config["init_code_path"]),
         "--init-image-path", str(task_config["init_image_path"]),
@@ -221,7 +222,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         # Blender execution parameters (for generator)
         "--blender-command", args.blender_command,
         "--blender-file", str(output_base / "blender_file.blend"),
-        "--blender-script", f'data/blendergym_hard/{task_name}/pipeline_render_script.py',
+        "--blender-script", f'data/blendergym/{task_name}/pipeline_render_script.py',
     ]
     
     if args.save_blender_file:
@@ -314,18 +315,18 @@ def main():
     
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
-    parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
+    parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
+    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
-    parser.add_argument("--blender-server-path", default="tools/exec_blender.py", help="Path to Blender MCP server script")
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--save-blender-file", default=True, action="store_true", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/rag.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/init_verify.py,tools/investigator.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/verifier_base.py,tools/investigator.py", help="Comma-separated list of verifier tool server scripts")
     
     # Parallel execution parameters
     parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")

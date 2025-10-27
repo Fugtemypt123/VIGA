@@ -1,0 +1,45 @@
+## Examples
+
+### Example 1
+Instruction: Create slide with the title 'NLP Can Answer Questions' in large, bolded font in the top center of the page. Below it, use the provided screenshot of the google search result of the question 'Where was the first movie theater in the U.S?' in the middle of the page.
+
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from library import add_text
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[0] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+add_text(slide, "NLP Can Answer Questions", coords=(1, 0.5, 8, 1), font_size=36)
+img_path = "media/image_0.png"
+slide.shapes.add_picture(img_path, Inches(2.5), Inches(2), Inches(6), Inches(4))
+presentation.save("target_path.pptx")
+```
+
+### Example 2
+Instruction: Create a slide titled 'Interior Design' in bold, dark-green color in the center of the page. Use the provided color background image, ensure enough contrast between the colors of text and background, add a half-transparent layer to hide the colors if necessary.
+
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from library import add_text
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[5] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+
+background_img = "colorful.png"
+slide.shapes.add_picture(background_img, Inches(0), Inches(0), Inches(16), Inches(9))
+add_text(slide, 'Interior Design', coords=(0.0, 2.4, 13.3, 1.3), font_size=80, bold=True, color=(0, 0, 0), background_color=(255, 255, 255), auto_size=True)
+
+presentation.save("path.pptx")
+```

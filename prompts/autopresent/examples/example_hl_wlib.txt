@@ -1,0 +1,45 @@
+## Examples
+
+### Example 1
+Instruction: Create a slide with the Title 'NLP Can Answer Questions' and put a screenshot of the google search result of the question 'Where was the first movie theater in the U.S?' in the middle of the page.
+
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from library import add_text, google_search_screenshot, add_image
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[0] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+add_text(slide, "NLP Can Answer Questions", coords=(1, 0.5, 8, 1), font_size=36)
+img_path = google_search_screenshot("Where was the first movie theater in the U.S?", save_path="screenshot.png")
+add_image(slide, "screenshot.png", coords=(2.5, 2, 6, 4))
+presentation.save("target_path.pptx")
+```
+
+### Example 2
+Instruction: Create a slide with colorful, artistic background, and put the Title 'Interior Design' in the middle.
+
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from library import generate_image, add_image, add_text
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[5] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+
+background_img = generate_image("An colorful, artistic background", "colorful.png")
+add_image(slide, "colorful.png", coords=(0.0, 0.0, 16, 9))
+add_text(slide, 'Interior Design', coords=(0.0, 2.4, 13.3, 1.3), font_size=80, bold=True, color=(0, 0, 0), background_color=(255, 255, 255), auto_size=True)
+
+presentation.save("path.pptx")
+```

@@ -165,18 +165,19 @@ def run_autopresent_task(task_config: Dict, args) -> tuple:
     cmd = [
         sys.executable, "main.py",
         "--mode", "autopresent",
-        "--vision-model", args.vision_model,
+        "--model", args.model,
         "--api-key", args.api_key,
-        "--openai-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
+        "--api-base-url", args.api_base_url if args.api_base_url else "https://api.openai.com/v1",
         "--max-rounds", str(args.max_rounds),
+        "--memory-length", str(args.memory_length),
         "--task-name", task_config["task_name"],
         "--init-code-path", str(task_config["init_code_path"]),
         "--init-image-path", str(task_config["init_image_path"]),
         "--target-description", task_config["target_description_path"],
+        "--output-dir", str(output_base),
         # Tool servers
         "--generator-tools", args.generator_tools,
         "--verifier-tools", args.verifier_tools,
-        "--output-dir", str(output_base),
     ]
     
     print(f"Command: {' '.join(cmd)}")
@@ -266,15 +267,16 @@ def main():
     
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
-    parser.add_argument("--vision-model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
+    parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
+    parser.add_argument("--api-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
+    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_slides.py,tools/rag.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/exec_slides.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
     
     # Verifier tool servers
-    parser.add_argument("--verifier-tools", default="tools/init_verify.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # Parallel execution parameters
     parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")

@@ -1,0 +1,148 @@
+You are an expert presentation slides designer who creates modern, fashionable, and stylish slides using Python code. Your job is to generate the required PPTX slide by writing and executing a Python script. Make sure to follow the guidelines below and do not skip any of them:
+1.  Ensure your code can successfully execute. If needed, you can also write tests to verify your code.
+2. Maintain proper spacing and arrangements of elements in the slide: make sure to keep sufficient spacing between different elements; do not make elements overlap or overflow to the slide page.
+3. Carefully select the colors of text, shapes, and backgrounds, to ensure all contents are readable.
+4. The slides should not look empty or incomplete. When filling the content in the slides, maintain good design and layout.
+
+Follow the instruction below to create the slide. 
+If the instruction is long and specific, follow the instruction carefully and add all elements as required; 
+if it is short and concise, you will need to create some content (text, image, layout) and implement it into the slide.
+If you need to use the provided images, refer to the image file names in the instructions.
+
+Finally, your code should save the pptx file to path "output.pptx"
+
+API Libraries:
+add_title(slide, text, font_size, font_color, background_color)
+"""Add a title text to the slide with custom font size and font color (RGB tuple).
+Args:
+    slide: Slide object as in pptx library
+    text: str, Title text to be added
+    font_size: int, Font size in int (point size), e.g., 44
+    font_color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
+    background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
+Rets:
+    slide: Slide object with the title added
+"""
+
+add_text(slide, text, coords, font_size, bold, color, background_color, auto_size)
+"""Add a text box at a specified location with custom text and color settings.
+Args:
+    slide: Slide object as in pptx library
+    text: str, Text to be added
+    coords: list(float), [left, top, width, height] in inches
+    font_size: int, Font size in int (point size), e.g., 20
+    bold: bool, True if bold-type the text, False otherwise
+    color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
+    background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
+    auto_size: bool, True if auto-size the text box, False otherwise
+Rets:
+    slide: Slide object with the text box added
+"""
+
+add_bullet_points(slide, bullet_points, coords, font_size, color, background_color)
+"""Add a text box with bullet points.
+Args:
+    slide: Slide object as in pptx library
+    bullet_points: list(str), List of texts to be added as bullet points
+    coords: list(float), [left, top, width, height] in inches
+    font_size: int, Font size in int (point size), e.g., 18
+    color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
+    background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
+Rets:
+    slide: Slide object with the bullet points added
+"""
+
+add_image(slide, image_path, coords)
+"""Add an image in the provided path to the specified coords and sizes.
+Args:
+    slide: Slide object as in pptx library
+    image_path: str, Path to the image file
+    coords: list(float), [left, top, width, height] in inches
+Rets:
+    slide: Slide object with the image added
+"""
+
+set_background_color(slide, color)
+"""Set background color for the current slide.
+Args:
+    slide: Slide object as in pptx library
+    color: tuple(int,int,int), RGB color, e.g., (255, 255, 255)
+Rets:
+    modified slide object
+"""
+
+get_answer(query)
+"""Calls the LLM by inputing a question, then get the response of the LLM as the answer.
+Args:
+    question: str, the question to ask the LLM
+Rets:
+    str, the answer from the LLM
+"""
+
+get_code(query)
+"""Calls the LLM to generate code for a request. 
+Args:
+    query: str, the task that the model should conduct
+Rets:
+    str, the generated code
+"""
+You can also import python-pptx libraries and any other libraries that you know.
+
+## Examples
+
+### Example 1
+Instruction: Create slide with the title 'NLP Can Answer Questions' in large, bolded font in the top center of the page. Below it, use the provided screenshot of the google search result of the question 'Where was the first movie theater in the U.S?' in the middle of the page.
+Provided Images:
+image_0: "A screenshot of the google search result of 'NLP Can Answer Questions'"
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from library import add_text
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[0] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+add_text(slide, "NLP Can Answer Questions", coords=(1, 0.5, 8, 1), font_size=36)
+img_path = "image_0.jpg"
+slide.shapes.add_picture(img_path, Inches(2.5), Inches(2), Inches(6), Inches(4))
+presentation.save("output.pptx")
+```
+
+### Example 2
+Instruction: Create a slide titled 'Interior Design' in bold, dark-green color in the center of the page. Use the provided color background image, ensure enough contrast between the colors of text and background, add a half-transparent layer to hide the colors if necessary.
+Provided Images:
+image_0: "An colorful, artistic background image"
+Program:
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from library import add_text
+
+presentation = Presentation()
+presentation.slide_width = Inches(16)
+presentation.slide_height = Inches(9)
+
+slide_layout = presentation.slide_layouts[5] # choose a layout template
+slide = presentation.slides.add_slide(slide_layout)
+
+image_path = "image_0.jpg"
+slide.shapes.add_picture(image_path, Inches(0), Inches(0), Inches(16), Inches(9))
+add_text(slide, 'Interior Design', coords=(0.0, 2.4, 13.3, 1.3), font_size=80, bold=True, color=(0, 0, 0), background_color=(255, 255, 255), auto_size=True)
+
+presentation.save("output.pptx")
+```
+Modification Task:
+Instruction: INSERT_INSTRUCTION_HERE
+
+Previous Code:
+INSERT_PREV_CODE_HERE
+
+Slide Snapshot : See image.
+Task: Based on the observed drawbacks in the provided slide image, modify the existing code accordingly to improve the slide's design and functionality.
+Note: All paths in the code must use precise paths in 'Previous Code'. You CANNOT customize the paths and let the user fill them in.
+Your modification:
+def generate_presentation():

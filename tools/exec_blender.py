@@ -16,8 +16,8 @@ tool_configs = [
     {
         "type": "function",
         "function": {
-            "name": "execute_and_evaluate_code",
-            "description": "Execute code and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a clear render (you must add a camera in your code) and further modification suggestions from a separate verifier agent.\nImportant: the effects of previously executed code remain active and are not cleared when new code is executed.",
+            "name": "execute_and_evaluate",
+            "description": "Execute code modifications and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a clear render (you must add a camera in your code) and further modification suggestions from a separate verifier agent.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -25,40 +25,19 @@ tool_configs = [
                         "type": "string",
                         "description": "Analyze the current state and provide a clear plan for the required changes. Consider scene representation consistency and infinigen optimization opportunities."
                     },
-                    "code": {
+                    "code_edit": {
+                        "type": "string", 
+                        "description": "Provide your code modifications in the following format:\n-: [lines to remove]\n+: [lines to add]\nFocus on scene consistency and use infinigen functions when appropriate."
+                    },
+                    "full_code": {
                         "type": "string",
-                        "description": "Executable Python code, using libraries such as bpy and infinigen. Ensure consistent scene representation."
+                        "description": "Merge your code changes into the full code with proper formatting. Ensure consistent scene representation."
                     }
                 },
-                "required": ["thought", "code"]
+                "required": ["thought", "code_edit", "full_code"]
             }
         }
     },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "execute_and_evaluate_edition",
-    #         "description": "Execute code modifications and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a clear render (you must add a camera in your code) and further modification suggestions from a separate verifier agent.",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "thought": {
-    #                     "type": "string",
-    #                     "description": "Analyze the current state and provide a clear plan for the required changes. Consider scene representation consistency and infinigen optimization opportunities."
-    #                 },
-    #                 "code_edition": {
-    #                     "type": "string", 
-    #                     "description": "Provide your code modifications in the following format:\n-: [lines to remove]\n+: [lines to add]\nFocus on scene consistency and use infinigen functions when appropriate."
-    #                 },
-    #                 "full_code": {
-    #                     "type": "string",
-    #                     "description": "Merge your code changes into the full code with proper formatting. Ensure consistent scene representation."
-    #                 }
-    #             },
-    #             "required": ["thought", "code_edition", "full_code"]
-    #         }
-    #     }
-    # }
     {
         "type": "function",
         "function": {
@@ -194,7 +173,7 @@ with open("{self.render_path.parent}/tmp/scene_info.json", "w") as f:
 print("Scene info extracted successfully")
 '''
 
-    def execute(self, thought: str, code: str) -> Dict:
+    def execute(self, code: str) -> Dict:
         self.count += 1
         code_file = self.script_path / f"{self.count}.py"
         render_file = self.render_path / f"{self.count}"
@@ -286,7 +265,7 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def execute_and_evaluate_code(thought: str, code: str) -> dict:
+def execute_and_evaluate(thought: str, code_edit: str, full_code: str) -> dict:
     """
     Execute the passed Blender Python script code and return base64 encoded rendered image.
     Need to call initialize_executor first for initialization.
@@ -295,7 +274,7 @@ def execute_and_evaluate_code(thought: str, code: str) -> dict:
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
     try:
-        result = _executor.execute(thought, code)
+        result = _executor.execute(full_code)
         return result
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
