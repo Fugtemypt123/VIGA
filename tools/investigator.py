@@ -70,9 +70,9 @@ tool_configs = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "operation": {"type": "string", "choices": ["zoom", "move", "focus"], "description": "The operation to perform."},
+                    "operation": {"type": "string", "enum": ["zoom", "move", "focus"], "description": "The operation to perform."},
                     "object_name": {"type": "string", "description": "If the operation is focus, you need to provide the name of the object to focus on. The object must exist in the scene."},
-                    "direction": {"type": "string", "choices": ["up", "down", "left", "right", "in", "out"], "description": "If the operation is move or zoom, you need to provide the direction to move or zoom."}
+                    "direction": {"type": "string", "enum": ["up", "down", "left", "right", "in", "out"], "description": "If the operation is move or zoom, you need to provide the direction to move or zoom."}
                 },
                 "required": ["operation"]
             }
@@ -687,11 +687,12 @@ print("Viewpoints initialized and rendered for", len(objects), "objects")
         # Generate and execute focus script
         focus_script = self._generate_camera_focus_script(object_name)
         result = self._execute_script(focus_script, f"Focus camera on object {object_name}")
-        with open(f"{self.base}/tmp/rotate_info.json", "r") as f:
-            rotate_info = json.load(f)
-            self.radius = rotate_info['radius']
-            self.theta = rotate_info['theta']
-            self.phi = rotate_info['phi']
+        if os.path.exists(f"{self.base}/tmp/rotate_info.json"):
+            with open(f"{self.base}/tmp/rotate_info.json", "r") as f:
+                rotate_info = json.load(f)
+                self.radius = rotate_info['radius']
+                self.theta = rotate_info['theta']
+                self.phi = rotate_info['phi']
         return result
 
     def zoom(self, direction: str) -> dict:

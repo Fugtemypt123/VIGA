@@ -213,7 +213,7 @@ print("Scene info extracted successfully")
         if not success:
             return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
         elif len(os.listdir(render_file)) == 0:
-            return {"status": "success", "output": {"text": ['Code Executed Successfully, but no images were generated. Please make sure you have added a camera in your code.']}}
+            return {"status": "success", "output": {"text": ['Code Executed Successfully, but no images were generated. Please make sure you have added a camera in your code (just modify the camera pose and other information, do not render the image in the code).']}}
         else:
             return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
 
