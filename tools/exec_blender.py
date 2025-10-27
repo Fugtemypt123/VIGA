@@ -34,7 +34,7 @@ tool_configs = [
                         "description": "Merge your code changes into the full code with proper formatting. Ensure consistent scene representation."
                     }
                 },
-                "required": ["thought", "code_edit", "full_code"]
+                "required": ["thought", "full_code"]
             }
         }
     },
