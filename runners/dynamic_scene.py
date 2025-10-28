@@ -226,7 +226,7 @@ def main():
     parser.add_argument("--model", default="gpt-5", help="OpenAI vision model to use")
     parser.add_argument("--api-base-url", default=OPENAI_BASE_URL, help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
-    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
+    parser.add_argument("--memory-length", type=int, default=24, help="Memory length")
     
     # Blender parameters
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")

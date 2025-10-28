@@ -10,7 +10,7 @@ tool_configs = [
     {
         "type": "function",
         "function": {
-            "name": "execute_and_evaluate_code",
+            "name": "execute_and_evaluate",
             "description": "Execute Python code for slide generation and trigger verifier evaluation. This tool combines code execution with automatic verification. Always use this tool when you want to execute your code changes.\nReturns either:\n  (1) On error: detailed error information; or \n  (2) On success: a rendered slide image and further modification suggestions from a separate verifier agent.\nImportant: The execution environment cannot read files generated in previous runs. Therefore, each response must output the complete, standalone Python code that generates the entire slide from scratch. If you want to make small changes relative to the previous version, use code_edit parameter to structure your reasoning before producing the final script: First, pinpoint the exact lines to modify in the previous script. Then provide a unified-style mini diff using the following format (no extra commentary inside the block):\n-: [lines to remove]\n+: [lines to add]\n. After the diff, apply those changes and output the full, updated Python code (not just the patch).",
             "parameters": {
                 "type": "object",
@@ -105,7 +105,7 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": str(e)}
 
 @mcp.tool()
-def execute_and_evaluate_code(thought: str = '', code_edit: str = '', full_code: str = '') -> dict:
+def execute_and_evaluate(thought: str = '', code_edit: str = '', full_code: str = '') -> dict:
     """
     Compile and render PPTX from Python code.
     Args:

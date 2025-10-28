@@ -128,13 +128,17 @@ def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[s
         if not target_description_file.exists():
             print(f"Warning: target_description.txt not found in {task_dir}")
             continue
+        target_description = None
+        if target_description_file.exists():
+            with open(target_description_file, 'r') as f:
+                target_description = f.read().strip()
             
         task_config = {
             "task_name": task_name,
             "task_dir": str(task_dir),
-            "init_code_path": str(start_code_path),
-            "init_image_path": str(start_image_path),
-            "target_description_path": str(target_description_file),
+            "init_code_path": '',
+            "init_image_path": '',
+            "target_description": target_description,
         }
         tasks.append(task_config)
         print(f"Found task: {task_name}/{task_dir.name}")
@@ -173,7 +177,7 @@ def run_autopresent_task(task_config: Dict, args) -> tuple:
         "--task-name", task_config["task_name"],
         "--init-code-path", str(task_config["init_code_path"]),
         "--init-image-path", str(task_config["init_image_path"]),
-        "--target-description", task_config["target_description_path"],
+        "--target-description", task_config["target_description"],
         "--output-dir", str(output_base),
         # Tool servers
         "--generator-tools", args.generator_tools,
@@ -343,6 +347,8 @@ def main():
     # Save task list for reference
     with open(os.path.join(args.output_dir, "tasks.json"), "w") as f:
         json.dump(tasks, f, indent=2)
+        
+    tasks = tasks[:1]
     
     # Run tasks
     start_time = time.time()

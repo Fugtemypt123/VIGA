@@ -30,17 +30,15 @@ class PromptBuilder:
         
     def _build_system_prompt(self, prompts: Dict) -> List[Dict]:
         """Build generator prompt for static_scene mode using prompt manager."""
-        content = [
-            {"type": "image_url", "image_url": {"url": get_image_base64(self.config.get("target_image_path"))}},
-            {"type": "text", "text": f"Target image loaded from local path: {self.config.get('target_image_path')}"}
-        ]
+        content = []
+        if self.config.get("target_image_path"):
+            content.append({"type": "image_url", "image_url": {"url": get_image_base64(self.config.get("target_image_path"))}})
+            content.append({"type": "text", "text": f"Target image loaded from local path: {self.config.get('target_image_path')}"})
         if self.config.get("target_description"):
             content.append({"type": "text", "text": f"Task description: {self.config.get('target_description')}"})
         return [{"role": "system", "content": prompts.get('system', '')}, {"role": "user", "content": content}]
     
     def _build_user_prompt(self, prompts: Dict) -> List[Dict]:
-        with open('logs/prompts.json', 'w') as f:
-            json.dump(prompts, f, indent=4, ensure_ascii=False)
         if prompts['argument'].get('code_edit', '') != '':
             content = [
                 {"type": "text", "text": f"Initial plan: {prompts.get('init_plan', '')}"},

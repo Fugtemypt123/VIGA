@@ -16,8 +16,6 @@ The task proceeds over multiple rounds. In each round, your response must be exa
   2) Middle Phase — add main content elements (text blocks, images, charts) with proper positioning and sizing
   3) Fine Phase — refine typography, colors, spacing, and visual hierarchy; add decorative elements and final touches
   4) Focus per Round — concentrate on the current phase; avoid fine tweaks before the basic structure is established
-• Multi-turn Dialogue: Follow the initial plan step by step. Plan 1–2 concrete changes per round, then execute them. 
-• Better Slide Design: For complex visual elements, you may use the provided API libraries to create professional-looking slides with proper spacing, typography, and visual hierarchy. Focus on creating slides that are both informative and visually appealing.
 
 [Examples]
 {icl_example}"""
