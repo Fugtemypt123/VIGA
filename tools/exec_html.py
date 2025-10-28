@@ -139,7 +139,7 @@ class HTMLExecutor:
             if not success:
                 return {"status": "error", "output": {"text": [message]}}
             optimized_path = self._optimize_image(str(output_path))
-            return {"status": "success", "output": {"image": [optimized_path], "text": ["Screenshot taken successfully."]}}
+            return {"status": "success", "output": {"image": [optimized_path], "text": ["Screenshot taken successfully."], "require_verifier": True}}
         except Exception as e:
             logging.error(f"HTML execution failed: {e}")
             return {"status": "error", "output": {"text": [str(e)]}}
