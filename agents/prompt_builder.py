@@ -55,7 +55,7 @@ class PromptBuilder:
             content = [
                 {"type": "text", "text": f"Initial plan: {prompts.get('init_plan', '')}"},
                 {"type": "text", "text": f"Thought: {prompts['argument'].get('thought', '')}"},
-                {"type": "text", "text": f"Code: {prompts['argument'].get('code', '')}"},
+                {"type": "text", "text": f"Full code: {prompts['argument'].get('full_code', '')}"},
             ]
         if 'image' in prompts['execution']:
             for text, image in zip(prompts['execution']['text'], prompts['execution']['image']):

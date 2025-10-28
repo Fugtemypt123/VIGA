@@ -21,13 +21,13 @@ tool_configs = [
             }
         }
     },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "end",
-    #         "description": "No-op tool used to indicate the process should end. If the scene has no remaining issues, stop making changes and call this tool.",
-    #     }
-    # }
+    {
+        "type": "function",
+        "function": {
+            "name": "end",
+            "description": "No-op tool used to indicate the process should end. If the scene has no remaining issues, stop making changes and call this tool.",
+        }
+    }
 ]
 
 @mcp.tool()

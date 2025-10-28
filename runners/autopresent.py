@@ -183,6 +183,7 @@ def run_autopresent_task(task_config: Dict, args) -> tuple:
         "--generator-tools", args.generator_tools,
         "--verifier-tools", args.verifier_tools,
         "--resource-dir", task_config["resource_dir"],
+        "--clear-memory", True
     ]
     
     print(f"Command: {' '.join(cmd)}")

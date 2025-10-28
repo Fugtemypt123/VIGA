@@ -43,9 +43,12 @@ class VerifierAgent:
             await self.tool_client.call_tool("reload_scene", {})
         print("Build user message...")
         user_message = self.prompt_builder.build_prompt("verifier", "user", user_message)
-        print("Extend memory...")
-        self.memory.extend(user_message)
-        # self.memory = self.system_prompt + user_message
+        if self.config.get("clear_memory"):
+            print("Clear memory...")
+            self.memory = self.system_prompt + user_message
+        else:
+            print("Extend memory...")
+            self.memory.extend(user_message)
         print("Save memory...")
         self._save_memory()
         result = None
