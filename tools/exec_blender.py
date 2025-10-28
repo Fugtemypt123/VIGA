@@ -265,7 +265,7 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def balalaxiaomoxian(thought: str = '', code_edit: str = '', full_code: str = '') -> dict:
+def execute_and_evaluate(thought: str = '', code_edit: str = '', full_code: str = '') -> dict:
     """
     Execute the passed Blender Python script code and return base64 encoded rendered image.
     Need to call initialize_executor first for initialization.
@@ -322,7 +322,7 @@ def main():
         scene_info_res = get_scene_info()
         print("[test:get_scene_info]", json.dumps(scene_info_res, ensure_ascii=False))
         code = """x = (math.radians(60), 0, math.radians(45))"""
-        exec_res = balalaxiaomoxian(thought="", full_code=code)
+        exec_res = execute_and_evaluate(thought="", full_code=code)
         print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         raise NotImplementedError
 
@@ -430,7 +430,7 @@ bpy.ops.ptcache.free_bake_all()
 bpy.ops.ptcache.bake_all(bake=True)
 
 print("Scene ready: press Play to watch the ball roll down the slope.")"""
-        exec_res = balalaxiaomoxian(thought="", full_code=sample_code)
+        exec_res = execute_and_evaluate(thought="", full_code=sample_code)
         print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         
     else:
