@@ -80,7 +80,7 @@ class SlidesExecutor:
             result = self._execute_slide_code(str(runned_code_path))
 
             if result == "Success" and image_path.exists():
-                return {"status": "success", "output": {"image": [str(image_path)], "text": ["The code executed successfully, and the image was generated successfully."]}}
+                return {"status": "success", "output": {"image": [str(image_path)], "text": ["The code executed successfully, and the image was generated successfully."], "require_verifier": True}}
             else:
                 return {"status": "error", "output": {"text": [result]}}
         except Exception as e:
