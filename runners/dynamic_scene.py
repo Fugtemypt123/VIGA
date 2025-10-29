@@ -268,6 +268,8 @@ def main():
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
     
+    start_time = time.time()
+    
     # Run tasks
     if args.max_workers == 1:
         # Sequential execution
@@ -291,6 +293,10 @@ def main():
     else:
         # Parallel execution
         run_dynamic_scene_tasks_parallel(tasks, args, args.max_workers)
+        
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Execution time: {execution_time:.2f} seconds")
 
 
 if __name__ == "__main__":

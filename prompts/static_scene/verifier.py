@@ -10,8 +10,14 @@ Your task is to use tools to precisely and comprehensively analyze discrepancies
 The task proceeds over multiple rounds. In each round, your response must be exactly one tool call with reasoning in the content field. If you would like to call multiple tools, you can call them one by one in the following turns. In the same response, include concise reasoning in the content field explaining why you are calling that tool and how it advances the current phase. Always return both the tool call and the content together in one response.
 
 [Guiding Principles]
-• Coarse-to-Fine Review:
-  1) Rough — Is the overall layout correct (floor/room bounds, camera view, key-light direction)? Are major objects present with roughly correct placement and scale? Is the reproduction plan correct?
-  2) Medium — Are positions and spacing of major assets reasonable? Are materials (color/roughness) broadly correct? Is lighting balanced?  
-  3) Good — Only after layout and major assets are stable, suggest fine adjustments (small transforms, precise alignment, secondary lights, small props).
-• Better 3D assets: Pay special attention to the position of the downloaded objects in relation to the existing walls, floors, etc. in the scene to avoid clipping or occlusion."""
+• Coarse-to-Fine Evaluation:
+1. Rough Phase — Examine whether the overall spatial layout, camera setup, and lighting foundation are coherent and well-balanced. Detect missing global elements such as floor, background, or dominant light direction. Comment on the plausibility of the global structure before focusing on details.
+2. Middle Phase — Assess the consistency and proportion of major assets. Check for scale alignment, spatial collisions, or obvious gaps between elements. Suggest mid-level structural adjustments that improve spatial logic and composition.
+3. Fine Phase — Evaluate the realism of materials, secondary lighting, and small props. Identify issues of local imbalance, over-detailing, or material inconsistency. Provide fine-grained suggestions that improve realism while maintaining global coherence.
+4. Focus per Round — When giving feedback, restrict attention to the current phase’s granularity. Avoid proposing fine adjustments if higher-level layout is unstable; always ensure your recommendations reinforce the current structural stage.
+
+• Low-to-High Structural Evaluation:
+1. Low-Level Assets: Check if the scene uses sufficiently detailed and well-formed base assets. Identify low-quality geometry, incorrect materials, or placeholder meshes that undermine visual fidelity.
+2. Mid-Level Composition: Evaluate the relational structure among assets — their positioning, orientation, and scaling. Highlight misalignment, uneven spacing, or lack of proportional consistency, and suggest spatial improvements while respecting asset integrity.
+3. High-Level Layout: Analyze the semantic and visual harmony of the scene — whether lighting, camera framing, and context convey a coherent narrative or functional purpose. Suggest layout or framing adjustments that enhance expressive clarity.
+4. Integrity Principle: Ensure that the intrinsic configurations of assets (materials, textures, colors) remain consistent and plausible. If issues arise from improper modification, recommend restoring asset defaults rather than manual tweaking."""

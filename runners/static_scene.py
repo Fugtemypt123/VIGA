@@ -223,7 +223,7 @@ def main():
     parser.add_argument("--test-id", help="Test ID for output directory naming")
     
     # Main.py parameters
-    parser.add_argument("--max-rounds", type=int, default=100, help="Maximum number of interaction rounds")
+    parser.add_argument("--max-rounds", type=int, default=200, help="Maximum number of interaction rounds")
     parser.add_argument("--model", default="gpt-5", help="OpenAI vision model to use")
     parser.add_argument("--api-base-url", default=OPENAI_BASE_URL, help="OpenAI-compatible API base URL")
     parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
@@ -270,6 +270,9 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     
     # Run tasks
+    start_time = time.time()
+    
+    # Run tasks
     if args.max_workers == 1:
         # Sequential execution
         successful_tasks = 0
@@ -292,6 +295,10 @@ def main():
     else:
         # Parallel execution
         run_static_scene_tasks_parallel(tasks, args, args.max_workers)
+        
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Execution time: {execution_time:.2f} seconds")
 
 
 if __name__ == "__main__":
