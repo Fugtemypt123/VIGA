@@ -541,7 +541,7 @@ def initialize_plan(overall_description: str, detailed_plan: str) -> dict:
     """
     Store the detailed scene plan to a file and return the path.
     """
-    output_text = f"{detailed_plan}\nPlease follow the plan from stage 1 to stage 4, step by step."
+    output_text = f"{detailed_plan}\nPlease follow the plan carefully."
     return {"status": "success", "output": {"plan": [output_text], "text": ["Plan initialized successfully"]}}
 
 @mcp.tool()

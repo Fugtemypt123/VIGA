@@ -190,10 +190,10 @@ print("Scene info extracted successfully")
         success, stdout, stderr = self._execute_blender(str(code_file), str(render_file))
         # Check if render_file is empty or not exist
         if not success:
-            os.remove(render_file)
+            os.rmdir(render_file)
             return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
         elif len(os.listdir(render_file)) == 0:
-            os.remove(render_file)
+            os.rmdir(render_file)
             return {"status": "success", "output": {"text": ['The code executed successfully, but no image was generated. Please check and make sure that:\n(1) you have added the camera in the code (just modify the camera pose and other information, do not render the image in the code).\n(2) You may need to handle errors in the code. The following is the return message for reference. Please check if there are any errors and fix them: ' + (stderr or stdout)]}}
         else:
             return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
