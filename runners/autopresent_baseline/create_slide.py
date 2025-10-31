@@ -41,7 +41,7 @@ def main():
     messages = [{"role": "system", "content": [{"type": "text", "text": SYSTEM_MESSAGE}]}]
 
     # example-specific instructions
-    pptx_path = os.path.join(args.output_dir, f"{args.model_name.replace('-', '_')}.pptx")
+    pptx_path = os.path.join(args.output_dir, f"{args.model_name.replace('-', '_').replace('.', '_')}.pptx")
     image_instruction = IMAGE_INSTRUCTION_DICT["no_image"] if args.no_image else IMAGE_INSTRUCTION_DICT["image"]
     instruction = INSTRUCTION.format(image_instruction, pptx_path)
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     client = build_client(args.model_name)
 
     if args.output_name is None:
-        args.output_name = args.model_name.replace('-', '_')
+        args.output_name = args.model_name.replace('-', '_').replace('.', '_')
     
     if args.no_image and args.instruction_name not in [
         "instruction_no_image.txt", "instruction_high_level.txt",
