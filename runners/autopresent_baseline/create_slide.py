@@ -103,7 +103,7 @@ def main():
     for r in response_list:
         success = save_response(r)
         if success: 
-            subprocess.run(["unoconv", "-f", "jpg", pptx_path])  # turn pptx to jpg
+            subprocess.run(["/usr/bin/python3", "/usr/bin/unoconv", "-f", "jpg", pptx_path], check=True)
             break
 
 

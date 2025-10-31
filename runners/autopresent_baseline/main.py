@@ -62,8 +62,8 @@ def main():
                 "data/autopresent/examples", slide_name, page_dir, f"baseline/{args.model_name.replace('-', '_')}.py"
             )
             pptx_path = output_path.replace(".py", ".pptx")
-            if os.path.exists(pptx_path):
-                continue
+            # if os.path.exists(pptx_path):
+            #     continue
 
             slide_command = [
                 "python", "runners/autopresent_baseline/create_slide.py",
