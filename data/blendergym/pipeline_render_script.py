@@ -5,26 +5,18 @@ import os
 import sys
 from sys import platform
 
-# 场景层面禁用音频同步/回放
-for scene in bpy.data.scenes:
-    scene.use_audio = False
-    scene.sync_mode = 'NONE'  # 或 'AUDIO_SYNC' 以外的选项
-
-# 偏好设置层面禁用音频设备（不同版本可能是 'NONE'/'NULL'/'OpenAL' 等）
-try:
-    bpy.context.preferences.system.audio_device = 'NONE'
-except Exception:
-    pass
-
 if __name__ == "__main__":
 
     code_fpath = sys.argv[6]  # Path to the code file
-    rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    if len(sys.argv) > 7:
+        rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    else:
+        rendering_dir = None
     if len(sys.argv) > 8:
         save_blend = sys.argv[8] # Path to save the blend file
     else:
         save_blend = None
-
+    
     # Enable GPU rendering
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.context.preferences.addons['cycles'].preferences.compute_device_type = 'CUDA'  # or 'OPTIX' if your GPU supports it
@@ -57,7 +49,7 @@ if __name__ == "__main__":
         raise ValueError
 
     # Render from camera1
-    if 'Camera1' in bpy.data.objects:
+    if 'Camera1' in bpy.data.objects and rendering_dir:
         bpy.context.scene.camera = bpy.data.objects['Camera1']
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.filepath = os.path.join(rendering_dir, 'render1.png')

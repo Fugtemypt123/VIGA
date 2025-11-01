@@ -93,6 +93,9 @@ class Executor:
         if self.gpu_devices:
             env['CUDA_VISIBLE_DEVICES'] = self.gpu_devices
             logging.info(f"Setting CUDA_VISIBLE_DEVICES to: {self.gpu_devices}")
+            
+        # Ban blender audio error
+        env['AL_LIB_LOGLEVEL'] = '0'
         
         try:
             proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True, env=env)
@@ -303,16 +306,12 @@ def main():
         # Read args from environment for convenience
         args = {
             "blender_command": os.getenv("BLENDER_COMMAND", "utils/blender/infinigen/blender/blender"),
-            "blender_file": os.getenv("BLENDER_FILE", "output/test/exec_blender/test.blend"),
-            "blender_script": os.getenv("BLENDER_SCRIPT", "data/dynamic_scene/generator_script.py"),
+            "blender_file": os.getenv("BLENDER_FILE", "data/blendergym/placement2/blender_file.blend"),
+            "blender_script": os.getenv("BLENDER_SCRIPT", "data/blendergym/pipeline_render_script.py"),
             "output_dir": os.getenv("OUTPUT_DIR", "output/test/exec_blender"),
-            "blender_save": os.getenv("BLENDER_SAVE", "output/test/exec_blender/test.blend"),
+            "blender_save": os.getenv("BLENDER_SAVE", None),
             "gpu_devices": os.getenv("GPU_DEVICES", None),
         }
-        
-        import bpy
-        bpy.ops.wm.save_as_mainfile(filepath=args["blender_file"])
-        print(f"Created blender file: {args['blender_file']}")
         
         print("[test] initialize(...) with:", json.dumps({k:v for k,v in args.items() if k!="gpu_devices"}, ensure_ascii=False))
         init_res = initialize(args)
@@ -322,8 +321,8 @@ def main():
         print("[test:get_scene_info]")
         scene_info_res = get_scene_info()
         print("[test:get_scene_info]", json.dumps(scene_info_res, ensure_ascii=False))
-        code = """x = (math.radians(60), 0, math.radians(45))"""
-        exec_res = execute_and_evaluate(thought="", full_code=code)
+        code = """"""
+        exec_res = execute_and_evaluate(thought="", code=code)
         print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         raise NotImplementedError
 

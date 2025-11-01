@@ -188,6 +188,9 @@ class Executor:
         env = os.environ.copy()
         if self.gpu_devices:
             env["CUDA_VISIBLE_DEVICES"] = self.gpu_devices
+            
+        # Ban blender audio error
+        env['AL_LIB_LOGLEVEL'] = '0'
 
         try:
             # Propagate render directory to scripts
@@ -863,10 +866,10 @@ def test_tools():
     print("=" * 50)
 
     # Set test paths (read from environment variables)
-    blender_file = os.getenv("BLENDER_FILE", "output/static_scene/20251017_124749/christmas1/blender_file.blend")
-    test_save_dir = os.getenv("THOUGHT_SAVE", "output/test/")
+    blender_file = os.getenv("BLENDER_FILE", "data/blendergym/placement2/blender_file.blend")
+    test_save_dir = os.getenv("THOUGHT_SAVE", "output/test/investigator/")
     blender_command = os.getenv("BLENDER_COMMAND", "utils/blender/infinigen/blender/blender")
-    blender_script = os.getenv("BLENDER_SCRIPT", "data/static_scene/verifier_script.py")
+    blender_script = os.getenv("BLENDER_SCRIPT", "data/blendergym/pipeline_render_script.py")
     gpu_devices = os.getenv("GPU_DEVICES", "0,1,2,3,4,5,6,7")
     
     # Check if blender file exists
@@ -888,10 +891,11 @@ def test_tools():
     # set_camera_result = set_camera(location=[0, 0, 0], rotation_euler=[0, 0, 0])
     # print(f"Result: {set_camera_result}")
         
-    # # Test 2: Get scene info
-    # print("\n2. Testing get_scene_info...")
-    # scene_info = get_scene_info()
-    # print(f"Result: {scene_info}")
+    # Test 2: Get scene info
+    print("\n2. Testing get_scene_info...")
+    scene_info = get_scene_info()
+    print(f"Result: {scene_info}")
+    raise NotImplementedError
     
     object_names = ['Fireplace_Block']
     print(f"Object names: {object_names}")

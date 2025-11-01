@@ -5,20 +5,12 @@ import os
 import sys
 from sys import platform
 
-# 场景层面禁用音频同步/回放
-for scene in bpy.data.scenes:
-    scene.use_audio = False
-    scene.sync_mode = 'NONE'  # 或 'AUDIO_SYNC' 以外的选项
-
-# 偏好设置层面禁用音频设备（不同版本可能是 'NONE'/'NULL'/'OpenAL' 等）
-try:
-    bpy.context.preferences.system.audio_device = 'NONE'
-except Exception:
-    pass
-
 if __name__ == "__main__":
     code_fpath = sys.argv[6]  # Path to the code file
-    rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    if len(sys.argv) > 7:
+        rendering_dir = sys.argv[7] # Path to save the rendering from camera1
+    else:
+        rendering_dir = None
     if len(sys.argv) > 8:
         save_blend = sys.argv[8] # Path to save the blend file
     else:

@@ -2,19 +2,6 @@ import bpy
 import os
 import sys
 
-from sys import platform
-
-# 场景层面禁用音频同步/回放
-for scene in bpy.data.scenes:
-    scene.use_audio = False
-    scene.sync_mode = 'NONE'  # 或 'AUDIO_SYNC' 以外的选项
-
-# 偏好设置层面禁用音频设备（不同版本可能是 'NONE'/'NULL'/'OpenAL' 等）
-try:
-    bpy.context.preferences.system.audio_device = 'NONE'
-except Exception:
-    pass
-
 if __name__ == "__main__":
 
     # ---- 命令行参数 ----
