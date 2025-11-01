@@ -235,7 +235,7 @@ def main():
             steps_path = f'{base_path}/{task}/generator_memory.json'
     
     args.renders_dir = Path(steps_path).parent / "renders"
-    args.out = f'visualization/video/{args.name}_{task}'
+    args.out = f'visualization/video/{args.name}_{task}.mp4'
 
     steps = json.loads(Path(steps_path).read_text(encoding="utf-8"))
     frames = []
