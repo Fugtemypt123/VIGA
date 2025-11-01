@@ -1,10 +1,12 @@
 from playwright.sync_api import sync_playwright
+from pathlib import Path
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--url", default="http://0.0.0.0:8000/index.html?dataset=1")
-parser.add_argument("--out", default="image/out.png")
-parser.add_argument("--pdf", default="pdf/out.pdf")
+parser.add_argument("--url", default="http://0.0.0.0:8000/index.html", help="基础页面 URL，不带 dataset 参数")
+parser.add_argument("--dataset-start", type=int, default=1, help="起始 dataset 序号（包含）")
+parser.add_argument("--dataset-end", type=int, default=240, help="结束 dataset 序号（包含）")
+parser.add_argument("--pdf-dir", default="pdf", help="PDF 输出目录")
 parser.add_argument("--width", type=int, default=1920)
 parser.add_argument("--height", type=int, default=1080)
 parser.add_argument("--fullpage", default=True)
@@ -21,21 +23,56 @@ with sync_playwright() as p:
     )
     page = ctx.new_page()
 
-    # 等待策略
-    wait_until = args.wait if args.wait in ("load","domcontentloaded","networkidle") else "load"
-    page.goto(args.url, wait_until=wait_until)
+    base_url = args.url.split("?")[0]
+    wait_until = args.wait if args.wait in ("load", "domcontentloaded", "networkidle") else "load"
 
-    if args.delay > 0:
-        page.wait_for_timeout(args.delay)
+    pdf_dir = Path(args.pdf_dir)
+    pdf_dir.mkdir(parents=True, exist_ok=True)
 
-    # 截图
-    page.screenshot(path=args.out, full_page=args.fullpage)
-    print(f"[OK] PNG: {args.out}")
+    for dataset_id in range(args.dataset_start, args.dataset_end + 1):
+        target_url = f"{base_url}?dataset={dataset_id}"
+        try:
+            response = page.goto(target_url, wait_until=wait_until)
+        except Exception as exc:
+            print(f"[SKIP] dataset={dataset_id}: 页面访问失败 ({exc})")
+            continue
 
-    # 可选：导出 PDF（基于 Chromium）
-    if args.pdf:
-        # A4 纵向，也可设置 width/height，自定义页边距
-        page.pdf(path=args.pdf, format="A4", margin={"top":"10mm","right":"10mm","bottom":"10mm","left":"10mm"})
-        print(f"[OK] PDF: {args.pdf}")
+        status = response.status if response else None
+        if status and status >= 400:
+            print(f"[SKIP] dataset={dataset_id}: HTTP {status}")
+            continue
+
+        if args.delay > 0:
+            page.wait_for_timeout(args.delay)
+
+        dataset_ready = page.evaluate("""
+            () => {
+                const fallback = document.querySelector('#generator_json');
+                if (!fallback) return true;
+                const style = window.getComputedStyle(fallback);
+                if (style.display !== 'none') {
+                    const text = (fallback.textContent || '').toLowerCase();
+                    if (text.includes('not found') || text.includes('no datasets')) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        """)
+
+        if not dataset_ready:
+            print(f"[SKIP] dataset={dataset_id}: 页面提示数据不存在")
+            continue
+
+        pdf_path = pdf_dir / f"{dataset_id}.pdf"
+        try:
+            page.pdf(
+                path=str(pdf_path),
+                format="A4",
+                margin={"top": "10mm", "right": "10mm", "bottom": "10mm", "left": "10mm"}
+            )
+            print(f"[OK] dataset={dataset_id}: {pdf_path}")
+        except Exception as exc:
+            print(f"[SKIP] dataset={dataset_id}: PDF 导出失败 ({exc})")
 
     browser.close()

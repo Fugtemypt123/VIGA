@@ -191,7 +191,7 @@ def main():
     ap.add_argument("--width", type=int, default=1920)
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--fps", type=int, default=30)
-    ap.add_argument("--step_duration", type=float, default=2.5, help="每步停留时长（秒）")
+    ap.add_argument("--step_duration", type=float, default=1.0, help="每步停留时长（秒）")
     ap.add_argument("--scroll_code", action="store_true", help="若代码过长则缓慢向下滚动")
     args = ap.parse_args()
     
