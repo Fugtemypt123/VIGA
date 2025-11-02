@@ -113,25 +113,12 @@ def create_render_script(render_dir: Path, cam_name: str, cam_loc: tuple,
 import sys
 from math import radians
 
-# 加载 .blend 文件路径从命令行参数获取
-blend_file = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
-if not blend_file:
-    print("Error: No blend file specified")
-    sys.exit(1)
-
 # 渲染输出路径
 render_output = sys.argv[sys.argv.index("--") + 2] if len(sys.argv) > sys.argv.index("--") + 2 else None
 if not render_output:
     print("Error: No render output path specified")
     sys.exit(1)
-
-# 加载 .blend 文件
-try:
-    bpy.ops.wm.open_mainfile(filepath=blend_file)
-except Exception as e:
-    print(f"Error loading blend file: {{e}}")
-    sys.exit(1)
-
+    
 # 设置固定相机
 cam_name = "{cam_name}"
 cam_loc = {cam_loc}
@@ -146,7 +133,7 @@ if cam_obj is None or cam_obj.type != 'CAMERA':
 
 cam_obj.location = cam_loc
 cam_obj.rotation_mode = 'XYZ'
-cam_obj.rotation_euler = (radians(cam_rot_deg[0]), radians(cam_rot_deg[1]), radians(cam_rot_deg[2]))
+cam_obj.rotation_euler = cam_rot_deg
 cam_obj.data.lens = lens
 bpy.context.scene.camera = cam_obj
 
@@ -293,13 +280,16 @@ def main():
     
     # 创建初始的空 blender 文件
     initial_blend_file = blender_save_dir / "video.blend"
-    logging.info(f"Creating initial empty blend file: {initial_blend_file}")
-    if not create_empty_blend_file(args.blender_command, str(initial_blend_file), args.gpu_devices):
-        logging.error("Failed to create initial blend file")
-        return
+    if initial_blend_file.exists():
+        os.remove(initial_blend_file)
+    create_empty_blend_cmd = (
+        f"{args.blender_command} --background --factory-startup "
+        f"--python-expr \"import bpy; bpy.ops.wm.read_factory_settings(use_empty=True); bpy.ops.wm.save_mainfile(filepath='" + str(initial_blend_file) + "')\""
+    )
+    subprocess.run(create_empty_blend_cmd, shell=True, check=True)
     
     # 枚举脚本文件
-    script_files = sorted(os.listdir(scripts_dir))
+    script_files = sorted(os.listdir(scripts_dir), key=lambda x: int(x.split('.')[0]))
     logging.info(f"Found {len(script_files)} script files")
     
     # 解析相机参数
@@ -318,7 +308,7 @@ def main():
         blender_command=args.blender_command,
         blender_file=str(initial_blend_file),
         blender_script=args.blender_script,
-        script_save=str(scripts_dir),
+        script_save=str(os.path.join(os.path.dirname(render_dir), "scripts")),
         render_save=str(render_dir),
         blender_save=str(initial_blend_file),  # 保存为当前步骤的 .blend 文件
         gpu_devices=args.gpu_devices
@@ -326,10 +316,6 @@ def main():
     
     for script_file in script_files:
         step_num = script_file.split('.')[0]
-        if not step_num.isdigit():
-            logging.warning(f"Skipping non-numeric script: {script_file}")
-            continue
-        
         logging.info(f"[Step {step_num}] Processing {script_file}...")
         
         # 读取脚本内容
@@ -350,12 +336,15 @@ def main():
             render_script_content, args.gpu_devices
         )
         
+        print("Success: ", success)
+        print("Output: ", output)
+        
         if success:
             logging.info(f"[Step {step_num}] Rendered: {render_output}")
         else:
             logging.error(f"[Step {step_num}] Render failed: {output}")
             
-        if int(step_num) > 10:
+        if int(step_num) > 2:
             break
     
     logging.info("[OK] All steps processed and rendered.")
