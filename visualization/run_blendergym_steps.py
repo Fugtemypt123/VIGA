@@ -1,24 +1,229 @@
-# run_blender_steps.py
-# 在 Blender 中执行每一步 code，并用固定相机渲染图片：renders/step_001.png...
-# 注意：请用 blender 的 -P 方式运行此脚本
-import bpy
+# run_blendergym_steps.py
+# 枚举 scripts 目录下的脚本，使用 executor 执行并保存 .blend 文件，然后渲染图片
 import sys
-import json
-import math
-from math import radians
+import argparse
+import os
 from pathlib import Path
+import subprocess
+import logging
+from typing import Optional, Dict, Tuple
+import base64
+from PIL import Image
+import io
 
-def parse_args(argv):
-    # Blender 启动参数里用 -- 分隔，此处解析其后的自定义参数
-    if "--" in argv:
-        argv = argv[argv.index("--")+1:]
-    else:
-        argv = []
+# 导入 Executor 类（从 tools/exec_blender.py）
+class Executor:
+    def __init__(self,
+                 blender_command: str,
+                 blender_file: str,
+                 blender_script: str,
+                 script_save: str,
+                 render_save: str,
+                 blender_save: Optional[str] = None,
+                 gpu_devices: Optional[str] = None):
+        self.blender_command = blender_command
+        self.blender_file = blender_file
+        self.blender_script = blender_script
+        self.script_path = Path(script_save)
+        self.render_path = Path(render_save)
+        self.blender_save = blender_save
+        self.gpu_devices = gpu_devices  # e.g.: "0,1" or "0"
+        self.count = 0
 
-    import argparse
+        self.script_path.mkdir(parents=True, exist_ok=True)
+        self.render_path.mkdir(parents=True, exist_ok=True)
+
+    def _execute_blender(self, script_path: str, render_path: str = '') -> Tuple[bool, str, str]:
+        cmd = [
+            self.blender_command,
+            "--background", self.blender_file,
+            "--python", self.blender_script,
+            "--", script_path, render_path
+        ]
+        if self.blender_save:
+            cmd.append(self.blender_save)
+        cmd_str = " ".join(cmd)
+        
+        # Set environment variables to control GPU devices
+        env = os.environ.copy()
+        if self.gpu_devices:
+            env['CUDA_VISIBLE_DEVICES'] = self.gpu_devices
+            logging.info(f"Setting CUDA_VISIBLE_DEVICES to: {self.gpu_devices}")
+            
+        # Ban blender audio error
+        env['AL_LIB_LOGLEVEL'] = '0'
+        
+        try:
+            proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True, env=env)
+            out = proc.stdout
+            err = proc.stderr
+            if os.path.isdir(render_path):
+                imgs = sorted([str(p) for p in Path(render_path).glob("*") if p.suffix in ['.png','.jpg']])
+                return True, imgs, out
+            return True, out, err
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Blender failed: {e}")
+            return False, e.stderr, e.stdout
+
+    def _encode_image(self, img_path: str) -> str:
+        img = Image.open(img_path)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode()
+
+    def _parse_code(self, full_code: str) -> str:
+        if full_code.startswith("```python") and full_code.endswith("```"):
+            return full_code[len("```python"):-len("```")]
+        return full_code
+
+    def execute(self, code: str) -> Dict:
+        self.count += 1
+        code_file = self.script_path / f"{self.count}.py"
+        render_file = self.render_path / f"{self.count}"
+        code = self._parse_code(code)
+        
+        # File operations
+        with open(code_file, "w") as f:
+            f.write(code)
+        os.makedirs(render_file, exist_ok=True)
+        for img in os.listdir(render_file):
+            os.remove(os.path.join(render_file, img))
+            
+        # Execute Blender
+        success, stdout, stderr = self._execute_blender(str(code_file), str(render_file))
+        # Check if render_file is empty or not exist
+        if not success:
+            os.rmdir(render_file)
+            return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
+        elif len(os.listdir(render_file)) == 0:
+            os.rmdir(render_file)
+            return {"status": "success", "output": {"text": ['The code executed successfully, but no image was generated. Please check and make sure that:\n(1) you have added the camera in the code (just modify the camera pose and other information, do not render the image in the code).\n(2) You may need to handle errors in the code. The following is the return message for reference. Please check if there are any errors and fix them: ' + (stderr or stdout)]}}
+        else:
+            return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
+
+
+logging.basicConfig(level=logging.INFO)
+
+def create_render_script(render_dir: Path, cam_name: str, cam_loc: tuple, 
+                        cam_rot_deg: tuple, lens: float, engine: str, 
+                        res: tuple, file_format: str, samples: int, 
+                        device: str, color_mgt_view: str, color_mgt_look: str):
+    """创建在 Blender 中运行的渲染脚本"""
+    script_content = f'''import bpy
+import sys
+from math import radians
+
+# 加载 .blend 文件路径从命令行参数获取
+blend_file = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
+if not blend_file:
+    print("Error: No blend file specified")
+    sys.exit(1)
+
+# 渲染输出路径
+render_output = sys.argv[sys.argv.index("--") + 2] if len(sys.argv) > sys.argv.index("--") + 2 else None
+if not render_output:
+    print("Error: No render output path specified")
+    sys.exit(1)
+
+# 加载 .blend 文件
+try:
+    bpy.ops.wm.open_mainfile(filepath=blend_file)
+except Exception as e:
+    print(f"Error loading blend file: {{e}}")
+    sys.exit(1)
+
+# 设置固定相机
+cam_name = "{cam_name}"
+cam_loc = {cam_loc}
+cam_rot_deg = {cam_rot_deg}
+lens = {lens}
+
+cam_obj = bpy.data.objects.get(cam_name)
+if cam_obj is None or cam_obj.type != 'CAMERA':
+    cam_data = bpy.data.cameras.new(cam_name)
+    cam_obj = bpy.data.objects.new(cam_name, cam_data)
+    bpy.context.scene.collection.objects.link(cam_obj)
+
+cam_obj.location = cam_loc
+cam_obj.rotation_mode = 'XYZ'
+cam_obj.rotation_euler = (radians(cam_rot_deg[0]), radians(cam_rot_deg[1]), radians(cam_rot_deg[2]))
+cam_obj.data.lens = lens
+bpy.context.scene.camera = cam_obj
+
+# 渲染设置
+scene = bpy.context.scene
+W, H = {res}
+scene.render.resolution_x = W
+scene.render.resolution_y = H
+scene.render.image_settings.file_format = "{file_format}"
+scene.view_settings.view_transform = "{color_mgt_view}"
+scene.view_settings.look = "{color_mgt_look}"
+
+if "{engine}" == "CYCLES":
+    scene.render.engine = "CYCLES"
+    cycles = scene.cycles
+    cycles.device = "GPU" if "{device}" == "GPU" else "CPU"
+    try:
+        prefs = bpy.context.preferences
+        prefs.addons["cycles"].preferences.compute_device_type = "CUDA"
+    except Exception:
+        pass
+    cycles.samples = {samples}
+    cycles.use_adaptive_sampling = True
+else:
+    scene.render.engine = "BLENDER_EEVEE"
+    scene.eevee.taa_render_samples = max(1, {samples})
+
+# 渲染
+bpy.context.scene.render.filepath = render_output
+try:
+    bpy.ops.render.render(write_still=True)
+    print(f"Rendered: {{render_output}}")
+except Exception as e:
+    print(f"Render failed: {{e}}")
+    sys.exit(1)
+'''
+    return script_content
+
+def render_blend_file(blender_command: str, blend_file: str, render_output: str, 
+                     render_script_content: str, gpu_devices: Optional[str] = None):
+    """渲染单个 .blend 文件"""
+    render_script_path = Path(blend_file).parent / "_temp_render.py"
+    with open(render_script_path, "w") as f:
+        f.write(render_script_content)
+    
+    cmd = [
+        blender_command,
+        "--background", blend_file,
+        "--python", str(render_script_path),
+        "--", blend_file, render_output
+    ]
+    cmd_str = " ".join(cmd)
+    
+    env = os.environ.copy()
+    if gpu_devices:
+        env['CUDA_VISIBLE_DEVICES'] = gpu_devices
+    env['AL_LIB_LOGLEVEL'] = '0'
+    
+    try:
+        proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True, env=env)
+        return True, proc.stdout
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Render failed for {blend_file}: {e.stderr}")
+        return False, e.stderr
+    finally:
+        if render_script_path.exists():
+            render_script_path.unlink()
+
+def parse_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--steps", required=True, type=str, help="steps.json")
-    ap.add_argument("--out_dir", type=str, default="renders")
+    ap.add_argument("--name", required=True, type=str, help="Output name (e.g., 20251028_133713)")
+    ap.add_argument("--task", type=str, default="tofu17", help="Task name")
+    ap.add_argument("--blender_command", type=str, default="blender", help="Blender command")
+    ap.add_argument("--blender_file", type=str, required=True, help="Initial blender file")
+    ap.add_argument("--blender_script", type=str, default="data/static_scene/verifier_script.py", help="Blender execution script")
+    ap.add_argument("--blender_save", type=str, default=None, help="Directory to save intermediate .blend files")
+    ap.add_argument("--render_dir", type=str, default=None, help="Directory to save rendered images")
     ap.add_argument("--cam_name", type=str, default="AgentFixedCam")
     ap.add_argument("--cam_loc", type=str, default="0,-6,4", help="x,y,z")
     ap.add_argument("--cam_rot_deg", type=str, default="65,0,0", help="x,y,z (degrees, Euler XYZ)")
@@ -30,94 +235,105 @@ def parse_args(argv):
     ap.add_argument("--color_mgt_view", type=str, default="Filmic")
     ap.add_argument("--color_mgt_look", type=str, default="None")
     ap.add_argument("--file_format", type=str, default="PNG", choices=["PNG","JPEG"])
-    args = ap.parse_args(argv)
-    return args
-
-def ensure_camera(name, loc, rot_deg, lens):
-    # 获取或新建相机
-    cam_obj = bpy.data.objects.get(name)
-    if cam_obj is None or cam_obj.type != 'CAMERA':
-        cam_data = bpy.data.cameras.new(name)
-        cam_obj = bpy.data.objects.new(name, cam_data)
-        bpy.context.scene.collection.objects.link(cam_obj)
-    # 设置参数
-    cam_obj.location = loc
-    cam_obj.rotation_mode = 'XYZ'
-    cam_obj.rotation_euler = (radians(rot_deg[0]), radians(rot_deg[1]), radians(rot_deg[2]))
-    cam_obj.data.lens = lens
-    bpy.context.scene.camera = cam_obj
-    return cam_obj
-
-def setup_render(engine, res_xy, file_format, samples, device, view="Filmic", look="None"):
-    scene = bpy.context.scene
-    W, H = res_xy
-    scene.render.resolution_x = W
-    scene.render.resolution_y = H
-    scene.render.image_settings.file_format = file_format
-    scene.view_settings.view_transform = view
-    scene.view_settings.look = look
-
-    if engine == "CYCLES":
-        scene.render.engine = "CYCLES"
-        prefs = bpy.context.preferences
-        cycles = scene.cycles
-        # 设备
-        cycles.device = "GPU" if device == "GPU" else "CPU"
-        # GPU 打开
-        try:
-            prefs.addons["cycles"].preferences.compute_device_type = "CUDA"  # 或 "OPTIX" / "HIP" / "METAL"
-        except Exception:
-            pass
-        cycles.samples = samples
-        cycles.use_adaptive_sampling = True
-    else:
-        scene.render.engine = "BLENDER_EEVEE"
-        scene.eevee.taa_render_samples = max(1, samples)
-
-def exec_code_safely(code_str, step_idx):
-    # 在 Blender 环境执行用户代码（建议你的代码是幂等/增量安全的）
-    # 为避免污染内置命名空间，用一个隔离 dict；同时保留 bpy 可用
-    glb = {"bpy": bpy, "math": math}
-    lcl = {}
-    try:
-        exec(code_str, glb, lcl)
-    except Exception as e:
-        print(f"[Step {step_idx:03d}] 执行代码出错：{e}")
-        import traceback; traceback.print_exc()
+    ap.add_argument("--gpu_devices", type=str, default=None, help="GPU devices (e.g., '0,1')")
+    return ap.parse_args()
 
 def main():
-    args = parse_args(sys.argv)
-    steps = json.loads(Path(args.steps).read_text(encoding="utf-8"))
-    out_dir = Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # 相机
+    args = parse_args()
+    
+    # 构建路径
+    base_path = Path(f"/home/shaofengyin/AgenticVerifier/output/static_scene/{args.name}/{args.task}")
+    scripts_dir = base_path / "scripts"
+    
+    if not scripts_dir.exists():
+        logging.error(f"Scripts directory not found: {scripts_dir}")
+        return
+    
+    # 设置输出目录
+    if args.blender_save is None:
+        args.blender_save = str(base_path / "blend_files")
+    if args.render_dir is None:
+        args.render_dir = str(base_path / "renders")
+    
+    blender_save_dir = Path(args.blender_save)
+    render_dir = Path(args.render_dir)
+    blender_save_dir.mkdir(parents=True, exist_ok=True)
+    render_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 枚举脚本文件
+    script_files = sorted(scripts_dir.glob("*.py"), key=lambda p: int(p.stem) if p.stem.isdigit() else float('inf'))
+    logging.info(f"Found {len(script_files)} script files")
+    
+    # 解析相机参数
     cam_loc = tuple(float(x) for x in args.cam_loc.split(","))
     cam_rot_deg = tuple(float(x) for x in args.cam_rot_deg.split(","))
-    cam = ensure_camera(args.cam_name, cam_loc, cam_rot_deg, args.lens)
-
-    # 渲染设置
     W, H = (int(s) for s in args.res.lower().split("x"))
-    setup_render(args.engine, (W, H), args.file_format, args.samples, args.device,
-                 view=args.color_mgt_view, look=args.color_mgt_look)
-
-    # 顺序执行每一步 code，并渲染
-    for i, step in enumerate(steps, start=1):
-        code = step.get("code", "")
-        print(f"[Step {i:03d}] 执行代码...")
-        exec_code_safely(code, i)
-
-        # 固定相机渲染
-        bpy.context.scene.camera = cam
-        out_path = out_dir / f"step_{i:03d}.png"
-        bpy.context.scene.render.filepath = str(out_path)
-        try:
-            bpy.ops.render.render(write_still=True)
-            print(f"[Step {i:03d}] 渲染完毕：{out_path}")
-        except Exception as e:
-            print(f"[Step {i:03d}] 渲染失败：{e}")
-
-    print("[OK] 所有步骤执行并完成渲染。")
+    
+    # 创建渲染脚本内容
+    render_script_content = create_render_script(
+        render_dir, args.cam_name, cam_loc, cam_rot_deg, args.lens,
+        args.engine, (W, H), args.file_format, args.samples, args.device,
+        args.color_mgt_view, args.color_mgt_look
+    )
+    
+    # 处理每个脚本（按顺序执行，每一步基于前一步的 .blend 文件）
+    current_blend_file = args.blender_file
+    
+    for script_file in script_files:
+        step_num = script_file.stem
+        if not step_num.isdigit():
+            logging.warning(f"Skipping non-numeric script: {script_file.name}")
+            continue
+        
+        logging.info(f"[Step {step_num}] Processing {script_file.name}...")
+        
+        # 读取脚本内容
+        with open(script_file, "r") as f:
+            code = f.read()
+        
+        # 为当前步骤设置保存路径
+        step_blend_file = blender_save_dir / f"{step_num}.blend"
+        
+        # 创建 Executor，从前一步的 .blend 文件加载（第一步从初始文件加载）
+        temp_executor = Executor(
+            blender_command=args.blender_command,
+            blender_file=current_blend_file,
+            blender_script=args.blender_script,
+            script_save=str(scripts_dir),
+            render_save=str(render_dir),
+            blender_save=str(step_blend_file),  # 保存为当前步骤的 .blend 文件
+            gpu_devices=args.gpu_devices
+        )
+        temp_executor.count = int(step_num)
+        
+        # 执行脚本并保存 .blend 文件
+        result = temp_executor.execute(code)
+        if result["status"] != "success":
+            logging.error(f"[Step {step_num}] Execution failed: {result['output'].get('text', ['Unknown error'])}")
+            # 即使失败也继续，但跳过渲染
+            continue
+        
+        # 检查保存的 .blend 文件
+        if not step_blend_file.exists():
+            logging.warning(f"[Step {step_num}] Blend file not found: {step_blend_file}")
+            continue
+        
+        # 更新当前 blend 文件为下一步的基础
+        current_blend_file = str(step_blend_file)
+        
+        # 渲染图片
+        render_output = render_dir / f"step_{step_num}.png"
+        success, output = render_blend_file(
+            args.blender_command, str(step_blend_file), str(render_output),
+            render_script_content, args.gpu_devices
+        )
+        
+        if success:
+            logging.info(f"[Step {step_num}] Rendered: {render_output}")
+        else:
+            logging.error(f"[Step {step_num}] Render failed: {output}")
+    
+    logging.info("[OK] All steps processed and rendered.")
 
 if __name__ == "__main__":
     main()
