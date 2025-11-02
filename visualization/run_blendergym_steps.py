@@ -343,9 +343,6 @@ def main():
             logging.info(f"[Step {step_num}] Rendered: {render_output}")
         else:
             logging.error(f"[Step {step_num}] Render failed: {output}")
-            
-        if int(step_num) > 2:
-            break
     
     logging.info("[OK] All steps processed and rendered.")
 
