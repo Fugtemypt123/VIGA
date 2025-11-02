@@ -235,7 +235,7 @@ def main():
         if os.path.exists(f'{base_path}/{task}/generator_memory.json'):
             traj_path = f'{base_path}/{task}/generator_memory.json'
     
-    if ap.fix_camera:
+    if args.fix_camera:
         image_path = os.path.dirname(traj_path) + '/video/renders'
     
     args.renders_dir = Path(traj_path).parent / "renders"
@@ -251,6 +251,8 @@ def main():
         if 'tool_calls' not in complete_step:
             continue
         tool_call = complete_step['tool_calls'][0]
+        if tool_call['function']['name'] == "execute_and_evaluate" or tool_call['function']['name'] == "get_scene_info":
+            code_count += 1
         if tool_call['function']['name'] != "execute_and_evaluate":
             continue
         step = json.loads(tool_call['function']['arguments'])
@@ -262,13 +264,12 @@ def main():
         if i+1 >= len(traj):
             continue
         
-        code_count += 1
-        
-        if ap.fix_camera:
+        if args.fix_camera:
             right_img_path = os.path.join(image_path, f'{code_count}.png')
             if not os.path.exists(right_img_path):
                 continue
             right_img = Image.open(right_img_path).convert("RGB")
+            print(f"Processing step {code_count}...")
         else:
             user_message = traj[i+1]
             if user_message['role'] != 'user':
@@ -283,9 +284,8 @@ def main():
             if not os.path.exists(right_img_path):
                 continue
             right_img = Image.open(right_img_path).convert("RGB")
-        
-        print(f"Processing step {count+1}...")
-        count += 1
+            print(f"Processing step {count+1}...")
+            count += 1
 
         # 计算滚动范围（如果开启滚动）
         max_scroll = 0
