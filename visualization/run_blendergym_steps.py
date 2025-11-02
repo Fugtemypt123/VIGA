@@ -54,6 +54,7 @@ class Executor:
         env['AL_LIB_LOGLEVEL'] = '0'
         
         try:
+            env['RENDER_DIR'] = render_path
             proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True, env=env)
             out = proc.stdout
             err = proc.stderr
@@ -113,24 +114,8 @@ def create_render_script(render_dir: Path, cam_name: str, cam_loc: tuple,
 import sys
 from math import radians
 
-# 加载 .blend 文件路径从命令行参数获取
-blend_file = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
-if not blend_file:
-    print("Error: No blend file specified")
-    sys.exit(1)
-
 # 渲染输出路径
-render_output = sys.argv[sys.argv.index("--") + 2] if len(sys.argv) > sys.argv.index("--") + 2 else None
-if not render_output:
-    print("Error: No render output path specified")
-    sys.exit(1)
-
-# 加载 .blend 文件
-try:
-    bpy.ops.wm.open_mainfile(filepath=blend_file)
-except Exception as e:
-    print(f"Error loading blend file: {{e}}")
-    sys.exit(1)
+render_path = os.environ.get("RENDER_DIR", "/tmp")
 
 # 设置固定相机
 cam_name = "{cam_name}"
@@ -175,15 +160,42 @@ else:
     scene.eevee.taa_render_samples = max(1, {samples})
 
 # 渲染
-bpy.context.scene.render.filepath = render_output
-try:
-    bpy.ops.render.render(write_still=True)
-    print(f"Rendered: {{render_output}}")
-except Exception as e:
-    print(f"Render failed: {{e}}")
-    sys.exit(1)
+bpy.context.scene.render.filepath = render_path
+bpy.ops.render.render(write_still=True)
+print("Render completed to", bpy.context.scene.render.filepath)
 '''
     return script_content
+
+def create_empty_blend_file(blender_command: str, output_path: str, gpu_devices: Optional[str] = None) -> bool:
+    """创建一个新的空 blender 文件"""
+    create_script = f'''import bpy
+bpy.ops.wm.save_as_mainfile(filepath=r"{output_path}")
+'''
+    script_path = Path(output_path).parent / "_temp_create.py"
+    with open(script_path, "w") as f:
+        f.write(create_script)
+    
+    cmd = [
+        blender_command,
+        "--background",
+        "--python", str(script_path)
+    ]
+    cmd_str = " ".join(cmd)
+    
+    env = os.environ.copy()
+    if gpu_devices:
+        env['CUDA_VISIBLE_DEVICES'] = gpu_devices
+    env['AL_LIB_LOGLEVEL'] = '0'
+    
+    try:
+        proc = subprocess.run(cmd_str, shell=True, check=True, capture_output=True, text=True, env=env)
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to create empty blend file: {e.stderr}")
+        return False
+    finally:
+        if script_path.exists():
+            script_path.unlink()
 
 def render_blend_file(blender_command: str, blend_file: str, render_output: str, 
                      render_script_content: str, gpu_devices: Optional[str] = None):
@@ -219,8 +231,8 @@ def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True, type=str, help="Output name (e.g., 20251028_133713)")
     ap.add_argument("--task", type=str, default="tofu17", help="Task name")
-    ap.add_argument("--blender_command", type=str, default="blender", help="Blender command")
-    ap.add_argument("--blender_file", type=str, required=True, help="Initial blender file")
+    ap.add_argument("--blender_command", type=str, default="utils/blender/infinigen/blender/blender", help="Blender command")
+    # blender_file 不再需要，会在输出目录下自动创建
     ap.add_argument("--blender_script", type=str, default="data/static_scene/verifier_script.py", help="Blender execution script")
     ap.add_argument("--blender_save", type=str, default=None, help="Directory to save intermediate .blend files")
     ap.add_argument("--render_dir", type=str, default=None, help="Directory to save rendered images")
@@ -242,16 +254,20 @@ def main():
     args = parse_args()
     
     # 构建路径
-    base_path = Path(f"/home/shaofengyin/AgenticVerifier/output/static_scene/{args.name}/{args.task}")
-    scripts_dir = base_path / "scripts"
+    base_path = Path(f"/home/shaofengyin/AgenticVerifier/output/static_scene/{args.name}/")
+    for dir in os.listdir(base_path):
+        base_path = base_path / dir / "video"
+        os.makedirs(base_path, exist_ok=True)
+        break
     
-    if not scripts_dir.exists():
+    scripts_dir = os.path.dirname(base_path) + "/scripts"    
+    if not os.path.exists(scripts_dir):
         logging.error(f"Scripts directory not found: {scripts_dir}")
         return
     
     # 设置输出目录
     if args.blender_save is None:
-        args.blender_save = str(base_path / "blend_files")
+        args.blender_save = str(base_path)
     if args.render_dir is None:
         args.render_dir = str(base_path / "renders")
     
@@ -260,8 +276,15 @@ def main():
     blender_save_dir.mkdir(parents=True, exist_ok=True)
     render_dir.mkdir(parents=True, exist_ok=True)
     
+    # 创建初始的空 blender 文件
+    initial_blend_file = blender_save_dir / "video.blend"
+    logging.info(f"Creating initial empty blend file: {initial_blend_file}")
+    if not create_empty_blend_file(args.blender_command, str(initial_blend_file), args.gpu_devices):
+        logging.error("Failed to create initial blend file")
+        return
+    
     # 枚举脚本文件
-    script_files = sorted(scripts_dir.glob("*.py"), key=lambda p: int(p.stem) if p.stem.isdigit() else float('inf'))
+    script_files = sorted(os.listdir(scripts_dir))
     logging.info(f"Found {len(script_files)} script files")
     
     # 解析相机参数
@@ -277,7 +300,7 @@ def main():
     )
     
     # 处理每个脚本（按顺序执行，每一步基于前一步的 .blend 文件）
-    current_blend_file = args.blender_file
+    current_blend_file = str(initial_blend_file)
     
     for script_file in script_files:
         step_num = script_file.stem
