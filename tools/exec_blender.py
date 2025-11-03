@@ -306,8 +306,8 @@ def main():
         # Read args from environment for convenience
         args = {
             "blender_command": os.getenv("BLENDER_COMMAND", "utils/Infinigen/blender/blender"),
-            "blender_file": os.getenv("BLENDER_FILE", "data/blenderstudio/level1/camera1/blender_file.blend"),
-            "blender_script": os.getenv("BLENDER_SCRIPT", "data/blenderstudio/generator_script.py"),
+            "blender_file": os.getenv("BLENDER_FILE", "data/blendergym/blendshape1/blender_file.blend"),
+            "blender_script": os.getenv("BLENDER_SCRIPT", "data/blendergym/generator_script.py"),
             "output_dir": os.getenv("OUTPUT_DIR", "output/test/exec_blender"),
             "blender_save": os.getenv("BLENDER_SAVE", None),
             "gpu_devices": os.getenv("GPU_DEVICES", None),

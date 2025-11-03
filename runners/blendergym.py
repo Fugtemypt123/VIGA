@@ -230,7 +230,7 @@ def main():
     parser.add_argument("--verifier-tools", default="tools/verifier_base.py,tools/investigator.py", help="Comma-separated list of verifier tool server scripts")
     
     # Parallel execution parameters
-    parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")
+    parser.add_argument("--max-workers", type=int, default=8, help="Maximum number of parallel workers")
     parser.add_argument("--sequential", action="store_true", help="Run tasks sequentially instead of in parallel")
     
     available_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")

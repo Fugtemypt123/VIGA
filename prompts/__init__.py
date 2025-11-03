@@ -37,6 +37,12 @@ prompts_dict = {
             'generator': design2code_generator_system,
             'verifier': design2code_verifier_system
         }
+    },
+    'blenderstudio': {
+        'system': {
+            'generator': blendergym_generator_system,
+            'verifier': blendergym_verifier_system
+        }
     }
 }
 

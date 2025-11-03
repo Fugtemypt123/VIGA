@@ -6,13 +6,6 @@ Loads BlenderGym dataset and runs the dual-agent system for 3D scene generation.
 import os
 import sys
 import shutil
-from utils._api_keys import OPENAI_API_KEY
-
-# Add the project root to Python path
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 import json
 import time
 import argparse
@@ -23,6 +16,9 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils._api_keys import OPENAI_API_KEY
 
 def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     """
@@ -184,7 +180,6 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         Tuple of (task_name, success: bool, error_message: str)
     """
     task_name = "/".join(task_config['task_dir'].split('/')[-2:])
-    level = task_config['task_name'].split('-')[0]
     print(f"\n{'='*60}")
     print(f"Running task: {task_name}")
     print(f"{'='*60}")
@@ -198,9 +193,6 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
     # copy blender file to output directory
     shutil.copy(task_config["blender_file"], output_base / "blender_file.blend")
     
-    if level != 'level4':
-        task_name = level
-          
     # Build main.py command
     cmd = [
         sys.executable, "main.py",
@@ -222,11 +214,10 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         # Blender execution parameters (for generator)
         "--blender-command", args.blender_command,
         "--blender-file", str(output_base / "blender_file.blend"),
-        "--blender-script", f'data/blendergym/{task_name}/pipeline_render_script.py',
+        "--blender-script", args.blender_script,
+        "--gpu-devices", args.gpu_devices,
+        "--clear-memory"
     ]
-    
-    if args.save_blender_file:
-        cmd.append("--save-blender-file")
     
     print(f"Command: {' '.join(cmd)}")
     
@@ -305,11 +296,11 @@ def main():
     parser = argparse.ArgumentParser(description="BlenderGym Runner for AgenticVerifier")
     
     # Dataset parameters
-    parser.add_argument("--dataset-path", default="data/blendergym_hard", help="Path to BlenderGym dataset root directory")
-    parser.add_argument("--output-dir", default=f"output/blendergym_hard/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
+    parser.add_argument("--dataset-path", default="data/blenderstudio", help="Path to BlenderStudio dataset root directory")
+    parser.add_argument("--output-dir", default=f"output/blenderstudio/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
     
     # Task selection
-    parser.add_argument("--task", choices=['all', 'level1', 'level2', 'level3', 'level4'], default='all', help="Specific task to run")
+    parser.add_argument("--task", choices=['all', 'level1', 'level2', 'level3'], default='all', help="Specific task to run")
     parser.add_argument("--task-id", default=None, help="Specific task id to run (e.g., '1')")
     parser.add_argument("--test-id", default=None, help="Test ID to check for failed cases and retest them")
     
@@ -321,23 +312,28 @@ def main():
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
-    parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
-    parser.add_argument("--save-blender-file", default=True, action="store_true", help="Save blender file")
+    parser.add_argument("--blender-command", default="utils/Infinigen/blender/blender", help="Blender command path")
+    parser.add_argument("--blender-script", default="data/blenderstudio/generator_script.py", help="Blender execution script")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
     parser.add_argument("--verifier-tools", default="tools/verifier_base.py,tools/investigator.py", help="Comma-separated list of verifier tool server scripts")
     
     # Parallel execution parameters
-    parser.add_argument("--max-workers", type=int, default=10, help="Maximum number of parallel workers")
+    parser.add_argument("--max-workers", type=int, default=8, help="Maximum number of parallel workers")
     parser.add_argument("--sequential", action="store_true", help="Run tasks sequentially instead of in parallel")
+    
+    available_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")
+    if available_gpu_devices is None:
+        available_gpu_devices = "0,1,2,3,4,5,6,7"
+    parser.add_argument("--gpu-devices", default=available_gpu_devices, help="GPU devices for Blender")
     
     args = parser.parse_args()
     
     # Handle test-id logic
     if args.test_id is not None:
         # Check for failed tasks in the specified test output directory
-        test_output_dir = f"output/blendergym_hard/{args.test_id}"
+        test_output_dir = f"output/blenderstudio/{args.test_id}"
         failed_task_configs = check_failed_tasks(test_output_dir)
         
         if not failed_task_configs:
@@ -360,7 +356,7 @@ def main():
             sys.exit(1)
     else:
         # Normal execution - load dataset
-        print(f"Loading BlenderGym-hard dataset from: {args.dataset_path}")
+        print(f"Loading BlenderStudio dataset from: {args.dataset_path}")
         tasks = load_blendergym_dataset(args.dataset_path, args.task, args.task_id)
         
         if not tasks:
@@ -381,7 +377,7 @@ def main():
     # Create output directory (currently use the original output directory)
     if args.test_id is not None:
         # For retesting, create a new output directory with retest suffix
-        args.output_dir = f"output/blendergym_hard/{args.test_id}"
+        args.output_dir = f"output/blenderstudio/{args.test_id}"
         print(f"Retesting failed tasks. Use original output directory: {args.output_dir}")
     
     os.makedirs(args.output_dir, exist_ok=True)
