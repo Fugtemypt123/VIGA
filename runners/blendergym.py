@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils._api_keys import OPENAI_API_KEY, MESHY_API_KEY, VA_API_KEY, OPENAI_BASE_URL
+from utils.common import get_model_info
 
 def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[str] = None, task_id: Optional[int] = None) -> List[Dict]:
 
@@ -108,8 +108,8 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         sys.executable, "main.py",
         "--mode", "blendergym",
         "--model", args.model,
-        "--api-key", args.api_key,
-        "--api-base-url", args.api_base_url if args.api_base_url else "https://api.openai.com/v1",
+        "--api-key", get_model_info(args.model)["api_key"],
+        "--api-base-url", get_model_info(args.model)["base_url"],
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
         "--task-name", task_config["task_name"],
@@ -216,8 +216,6 @@ def main():
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=20, help="Maximum number of interaction rounds")
     parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--api-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
-    parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
@@ -272,8 +270,6 @@ def main():
     # Save task list for reference
     with open(os.path.join(args.output_dir, "tasks.json"), "w") as f:
         json.dump(tasks, f, indent=2)
-        
-    tasks = tasks[:1]
 
     # Run tasks
     start_time = time.time()

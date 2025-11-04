@@ -1,13 +1,11 @@
 import os
 import argparse
 import subprocess
-from openai import OpenAI
 import sys
 
 # add runners directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.common import get_image_base64, extract_code_pieces
-from utils._api_keys import OPENAI_API_KEY, OPENAI_BASE_URL, CLAUDE_API_KEY, CLAUDE_BASE_URL, GEMINI_API_KEY, GEMINI_BASE_URL
+from utils.common import get_image_base64, extract_code_pieces, build_client
 
 SYSTEM_MESSAGE = """You are an expert presentation slides designer who creates modern, fashionable, and stylish slides using Python code. Your job is to generate the required PPTX slide by writing and executing a Python script. Make sure to follow the guidelines below and do not skip any of them:
 1. Ensure your code can successfully execute. If needed, you can also write tests to verify your code.
@@ -26,15 +24,6 @@ IMAGE_INSTRUCTION_DICT = {
     "image": "If you need to use the provided images, refer to the image file names in the instructions.",
     "no_image": "If you need to add images, you will need to generate or search for images yourself.",
 }
-
-
-def build_client(model_name: str):
-    if "gpt" in model_name:
-        return OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
-    elif "claude" in model_name:
-        return OpenAI(api_key=CLAUDE_API_KEY, base_url=CLAUDE_BASE_URL)
-    elif "gemini" in model_name:
-        return OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
 
 def main():
     # system message

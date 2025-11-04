@@ -18,7 +18,7 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils._api_keys import OPENAI_API_KEY
+from utils.common import get_model_info
 
 def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     """
@@ -198,8 +198,8 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         sys.executable, "main.py",
         "--mode", "blenderstudio",
         "--model", args.model,
-        "--api-key", args.api_key,
-        "--api-base-url", args.openai_base_url if args.openai_base_url else "https://api.openai.com/v1",
+        "--api-key", get_model_info(args.model)["api_key"],
+        "--api-base-url", get_model_info(args.model)["base_url"],
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
         "--task-name", task_config["task_name"],
@@ -307,8 +307,6 @@ def main():
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
     parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
-    parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters

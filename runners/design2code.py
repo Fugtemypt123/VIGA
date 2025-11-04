@@ -16,7 +16,9 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from utils._api_keys import OPENAI_API_KEY
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.common import get_model_info
 
 
 def _collect_test_pairs(dataset_dir: str) -> List[Tuple[str, str, str]]:
@@ -91,8 +93,8 @@ def run_design2code_task(task_config: Dict, args) -> tuple:
         sys.executable, "main.py",
         "--mode", "design2code",
         "--model", args.model,
-        "--api-key", args.api_key,
-        "--api-base-url", args.api_base_url if args.api_base_url else "https://api.openai.com/v1",
+        "--api-key", get_model_info(args.model)["api_key"],
+        "--api-base-url", get_model_info(args.model)["base_url"],
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
         "--task-name", "design2code",
@@ -179,8 +181,6 @@ def main():
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
     parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--api-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
-    parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
 
     # Agent server paths

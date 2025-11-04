@@ -138,7 +138,7 @@ if __name__ == "__main__":
                         help="Use the library to create the slide deck.")
     parser.add_argument("--model_name", type=str, default="gpt-4o", 
                         help="Model name to use.")
-    parser.add_argument("--max-workers", type=int, default=1,
+    parser.add_argument("--max-workers", type=int, default=8,
                         help="Maximum number of slide generation workers to run in parallel.")
     parser.add_argument("--cover_all", action="store_true",
                         help="Cover all slides in the slide deck.")

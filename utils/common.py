@@ -4,6 +4,37 @@ from PIL import Image
 import io
 import base64
 from typing import Dict, List, Optional
+from openai import OpenAI
+from _api_keys import OPENAI_API_KEY, OPENAI_BASE_URL, CLAUDE_API_KEY, CLAUDE_BASE_URL, GEMINI_API_KEY, GEMINI_BASE_URL, QWEN_BASE_URL, MESHY_API_KEY, VA_API_KEY
+
+def build_client(model_name: str):
+    model_name = model_name.lower()
+    if "gpt" in model_name:
+        return OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+    elif "claude" in model_name:
+        return OpenAI(api_key=CLAUDE_API_KEY, base_url=CLAUDE_BASE_URL)
+    elif "gemini" in model_name:
+        return OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
+    elif "qwen" in model_name:
+        return OpenAI(api_key='not_used', base_url=QWEN_BASE_URL)
+    else:
+        raise ValueError(f"Invalid model name: {model_name}")
+    
+def get_model_info(model_name: str):
+    model_name = model_name.lower()
+    if "gpt" in model_name:
+        return {"api_key": OPENAI_API_KEY, "base_url": OPENAI_BASE_URL}
+    elif "claude" in model_name:
+        return {"api_key": CLAUDE_API_KEY, "base_url": CLAUDE_BASE_URL}
+    elif "gemini" in model_name:
+        return {"api_key": GEMINI_API_KEY, "base_url": GEMINI_BASE_URL}
+    elif "qwen" in model_name:
+        return {"api_key": 'not_used', "base_url": QWEN_BASE_URL}
+    else:
+        raise ValueError(f"Invalid model name: {model_name}")
+    
+def get_meshy_info():
+    return {"meshy_api_key": MESHY_API_KEY, "va_api_key": VA_API_KEY}
 
 def get_image_base64(image_path: str) -> str:
     """Return a full data URL for the image, preserving original jpg/png format."""
@@ -71,71 +102,6 @@ def save_thought_process(memory: List[Dict], thought_save: str, current_round: i
     except Exception as e:
         import logging
         logging.error(f"Failed to save thought process: {e}")
-
-def get_scene_info(task_name: str, blender_file_path: str) -> str:
-    """
-    Get scene information from Blender file by executing a script to list all objects.
-    
-    Args:
-        blender_file_path: Path to the Blender file
-        
-    Returns:
-        String containing scene information with object names
-    """
-    try:
-        import bpy
-        import mathutils
-        
-        # Clear existing scene
-        bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.delete(use_global=False)
-        
-        # Open the blender file (no saving; read-only introspection)
-        bpy.ops.wm.open_mainfile(filepath=blender_file_path)
-        
-        # Get scene information
-        scene_info = []
-        
-        print(bpy.context.scene.objects.keys())
-        
-        # List all objects in the scene
-        scene_info.append("Scene Information:")
-        for obj in bpy.context.scene.objects:
-            obj_name = obj.name
-
-            # Get object bounding box
-            bbox_corners = [obj.matrix_world @ mathutils.Vector(corner) for corner in obj.bound_box]
-            bbox_min = mathutils.Vector((
-                min(corner.x for corner in bbox_corners),
-                min(corner.y for corner in bbox_corners),
-                min(corner.z for corner in bbox_corners)
-            ))
-            bbox_max = mathutils.Vector((
-                max(corner.x for corner in bbox_corners),
-                max(corner.y for corner in bbox_corners),
-                max(corner.z for corner in bbox_corners)
-            ))
-            bbox_size = bbox_max - bbox_min
-            
-            scene_info.append(f"- Name: {obj_name}; Location: {obj.location}; BBox: min({bbox_min.x:.3f}, {bbox_min.y:.3f}, {bbox_min.z:.3f}), max({bbox_max.x:.3f}, {bbox_max.y:.3f}, {bbox_max.z:.3f})")
-            
-        if len(scene_info) == 1:
-            scene_info.append("All the information are provided in the code.")
-        
-        return "\n".join(scene_info)
-        
-    except ImportError:
-        # If bpy is not available, return a placeholder message
-        return "Scene information not available (Blender Python API not accessible)"
-    except Exception as e:
-        return f"Error getting scene information: {str(e)}"
-    finally:
-        # Ensure we do not leave a file open in Blender. Reset to factory settings silently.
-        try:
-            bpy.ops.wm.read_factory_settings(use_empty=True)
-        except Exception:
-            # Suppress any cleanup errors to avoid shutdown issues
-            pass
         
 def extract_code_pieces(text: str, concat: bool = True) -> list[str]:
     """Extract code pieces from a text string.

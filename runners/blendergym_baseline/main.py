@@ -10,24 +10,13 @@ import argparse
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import torch
-from openai import OpenAI
 import subprocess
 
 # add runners directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils._api_keys import OPENAI_API_KEY, OPENAI_BASE_URL, CLAUDE_API_KEY, CLAUDE_BASE_URL, GEMINI_API_KEY, GEMINI_BASE_URL
-from utils.common import get_image_base64, extract_code_pieces
+from utils.common import get_image_base64, extract_code_pieces, build_client
 
 prompt = """You are the BlenderGymGenerator—a professional Blender code agent responsible for converting an initial 3D scene into a target scene and generating it based on a provided target image. You will receive: (1) initial Python code to set up the current scene; (2) initial images displaying the current scene; and (3) target images displaying the target scene. Your task is to modify the code to transform the initial scene into the target scene. Please output the complete modified code."""
-
-def build_client(model_name: str):
-    if "gpt" in model_name:
-        return OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
-    elif "claude" in model_name:
-        return OpenAI(api_key=CLAUDE_API_KEY, base_url=CLAUDE_BASE_URL)
-    elif "gemini" in model_name:
-        return OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
 
 def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
     """
@@ -217,7 +206,7 @@ def main():
     
     available_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")
     if available_gpu_devices is None:
-        available_gpu_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
+        available_gpu_devices = "0,1,2,3,4,5,6,7"
     parser.add_argument("--gpu-devices", default=available_gpu_devices, help="GPU devices for Blender")
     
     args = parser.parse_args()

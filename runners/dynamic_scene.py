@@ -14,9 +14,10 @@ import signal
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from utils._api_keys import OPENAI_API_KEY, MESHY_API_KEY, VA_API_KEY, OPENAI_BASE_URL
 import threading
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.common import get_model_info, get_meshy_info
 
 def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
     """
@@ -128,8 +129,8 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         sys.executable, "main.py",
         "--mode", "dynamic_scene",
         "--model", args.model,
-        "--api-key", args.api_key,
-        "--api-base-url", args.api_base_url if args.api_base_url else "https://api.openai.com/v1",
+        "--api-key", get_model_info(args.model)["api_key"],
+        "--api-base-url", get_model_info(args.model)["base_url"],
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
         "--target-image-path", task_config["target_image_path"],
@@ -140,8 +141,8 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         "--blender-command", args.blender_command,
         "--blender-file", created_blender_file,
         "--blender-script", args.blender_script,
-        "--meshy_api_key", args.meshy_api_key,
-        "--va_api_key", args.va_api_key,
+        "--meshy_api_key", get_meshy_info()["meshy_api_key"],
+        "--va_api_key", get_meshy_info()["va_api_key"],
         "--blender-save", created_blender_file,
         "--assets-dir", task_config["assets_dir"],
         "--init-code-path", task_config["init_code_path"],
@@ -224,8 +225,6 @@ def main():
     # Main.py parameters
     parser.add_argument("--max-rounds", type=int, default=100, help="Maximum number of interaction rounds")
     parser.add_argument("--model", default="gpt-5", help="OpenAI vision model to use")
-    parser.add_argument("--api-base-url", default=OPENAI_BASE_URL, help="OpenAI-compatible API base URL")
-    parser.add_argument("--api-key", default=OPENAI_API_KEY, help="OpenAI API key")
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
@@ -238,20 +237,11 @@ def main():
     parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/meshy.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
     parser.add_argument("--verifier-tools", default="tools/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
-    # API keys
-    parser.add_argument("--meshy_api_key", default=MESHY_API_KEY, help="Meshy API key")
-    parser.add_argument("--va_api_key", default=VA_API_KEY, help="VA API key")
-    
     # Execution parameters
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum number of parallel workers")
     parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
     
     args = parser.parse_args()
-    
-    # Validate API key
-    if not args.api_key:
-        print("Error: OpenAI API key is required. Set OPENAI_API_KEY environment variable or use --api-key")
-        sys.exit(1)
     
     # Load dataset
     print(f"Loading dynamic scene dataset from: {args.dataset_path}")
