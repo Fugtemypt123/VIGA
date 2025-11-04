@@ -36,7 +36,7 @@ def build_command(
         str(max_model_len),
         "--enable-auto-tool-choice",
         "--tool-call-parser",
-        "openai"
+        "hermes"
     ]
 
     if additional_args:

@@ -15,8 +15,6 @@ class VerifierAgent:
         self.init_chat_args = {}
         if 'gpt' in self.config.get("model"):
             self.init_chat_args['parallel_tool_calls'] = False
-        if self.config.get("model") != 'Qwen2-VL-7B-Instruct':
-            self.init_chat_args['tool_choice'] = "auto"
             
         # Initialize tool client
         self.tool_client = ExternalToolClient(self.config.get("verifier_tools"), self.config)
@@ -67,7 +65,7 @@ class VerifierAgent:
             print("Prepare chat args...")
             tool_configs = self.tool_client.tool_configs
             tool_configs = [x for v in tool_configs.values() for x in v]
-            chat_args = {"model": self.config.get("model"), "messages": memory, "tools": tool_configs, **self.init_chat_args}
+            chat_args = {"model": self.config.get("model"), "messages": memory, "tools": tool_configs, "tool_choice": "auto", **self.init_chat_args}
             
             # Generate response
             print("Generate response...")
