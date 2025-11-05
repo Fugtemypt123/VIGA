@@ -140,7 +140,12 @@ class PromptBuilder:
                     last_last_image_message.append(memory[i]['content'][1])
                     last_last_image_message.append(memory[i]['content'][2])
                     break
-            all_memory.append({"role": "user", "content": [
-                {"type": "text", "text": "Here are four images: initial state, target state, previous operation, and the operation before that. Please compare these images and determine whether your current operation is effectively approaching the target scenario."},
-            ]})
+            if len(last_last_image_message) > 0:
+                all_memory.append({
+                    "role": "user", 
+                    "content": [{
+                        "type": "text", 
+                        "text": "Here are three images: target state, last state, and the state before the last state. Please compare these images and determine whether your current operation is effectively approaching the target scenario."
+                    }] + target_image_message + last_image_message + last_last_image_message
+                })
         return all_memory
