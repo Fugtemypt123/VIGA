@@ -3,6 +3,7 @@ import os
 import subprocess
 import base64
 import io
+import shutil
 from typing import Optional
 from pathlib import Path
 from PIL import Image
@@ -50,6 +51,13 @@ get_scene_info_tool = {
     }
 }
 
+undo_last_step_tool = {
+    "type": "function",
+    "function": {
+        "name": "undo_last_step",
+        "description": "If you believe that your last action did not improve the current state, but instead moved it further away from the target state, you can call this tool to undo the last action.",
+    }
+}
 
 mcp = FastMCP("blender-executor")
 
@@ -203,9 +211,11 @@ print("Scene info extracted successfully")
             os.rmdir(render_file)
             return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
         elif len(os.listdir(render_file)) == 0:
-            os.rmdir(render_file)
+            # copy blender save under render file
+            shutil.copy(self.blender_save, render_file / "state.blend")
             return {"status": "success", "output": {"text": ['The code was executed, but no image was generated. Please check and make sure that:\n(1) you have added the camera in the code (just modify the camera pose and other information, do not render the image in the code).\n(2) You may need to handle errors in the code. The following is the return message for reference. Please check if there are any errors and fix them: ' + (stderr or stdout)]}}
         else:
+            shutil.copy(self.blender_save, render_file / "state.blend")
             return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
 
     def get_scene_info(self) -> Dict:
@@ -275,7 +285,7 @@ def initialize(args: dict) -> dict:
         if 'blender' in args.get("mode"):
             tool_configs = [execute_and_evaluate_tool]
         else:
-            tool_configs = [execute_and_evaluate_tool, get_scene_info_tool]
+            tool_configs = [execute_and_evaluate_tool, get_scene_info_tool, undo_last_step_tool]
         return {"status": "success", "output": {"text": ["Executor initialized successfully"], "tool_configs": tool_configs}}
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
@@ -294,6 +304,21 @@ def execute_and_evaluate(thought: str = '', code_diff: str = '', code: str = '')
         return result
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
+
+@mcp.tool()
+def undo_last_step() -> dict:
+    """
+    Undo the last step.
+    """
+    global _executor
+    if _executor is None:
+        return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
+    _executor.count -= 1
+    render_path = _executor.render_path / f"{_executor.count}"
+    if os.path.exists(render_path / "state.blend"):
+        shutil.copy(render_path / "state.blend", _executor.blender_save)
+    # If the path do not exist, then last step is error, no need to undo
+    return {"status": "success", "output": {"text": ["Last step undone successfully"]}}
 
 @mcp.tool()
 def get_scene_info() -> dict:
