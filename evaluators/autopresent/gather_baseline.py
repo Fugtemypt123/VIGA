@@ -16,11 +16,6 @@ def gather_results(model_name: str, slide_name: str = 'all'):
     ref_eval_result = {'match': 0, 'text': 0, 'color': 0, 'position': 0}
     ref_free_eval_result = {'text': 0, 'image': 0, 'layout': 0, 'color': 0}
     
-    # Round 1 specific statistics
-    round1_ref_eval_result = {'match': 0, 'text': 0, 'color': 0, 'position': 0}
-    round1_ref_free_eval_result = {'text': 0, 'image': 0, 'layout': 0, 'color': 0}
-    round1_count = 0
-    
     fail_num = 0
     total_num = 0
 
@@ -89,8 +84,6 @@ def gather_results(model_name: str, slide_name: str = 'all'):
    
             # Use the best round results if found
             if best_round_score > -1:
-                print(f"Using round {best_round_num} for {name} slide_{slide_num} (score: {best_round_score:.4f})")
-                
                 # Add to overall results
                 for key in ref_eval_result:
                     ref_eval_result[key] += best_round_ref_eval[key]
@@ -103,18 +96,10 @@ def gather_results(model_name: str, slide_name: str = 'all'):
             total_num += 1
 
     # Calculate averages
-    if total_num - fail_num > 0:
-        for key in ref_eval_result.keys():
-            ref_eval_result[key] = ref_eval_result[key] / total_num
-        for key in ref_free_eval_result.keys():
-            ref_free_eval_result[key] = ref_free_eval_result[key] / total_num
-
-    # Calculate Round 1 averages
-    if round1_count - fail_num > 0:
-        for key in round1_ref_eval_result.keys():
-            round1_ref_eval_result[key] = round1_ref_eval_result[key] / round1_count
-        for key in round1_ref_free_eval_result.keys():
-            round1_ref_free_eval_result[key] = round1_ref_free_eval_result[key] / round1_count
+    for key in ref_eval_result.keys():
+        ref_eval_result[key] = ref_eval_result[key] / total_num
+    for key in ref_free_eval_result.keys():
+        ref_free_eval_result[key] = ref_free_eval_result[key] / total_num
 
     # Print results
     print(f"Model name: {model_name}")
@@ -129,31 +114,6 @@ def gather_results(model_name: str, slide_name: str = 'all'):
                     ref_free_eval_result['text'] + ref_free_eval_result['image'] + 
                     ref_free_eval_result['layout'] + ref_free_eval_result['color']) / 8
     print(f"Overall score: {overall_score:.4f}")
-    
-    # Print Round 1 specific results
-    print(f"\n=== Round 1 Statistics ===")
-    print(f"Round 1 slides count: {round1_count}")
-    if round1_count > 0:
-        print(f"Round 1 ref-based evaluation results: {round1_ref_eval_result}")
-        print(f"Round 1 ref-free evaluation results: {round1_ref_free_eval_result}")
-        
-        round1_overall_score = (round1_ref_eval_result['match'] + round1_ref_eval_result['text'] + 
-                              round1_ref_eval_result['color'] + round1_ref_eval_result['position'] + 
-                              round1_ref_free_eval_result['text'] + round1_ref_free_eval_result['image'] + 
-                              round1_ref_free_eval_result['layout'] + round1_ref_free_eval_result['color']) / 8
-        print(f"Round 1 overall score: {round1_overall_score:.4f}")
-        
-        # Compare Round 1 vs Best Round performance
-        score_improvement = overall_score - round1_overall_score
-        print(f"Score improvement from Round 1 to Best Round: {score_improvement:.4f}")
-        if score_improvement > 0:
-            print(f"Performance improved by {score_improvement:.4f} points")
-        elif score_improvement < 0:
-            print(f"Performance decreased by {abs(score_improvement):.4f} points")
-        else:
-            print("Performance remained the same")
-    else:
-        print("No Round 1 data available")
     
     return ref_eval_result, ref_free_eval_result, overall_score
 
