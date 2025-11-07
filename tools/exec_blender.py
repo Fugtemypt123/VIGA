@@ -212,10 +212,12 @@ print("Scene info extracted successfully")
             return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
         elif len(os.listdir(render_file)) == 0:
             # copy blender save under render file
-            shutil.copy(self.blender_save, render_file / "state.blend")
+            if self.blender_save:
+                shutil.copy(self.blender_save, render_file / "state.blend")
             return {"status": "success", "output": {"text": ['The code was executed, but no image was generated. Please check and make sure that:\n(1) you have added the camera in the code (just modify the camera pose and other information, do not render the image in the code).\n(2) You may need to handle errors in the code. The following is the return message for reference. Please check if there are any errors and fix them: ' + (stderr or stdout)]}}
         else:
-            shutil.copy(self.blender_save, render_file / "state.blend")
+            if self.blender_save:
+                shutil.copy(self.blender_save, render_file / "state.blend")
             return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
 
     def get_scene_info(self) -> Dict:
@@ -321,7 +323,7 @@ def undo_last_step() -> dict:
         os.rmdir(render_path)
     _executor.count -= 1
     render_path = _executor.render_path / f"{_executor.count}"
-    if os.path.exists(render_path / "state.blend"):
+    if os.path.exists(render_path / "state.blend") and _executor.blender_save:
         shutil.copy(render_path / "state.blend", _executor.blender_save)
     # If the path do not exist, then last step is error, no need to undo
     return {"status": "success", "output": {"text": ["Last step undone successfully"]}}

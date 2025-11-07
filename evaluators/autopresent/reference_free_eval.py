@@ -5,9 +5,10 @@ import base64
 import argparse
 from PIL import Image
 from openai import OpenAI
-from utils._api_keys import OPENAI_API_KEY
+import sys
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from utils.common import get_model_info
 
 INSTRUCTION = """Please evaluate the slide based on the following criteria:
 {}
@@ -37,6 +38,7 @@ def evaluate_slide(prompt: str, image_url: str) -> str:
             {"type": "image_url", "image_url": {"url": image_url}},
         ],
     }]
+    client = OpenAI(api_key=get_model_info(args.model_name)["api_key"])
     response = client.chat.completions.create(
             model=args.model_name,
             messages=messages,
