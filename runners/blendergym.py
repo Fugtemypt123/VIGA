@@ -214,9 +214,9 @@ def main():
     parser.add_argument("--test-id", default=None, help="Test ID to check for failed cases and retest them")
     
     # Main.py parameters
-    parser.add_argument("--max-rounds", type=int, default=20, help="Maximum number of interaction rounds")
+    parser.add_argument("--max-rounds", type=int, default=10, help="Maximum number of interaction rounds")
     parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
-    parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
+    parser.add_argument("--memory-length", type=int, default=24, help="Memory length")
     
     # Blender parameters
     parser.add_argument("--blender-command", default="utils/Infinigen/blender/blender", help="Blender command path")

@@ -110,7 +110,7 @@ def normalize_model_name(model_name: str) -> str:
     Returns:
         Normalized model name (e.g., 'gpt_4o')
     """
-    return model_name.replace(' ', '_').replace('.', '_')
+    return model_name.replace('-', '_').replace('.', '_')
 
 
 def process_task_instance(task_dir: str, model_name: str):
@@ -194,7 +194,7 @@ def extract_task_type_and_number(task_dir_name):
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate baseline blendergym results')
-    parser.add_argument('model', type=str, default='gpt-4o', help='Model to evaluate (e.g., gpt-4o)')
+    parser.add_argument('--model', type=str, default='gpt-4o', help='Model to evaluate (e.g., gpt-4o)')
     args = parser.parse_args()
     model = args.model
     
