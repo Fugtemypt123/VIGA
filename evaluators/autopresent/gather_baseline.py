@@ -115,7 +115,14 @@ def gather_results(model_name: str, slide_name: str = 'all'):
                     ref_free_eval_result['layout'] + ref_free_eval_result['color']) / 8
     print(f"Overall score: {overall_score:.4f}")
     
-    return ref_eval_result, ref_free_eval_result, overall_score
+    with open(f"data/autopresent/examples/{model_name}_baseline.txt", 'w') as f:
+        f.write(f"Model name: {model_name}\n")
+        f.write(f"Success rate: {(total_num - fail_num) / total_num:.4f}\n")
+        f.write(f"Total slides processed: {total_num}\n")
+        f.write(f"Failed slides: {fail_num}\n")
+        f.write(f"Ref-based evaluation results: {ref_eval_result}\n")
+        f.write(f"Ref-free evaluation results: {ref_free_eval_result}\n")
+        f.write(f"Overall score: {overall_score:.4f}\n")
 
 
 def main():
