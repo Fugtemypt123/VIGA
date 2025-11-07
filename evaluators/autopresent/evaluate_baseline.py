@@ -99,5 +99,6 @@ if __name__ == "__main__":
     parser.add_argument("--max-workers", type=int, default=None, help="Max number of parallel workers (default: min(8, cpu_count))")
 
     args = parser.parse_args()
+    args.model_name = args.model_name.replace('-', '_').replace('.', '_')
 
     main()
