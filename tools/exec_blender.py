@@ -352,8 +352,8 @@ def main():
         args = {
             "mode": "blenderstudio",
             "blender_command": os.getenv("BLENDER_COMMAND", "utils/Infinigen/blender/blender"),
-            "blender_file": os.getenv("BLENDER_FILE", "output/static_scene/20251105_012743/restroom5/blender_file.blend"),
-            "blender_script": os.getenv("BLENDER_SCRIPT", "data/blenderstudio/generator_script.py"),
+            "blender_file": os.getenv("BLENDER_FILE", "data/blendergym/geometry20/blender_file.blend"),
+            "blender_script": os.getenv("BLENDER_SCRIPT", "data/blendergym/generator_script.py"),
             "output_dir": os.getenv("OUTPUT_DIR", "output/test/exec_blender"),
             "blender_save": os.getenv("BLENDER_SAVE", None),
             "gpu_devices": os.getenv("GPU_DEVICES", None),
@@ -366,10 +366,10 @@ def main():
         # Test get_scene_info
         scene_info_res = get_scene_info()
         print("[test:get_scene_info]", json.dumps(scene_info_res, ensure_ascii=False))
-        code_fpath = 'data/blenderstudio/level3/attribute4/start.py'
+        code_fpath = 'data/blendergym/geometry20/goal.py'
         code = open(code_fpath, "r").read()
-        # exec_res = execute_and_evaluate(thought="", code="")
-        # print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
+        exec_res = execute_and_evaluate(thought="", code="")
+        print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         raise NotImplementedError
 
         # Note: The new blender file has a default Camera at position around (7,-6,4), facing direction (0,0,0)
