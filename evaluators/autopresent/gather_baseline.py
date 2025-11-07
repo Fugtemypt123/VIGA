@@ -115,7 +115,7 @@ def gather_results(model_name: str, slide_name: str = 'all'):
                     ref_free_eval_result['layout'] + ref_free_eval_result['color']) / 8
     print(f"Overall score: {overall_score:.4f}")
     
-    with open(f"data/autopresent/examples/{model_name}_baseline.txt", 'w') as f:
+    with open(f"data/autopresent/baseline/{model_name}.txt", 'w') as f:
         f.write(f"Model name: {model_name}\n")
         f.write(f"Success rate: {(total_num - fail_num) / total_num:.4f}\n")
         f.write(f"Total slides processed: {total_num}\n")
