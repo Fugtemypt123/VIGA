@@ -1,0 +1,114 @@
+# 🎄 Procedural Generation Pipeline (Stage-based)
+
+## Stage A. Structure Initialization
+1. **Create the basic room frame**
+   - Define walls, floor, and ceiling according to the room’s shape.
+   - Assign different wall styles (e.g., wooden panels, painted wall).
+   - Include a ceiling light to establish the main illumination source.
+
+2. **Establish coordinate origin and layout center**
+   - Place the coordinate origin at the room center or carpet center.
+   - Align all subsequent objects relative to this anchor.
+
+---
+
+## Stage B. Core Furniture Construction
+1. **Generate the round carpet**
+   - Place it at the center of the room and use it as the layout anchor.
+   - Ensure the carpet surface is above the floor level.
+
+2. **Generate the coffee table**
+   - Position it at the center of the carpet.
+   - Ensure scale and proportion match the overall scene.
+   - Maintain logical relations with other furniture (sofa, snowman).
+
+3. **Generate the sofa (coach)**
+   - Place it behind or beside the coffee table.
+   - Align orientation toward the table.
+   - Leave space between sofa and wall for realism.
+
+4. **Generate the fireplace**
+   - Place it at the corner where the walls meet.
+   - Ensure the top is aligned with the bell decorations above.
+   - Add mantel and inner light source (fire glow).
+
+5. **Generate the Christmas tree**
+   - Place it opposite to the fireplace, near one wall.
+   - Orient it toward the center of the room.
+   - Ensure its base is on the floor and leaves clear space for gift boxes.
+
+6. **Generate the gift boxes**
+   - Distribute them beneath the Christmas tree.
+   - Ensure no overlaps or intersections occur.
+   - Randomize color and orientation slightly.
+
+---
+
+## Stage C. Decorative Elements
+1. **Place the snowman**
+   - Position it on top of the coffee table.
+   - Ensure contact with the table surface without intersection.
+   - Optionally add small accessories (e.g., mugs) around it.
+
+2. **Place the clock**
+   - Mount it on the main wall above the sofa.
+   - Keep centered horizontally above the furniture.
+
+3. **Place the bells**
+   - Mount on the opposite wall above the fireplace.
+   - Orient toward the room interior.
+
+4. **Add Christmas tree wall decorations**
+   - Place multiple small tree-shaped ornaments on the wall.
+   - Ensure they are above the sofa and aligned near the clock.
+
+5. **Add auxiliary decor**
+   - Hang string lights across walls and ceiling.
+   - Attach stockings and garland to the fireplace mantel.
+   - Optionally include framed pictures and small wall items.
+
+---
+
+## Stage D. Lighting and Rendering
+1. **Add main light sources**
+   - Use the ceiling lamp as the primary diffuse source.
+   - Add secondary warm light from the fireplace and string lights.
+
+2. **Adjust environment lighting**
+   - Apply ambient tone matching the warm holiday aesthetic.
+   - Use soft shadows and gentle ambient occlusion.
+
+3. **Setup camera**
+   - Choose a viewpoint facing the main corner.
+   - Align framing to include the tree, sofa, and fireplace in view.
+
+4. **Render and tone adjust**
+   - Apply warm white balance and slight saturation boost.
+   - Enable soft light diffusion for a cozy atmosphere.
+
+---
+
+## Stage E. Validation and Refinement
+1. **Check spatial relations**
+   - Ensure each object’s relative position follows the scene graph:
+     - Snowman on coffee table
+     - Coffee table centered on carpet
+     - Sofa right of the table
+     - Fireplace behind the table
+     - Tree left of fireplace
+     - Bells above fireplace
+     - Clock above sofa
+     - Wall decorations right of clock
+   - Resolve any intersections or floating geometry.
+
+2. **Check aesthetic consistency**
+   - Verify lighting warmth, material harmony, and scale coherence.
+   - Apply proportional corrections if necessary.
+
+3. **Auto-correct**
+   - If alignment or distance constraints fail, reposition or rescale.
+   - Re-validate until all relationships hold true.
+
+---
+
+✅ The scene is complete once all structure, furniture, and decor maintain logical relations, consistent lighting, and a coherent festive composition.

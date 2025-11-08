@@ -134,7 +134,7 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         "--api-base-url", get_model_info(args.model)["base_url"],
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
-        "--target-image-path", task_config["target_image_path"],
+        "--target-image-path", task_config["target_image_path"] if not args.text_only else "",
         "--output-dir", task_config["output_dir"],
         "--task-name", task_name,
         "--generator-tools", args.generator_tools,
@@ -229,7 +229,7 @@ def main():
     parser.add_argument("--memory-length", type=int, default=12, help="Memory length")
     
     # Blender parameters
-    parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
+    parser.add_argument("--blender-command", default="utils/Infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/dynamic_scene/empty_scene.blend", help="Empty blender file for dynamic scenes")
     parser.add_argument("--blender-script", default="data/dynamic_scene/generator_script.py", help="Blender execution script")
     parser.add_argument("--blender-save", default=f"data/dynamic_scene/empty_scene.blend", help="Save blender file")
@@ -241,6 +241,9 @@ def main():
     # Execution parameters
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum number of parallel workers")
     parser.add_argument("--gpu-devices", default=os.getenv("CUDA_VISIBLE_DEVICES"), help="GPU devices for Blender")
+    
+    # Additional parameters
+    parser.add_argument("--text-only", action="store_true", help="Only use text as reference")
     
     args = parser.parse_args()
     

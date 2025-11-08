@@ -1,0 +1,61 @@
+# 🎄 Scene Graph — Cozy Christmas Room
+
+## Scene Overview
+**Scene:** cozy_christmas_room  
+**Lighting:** warm_indoor_light (ceiling lamp + fireplace glow)  
+**Overall layout:** living room corner with red and wooden walls, decorated for Christmas  
+
+---
+
+## 🏠 1. Room Structure
+- **Walls**
+  - Left wall: wooden vertical panels, framed picture hanging  
+  - Right wall: painted red, with a clock and Christmas tree decorations  
+- **Floor:** tiled beige floor  
+- **Ceiling:** round ceiling lamp (warm yellow light)
+
+---
+
+## 🎁 2. Objects and Spatial Relations
+
+| Object | Description | Position | Relations |
+|--------|--------------|-----------|------------|
+| **christmas_tree** | Green tree with red and gold ornaments, star topper, candy cane | left foreground | in front of wooden wall; left of fireplace; above round_carpet edge |
+| **giftboxes** | Two wrapped gifts (green and red with ribbons) | under the christmas_tree | below christmas_tree |
+| **round_carpet** | Red and white circular rug | center of room | below coffee_table |
+| **fireplace** | Brick fireplace with green garland and stockings, lit fire inside | back corner | behind table and sofa; below bells |
+| **coach** | Beige sofa with red snowflake pillow | right side | near red wall; left of lamp_table |
+| **table / coffee_table** | Wooden rectangular low table | center, on carpet | in front of coach; below snowman; holds mugs |
+| **snowman (on the coffee table)** | Small snowman figure with top hat | on coffee_table | surrounded by two mugs |
+| **clock** | Round wall clock showing ~10:10 | above sofa on red wall | near christmas_tree_decorations |
+| **bells** | Two golden bells tied with a red bow | on upper left wall | above fireplace |
+| **christmastree_decoration (on the wall)** | Two small Christmas tree wall ornaments | on right red wall | above sofa, right of clock |
+
+---
+
+## ✨ 3. Additional Decorative Elements
+- **string_lights:** multicolor bulbs hanging across both walls and ceiling corners  
+- **stockings:** two small stockings hanging from fireplace mantel  
+- **garland:** green with white border, draped over mantel  
+- **framed_picture:** rectangular frame with unreadable text on wooden wall above the tree  
+
+---
+
+## 🧩 4. Simplified JSON Representation
+
+```json
+{
+  "scene": "cozy_christmas_room",
+  "objects": [
+    {"name": "christmas_tree", "relations": {"left_of": "fireplace", "above": "giftboxes"}},
+    {"name": "giftboxes", "relations": {"below": "christmas_tree"}},
+    {"name": "round_carpet", "relations": {"below": "coffee_table"}},
+    {"name": "fireplace", "relations": {"behind": "coffee_table", "below": "bells"}},
+    {"name": "coach", "relations": {"right_of": "coffee_table"}},
+    {"name": "coffee_table", "relations": {"on": "round_carpet", "below": "snowman"}},
+    {"name": "snowman", "relations": {"on": "coffee_table"}},
+    {"name": "clock", "relations": {"above": "coach"}},
+    {"name": "bells", "relations": {"above": "fireplace"}},
+    {"name": "christmastree_decoration", "relations": {"right_of": "clock", "above": "coach"}}
+  ]
+}

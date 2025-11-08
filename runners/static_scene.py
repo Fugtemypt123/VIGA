@@ -130,7 +130,7 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         "--api-base-url", get_model_info(args.model)["base_url"],
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
-        "--target-image-path", task_config["target_image_path"],
+        "--target-image-path", task_config["target_image_path"] if not args.text_only else "",
         "--output-dir", task_config["output_dir"],
         "--task-name", task_name,
         "--generator-tools", args.generator_tools,
@@ -242,6 +242,7 @@ def main():
     
     # Additional parameters
     parser.add_argument("--explicit-comp", action="store_true", help="Enable explicit completion")
+    parser.add_argument("--text-only", action="store_true", help="Only use text as reference")
     
     args = parser.parse_args()
     
