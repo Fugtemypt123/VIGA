@@ -198,7 +198,7 @@ def main():
     
     # Task selection
     parser.add_argument("--task", choices=['all', 'level1', 'level2', 'level3'], default='all', help="Specific task to run")
-    parser.add_argument("--model-name", default="gpt-4o", help="OpenAI vision model to use")
+    parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model to use")
     
     # Parallel execution parameters
     parser.add_argument("--max-workers", type=int, default=8, help="Maximum number of parallel workers")
