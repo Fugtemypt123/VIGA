@@ -217,8 +217,10 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         "--blender-script", args.blender_script,
         "--gpu-devices", args.gpu_devices,
         "--clear-memory",
-        "--no-tools" if args.no_tools else ""
     ]
+    
+    if args.no_tools:
+        cmd.append("--no-tools")
     
     print(f"Command: {' '.join(cmd)}")
     

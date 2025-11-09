@@ -186,8 +186,10 @@ def run_autopresent_task(task_config: Dict, args) -> tuple:
         "--verifier-tools", args.verifier_tools,
         "--resource-dir", task_config["resource_dir"],
         "--clear-memory",
-        "--no-tools" if args.no_tools else ""
     ]
+    
+    if args.no_tools:
+        cmd.append("--no-tools")
     
     print(f"Command: {' '.join(cmd)}")
     
