@@ -34,7 +34,7 @@ if __name__ == "__main__":
         task_scores['final_n_clip'] = (task_scores['best_n_clip'] * task_scores['num_instances'] + n_clip_penalty * missing_rounds * TASK_SCALE_DICT[task_type]) / TASK_INSTANCE_COUNT_DICT[task_type]
         task_scores['final_pl'] = (task_scores['best_pl'] * task_scores['num_instances'] + pl_penalty * missing_rounds * TASK_SCALE_DICT[task_type]) / TASK_INSTANCE_COUNT_DICT[task_type]
         task_scores['failed_instances'] = missing_rounds
-        print(f"Task type: {task_type}, Final n_clip: {task_scores['final_n_clip']:.4f}, Final pl: {task_scores['final_pl']:.4f}")
+        print(f"Task type: {task_type}, Final n_clip: {task_scores['final_n_clip']}, Final pl: {task_scores['final_pl']}")
         
     with open(score_file, 'w') as f:
         json.dump(scores, f, indent=4)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         missing_rounds = TASK_INSTANCE_COUNT_DICT[task_type] - task_scores['num_instances']
         task_scores['final_vlm'] = (task_scores['average_best_score'] * task_scores['num_instances'] + vlm_penalty * missing_rounds * TASK_SCALE_DICT[task_type]) / TASK_INSTANCE_COUNT_DICT[task_type]
         task_scores['failed_instances'] = missing_rounds
-        print(f"Task type: {task_type}, Final vlm: {task_scores['final_vlm']:.4f}")
+        print(f"Task type: {task_type}, Final vlm: {task_scores['final_vlm']}")
         
     with open(vlm_score_file, 'w') as f:
         json.dump(vlm_scores, f, indent=4)
