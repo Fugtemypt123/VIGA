@@ -142,7 +142,10 @@ class GeneratorAgent:
         if 'image' in message['user']:
             tool_response.append({"type": "text", "text": "The next user message contains the image result of the tool call."})
         
-        self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
+        if self.config.get("no_tools"):
+            self.memory.append({"role": "assistant", "content": tool_response})
+        else:
+            self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
         if user_response:
             self.memory.append({"role": "user", "content": user_response})
         

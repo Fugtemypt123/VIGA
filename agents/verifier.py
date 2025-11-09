@@ -132,7 +132,10 @@ class VerifierAgent:
             for text in message['user']['text']:
                 tool_response.append({"type": "text", "text": text}) 
         
-        self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
+        if self.config.get("no_tools"):
+            self.memory.append({"role": "assistant", "content": tool_response})
+        else:
+            self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
         if user_response:
             self.memory.append({"role": "user", "content": user_response})
     
