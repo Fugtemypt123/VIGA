@@ -77,10 +77,11 @@ class VerifierAgent:
                 content = message.content
                 try:
                     if '```json' in content:
-                        content = content.split('```json')[1].split('```')[0]
-                        content = json.loads(content)
+                        json_content = content.split('```json')[1].split('```')[0]
+                        json_content = json.loads(json_content)
+                        json_content = {'visual_difference': str(json_content.get('visual_difference', '')), 'edit_suggestion': str(json_content.get('edit_suggestion', ''))}
                     tool_name = "end"
-                    tool_response = await self.tool_client.call_tool("end", content)
+                    tool_response = await self.tool_client.call_tool("end", json_content)
                 except Exception as e:
                     print(f"Error executing tool: {e}")
                     self.memory.append({"role": "assistant", "content": content})
@@ -113,15 +114,21 @@ class VerifierAgent:
         """Update the memory with the new message"""
         # Add tool calling
         assistant_content = message['assistant'].content
-        assistant_tool_calls = message['assistant'].tool_calls[0].model_dump()
-        self.memory.append({"role": "assistant", "content": assistant_content, "tool_calls": [assistant_tool_calls]})
+        if not self.config.get("no_tools"):
+            assistant_tool_calls = message['assistant'].tool_calls[0].model_dump()
+            self.memory.append({"role": "assistant", "content": assistant_content, "tool_calls": [assistant_tool_calls]})
+        else:
+            self.memory.append({"role": "assistant", "content": assistant_content})
         
         # Add tool response
-        tool_call_id = message['assistant'].tool_calls[0].id
-        tool_call_name = message['assistant'].tool_calls[0].function.name
+        if not self.config.get("no_tools"):
+            tool_call_id = message['assistant'].tool_calls[0].id
+            tool_call_name = message['assistant'].tool_calls[0].function.name
+        else:
+            tool_call_id = ''
+            tool_call_name = ''
         tool_response = []
         user_response = []
-        
         if 'image' in message['user']:
             tool_response.append({"type": "text", "text": "The next user message contains the image result of the tool call."})
             for text, image in zip(message['user']['text'], message['user']['image']):

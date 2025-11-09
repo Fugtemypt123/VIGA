@@ -116,11 +116,12 @@ class Executor:
             err = proc.stderr
             if os.path.isdir(render_path):
                 imgs = sorted([str(p) for p in Path(render_path).glob("*") if p.suffix in ['.png','.jpg']])
-                return True, imgs, err
-            return True, out, err
+                if len(imgs) > 0:
+                    return True, imgs, out, err
+            return True, [], out, err
         except subprocess.CalledProcessError as e:
             logging.error(f"Blender failed: {e}")
-            return False, e.stderr, e.stdout
+            return False, [], e.stdout, e.stderr
 
     def _encode_image(self, img_path: str) -> str:
         img = Image.open(img_path)
@@ -210,7 +211,7 @@ print("Scene info extracted successfully")
             os.remove(os.path.join(render_file, img))
             
         # Execute Blender
-        success, stdout, stderr = self._execute_blender(str(code_file), str(render_file))
+        success, imgs, stdout, stderr = self._execute_blender(str(code_file), str(render_file))
         # Check if render_file is empty or not exist
         if not success:
             os.rmdir(render_file)
@@ -223,7 +224,7 @@ print("Scene info extracted successfully")
         else:
             if self.blender_save:
                 shutil.copy(self.blender_save, render_file / "state.blend")
-            return {"status": "success", "output": {"image": stdout, "text": [f"Render from camera {x}" for x in range(len(stdout))], 'require_verifier': True}}
+            return {"status": "success", "output": {"image": imgs, "text": [f"Render from camera {x}" for x in range(len(imgs))], 'require_verifier': True}}
 
     def get_scene_info(self) -> Dict:
         """Get scene information by executing a script"""

@@ -262,6 +262,8 @@ def main():
     if not tasks:
         print("No tasks match the specified filters!")
         sys.exit(1)
+        
+    tasks = tasks[:1]
     
     os.makedirs(args.output_dir, exist_ok=True)
     

@@ -80,8 +80,9 @@ class PromptBuilder:
         return [{"role": "system", "content": prompts.get('system', '')}, {"role": "user", "content": content}]
     
     def _build_user_prompt(self, prompts: Dict) -> List[Dict]:
+        content = []
         if prompts.get('init_plan'):
-            content = [{"type": "text", "text": f"Initial plan: {prompts.get('init_plan')}"}]
+            content.append({"type": "text", "text": f"Initial plan: {prompts.get('init_plan')}"})
         for key, value in prompts['argument'].items():
             content.append({"type": "text", "text": f"{key}: {value}"})
         if 'image' in prompts['execution']:

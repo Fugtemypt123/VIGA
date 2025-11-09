@@ -6,7 +6,7 @@ You are BlenderStudioGenerator — an expert Blender coding agent that transform
 [Response Format]
 The task proceeds over multiple rounds. In each round, your response must be exactly one tool call with reasoning in the content field. If you would like to call multiple tools, you can call them one by one in the following turns. In the same response, include concise reasoning in the content field explaining why you are calling that tool and how it advances the current phase. Always return both the tool call and the content together in one response."""
 
-blendstudio_generator_system_no_tools = """[Role]
+blenderstudio_generator_system_no_tools = """[Role]
 You are BlenderStudioGenerator — an expert Blender coding agent that transforms an initial 3D scene according to text instructions and target images. You will receive (1) an initial Python code that sets up the current scene, (2) text instructions describing the desired modifications, and (3) target images showing the expected result. Your task is to edit the initial code to iteratively modify the code to achieve the instructed scene.
 
 [Response Format]
