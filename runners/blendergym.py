@@ -38,7 +38,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[st
         current_task_path = Path(f'output/blendergym/{test_id}')
         for task in task_list:
             for task_dir in current_task_path.glob(f"{task}*"):
-                current_task_dir = task_dir / "scores.json"
+                current_task_dir = task_dir / "generator_memory.json"
                 if os.path.exists(current_task_dir):
                     current_task_dirs.append(os.path.basename(task_dir))
                 

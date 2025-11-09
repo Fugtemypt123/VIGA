@@ -391,7 +391,7 @@ def main():
     args = parser.parse_args()
     
     data_dir = args.data_dir
-    model_name = args.model_name
+    model_name = args.model_name.replace('-', '_').replace('.', '_')
     
     if not os.path.exists(data_dir):
         raise ValueError(f"Data directory {data_dir} does not exist.")
