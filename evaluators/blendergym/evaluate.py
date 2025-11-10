@@ -110,19 +110,16 @@ def process_task_instance(output_base_dir: str, task_dir: str):
     """
     task_instance_dir = os.path.join(output_base_dir, task_dir)
     
-    
+    exist_score = False
     if os.path.exists(os.path.join(task_instance_dir, "scores.json")):
-        exist_score = False
+        
         with open(os.path.join(task_instance_dir, "scores.json"), 'r') as f:
             task_instance_scores = json.load(f)
             for key, score in task_instance_scores.items():
                 if score != {}:
                     exist_score = True
                     break
-    if exist_score:
-        pass
-            
-    else:
+    if not exist_score:
         renders_dir = os.path.join(task_instance_dir, "renders")
 
         if not os.path.exists(renders_dir):

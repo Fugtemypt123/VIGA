@@ -13,7 +13,7 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.common import get_model_info, get_meshy_info
 
 def load_static_scene_dataset(base_path: str, task_name: str, setting: str, test_id: Optional[str] = None) -> List[Dict]:
@@ -245,7 +245,7 @@ def main():
     # Additional parameters
     parser.add_argument("--explicit-comp", action="store_true", help="Enable explicit completion")
     parser.add_argument("--text-only", action="store_true", help="Only use text as reference")
-    parser.add_argument("--setting", choices=["minimal", "reasonable"], default="reasonable", help="Setting for the static scene task")
+    parser.add_argument("--setting", choices=["minimal", "reasonable"], default="minimal", help="Setting for the static scene task")
     
     args = parser.parse_args()
     
