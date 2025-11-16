@@ -47,10 +47,6 @@ if __name__ == "__main__":
         exec(code)
     except:
         raise ValueError
-    
-    for obj in bpy.data.objects:
-        if obj.type == 'CAMERA':
-            print(obj.name)
 
     # Render from camera1
     if 'Camera1' in bpy.data.objects and rendering_dir:
