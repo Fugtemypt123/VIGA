@@ -3,20 +3,19 @@
 ## Stage A: Structural Initialization
 
 1. **Establish coordinate origin and layout center**  
-   Place the coordinate origin at one corner of the room (intersection of the floor and two walls).  
-   - +X axis → direction of the clock and small Christmas tree decorations  
-   - +Y axis → direction of the fireplace, bells, and main Christmas tree  
-   - +Z axis → upward  
-   This ensures all subsequent object coordinates are positive.
+   The coordinate origin is now placed at the geometric center of the room’s floor, corresponding to **(1.5, 1.5, 0)** in the old coordinate system.  
+   - **+X axis** → toward the lounge, clock, and small tree decorations  
+   - **+Y axis** → toward the viewer / sofa area  
+   - **+Z axis** → upward  
+   This ensures consistent right-handed alignment and intuitive spatial orientation.
 
 2. **Build the basic room frame**  
-   Create four walls, a floor, and a ceiling to form the room structure.  
-   Add a ceiling light at the geometric center as the main light source.  
-   Assign each wall a color or material consistent with the reference image.  
-   The entire room has a scale of roughly **3 units**, meaning all x, y, z coordinates are within `[0, 3]`.
+   Create four walls, a floor, and a ceiling.  
+   Add a ceiling lamp at the geometric center as the main light source.  
+   Keep the overall room scale within roughly **3 units** across each dimension.
 
 3. **Set up the camera**  
-   Position the camera to face the coordinate origin, capturing the floor, ceiling, and two adjacent walls in view.
+   Position the camera to face the new coordinate origin, capturing the floor and two adjacent walls.
 
 ---
 
@@ -24,69 +23,88 @@
 
 Sequentially generate and place the following objects:
 
-1. **Lounge**  
-   Retrieve the lounge object from an external tool.  
-   This asset includes the sofa, floor lamp, coffee table, red-white rug, and the snowman on the table.  
-   - Approx. coordinates: **x ≈ 1.5, y ≈ 1.0, z ≈ 0.5**  
-   - The z-coordinate cannot be 0 (the object’s center would sink into the ground).  
-   - Adjust scale carefully; ensure the object sits precisely on the floor with no interpenetration.
+---
 
-2. **Main Christmas Tree**  
-   Retrieve the large Christmas tree asset.  
-   - Approx. coordinates: **x ≈ 0.5, y ≈ 2.5, z ≈ 1.0**  
-   - Adjust scale and position precisely; ensure the tree stands firmly on the floor.
+### 1. **Lounge Set**  
+Includes the sofa, floor lamp, coffee table, round rug, and snowman.
 
-3. **Gift Boxes**  
-   Retrieve or duplicate gift box assets as needed to match the reference image.  
-   - Place them beneath the main Christmas tree, with x/y near the tree base and slightly smaller z.  
-   - Ensure precise floor contact and avoid clipping.
+- **Coordinates:** **(x ≈ 0.0, y ≈ 0.5, z ≈ 0.5)**  
+  *Position: centered horizontally, slightly toward the viewer, with its center slightly above the ground.*
 
-4. **Fireplace**  
-   Retrieve the fireplace asset.  
-   - Approx. coordinates: **x ≈ 0.2, y ≈ 1.5, z ≈ 1.0**  
-   - Adjust size carefully and ensure perfect wall alignment without penetration.
+---
 
-5. **Golden Bells**  
-   Retrieve the bell asset and position it above the fireplace.  
-   - Coordinates: **same x/y as fireplace, z ≈ 2.5**  
-   - Adjust precisely; ensure accurate wall attachment.
+### 2. **Main Christmas Tree**
 
-6. **Clock Above Lounge**  
-   Retrieve a wall clock asset.  
-   - Approx. coordinates: **x ≈ 1.0, y ≈ 0.2, z ≈ 2.5**  
-   - Align precisely to the wall with no overlap or penetration.
+- **Coordinates:** **(x ≈ −1.0, y ≈ −1.0, z ≈ 1.0)**  
+  *Position: located in the left–rear corner area, close to the back wall.*
 
-7. **Small Tree Decorations near Clock**  
-   Retrieve small decorative tree assets and duplicate as needed.  
-   - Example coordinates:  
-     - (x ≈ 1.75, y ≈ 0.2, z ≈ 2.5)  
-     - (x ≈ 2.5, y ≈ 0.2, z ≈ 2.5)  
-   - Align precisely to the wall; avoid overlapping.
+---
 
-8. **(Optional) Auxiliary Decorations**  
-   Add string lights along the walls and ceiling.  
-   Include picture frames or small wall ornaments for additional realism.
+### 3. **Gift Boxes**
+
+Place multiple gift boxes beneath and around the main tree.
+
+- **Coordinates:** near **(x ≈ −1.0, y ≈ −1.0, z slightly < 1.0)**  
+  *Position: clustered at the left–rear corner under the tree.*
+
+---
+
+### 4. **Fireplace**
+
+- **Coordinates:** **(x ≈ −1.3, y ≈ 0.0, z ≈ 1.0)**  
+  *Position: centered along the left wall, mid-depth of the room.*
+
+---
+
+### 5. **Golden Bells (above fireplace)**
+
+- **Coordinates:** **(x ≈ −1.3, y ≈ 0.0, z ≈ 2.5)**  
+  *Position: mounted high on the left wall directly above the fireplace.*
+
+---
+
+### 6. **Clock Above Lounge**
+
+- **Coordinates:** **(x ≈ −0.5, y ≈ 1.3, z ≈ 2.5)**  
+  *Position: on the front wall, upper-left region relative to the lounge.*
+
+---
+
+### 7. **Small Tree Decorations Near the Clock**
+
+- **Small Tree 1**  
+  **Coordinates:** **(x ≈ 0.25, y ≈ 1.3, z ≈ 2.5)**  
+  *Position: front wall, upper-right of the clock.*
+
+- **Small Tree 2**  
+  **Coordinates:** **(x ≈ 1.0, y ≈ 1.3, z ≈ 2.5)**  
+  *Position: front wall, near the far-right upper corner.*
+
+---
+
+### 8. **(Optional) Auxiliary Decorations**
+
+Add string lights along the tops of the walls and ceiling edges.  
+Add picture frames or other small ornaments to enhance realism.
 
 ---
 
 ## Stage C: Lighting and Rendering
 
 1. **Add main light sources**  
-   Use the ceiling lamp as the primary diffuse light source.  
-   Add warm lighting from the fireplace and string lights.
+   Use the ceiling lamp for overall diffusion; complement it with warm lighting from the fireplace and string lights.
 
 2. **Adjust ambient lighting**  
-   Match the color tone to a **cozy, festive atmosphere**.  
-   Use soft shadows and subtle ambient occlusion.
+   Apply a warm, cozy color tone with soft shadows and subtle ambient occlusion.
 
 3. **Render and tone adjustments**  
-   Apply a **warm white balance**, slightly increase **saturation**,  
-   and enable **soft diffusion** to create a warm, inviting mood.
+   Use warm white balance, slightly increase saturation,  
+   and enable soft diffusion for a festive atmosphere.
 
 ---
 
-✅ *Notes for the model:*  
-- Ensure all objects rest properly on the floor plane or the wall planes (no interpenetration).  
-- Maintain physically coherent scale and spatial relationships.  
-- All coordinates must stay within `[0, 3]` unless explicitly extended.  
-- Optimize for aesthetic balance and compositional realism.
+## ✔ Notes for the model
+- Ensure all objects rest properly on their surfaces.  
+- Maintain consistent scale and avoid interpenetration.  
+- Keep coordinates within a reasonable centered range.  
+- Optimize for visual balance and spatial clarity.
