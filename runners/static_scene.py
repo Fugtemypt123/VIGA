@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import shutil
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.common import get_model_info, get_meshy_info
 
-def load_static_scene_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
+def load_static_scene_dataset(base_path: str, task_name: str, setting: str, test_id: Optional[str] = None) -> List[Dict]:
     """
     Load static scene dataset structure.
     
@@ -24,7 +25,7 @@ def load_static_scene_dataset(base_path: str, task_name: str, test_id: Optional[
         base_path: Path to static scene dataset root
         task_name: Task name to load
         test_id: Optional test ID for filtering
-    
+
     Returns:
         List of task configurations
     """
@@ -60,6 +61,8 @@ def load_static_scene_dataset(base_path: str, task_name: str, test_id: Optional[
             target_image_path = str(task_path / "target.jpg")
         elif (task_path / "target").exists() and (task_path / "target").is_dir():
             target_image_path = str(task_path / "target")
+            
+        init_image_path = task_path / f"{setting}_init" / "render1.png"
         
         if not target_image_path:
             print(f"Warning: No target image found for task: {task}")
@@ -81,11 +84,11 @@ def load_static_scene_dataset(base_path: str, task_name: str, test_id: Optional[
             "task_name": task,
             "task_id": task,
             "target_image_path": target_image_path,
-            "target_description": target_description,
+            "target_description": "Your task is to place asset in the initial room properly, do not add or edit any camera, lighting, or background. They are already set up correctly.",
             "assets_dir": assets_dir,  # Add assets directory path
             "output_dir": f"output/static_scene/{test_id or time.strftime('%Y%m%d_%H%M%S')}/{task}",
             "init_code_path": "",  # Static scenes start from scratch
-            "init_image_path": "",  # No initial scene
+            "init_image_path": str(init_image_path),
         }
         
         tasks.append(task_config)
@@ -112,14 +115,16 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
 
     # Create an empty blender file inside output_dir for build-from-scratch flows
     created_blender_file = os.path.join(task_config["output_dir"], "blender_file.blend")
-    try:
+    # copy the blender file to the output directory
+    if os.path.exists(args.blender_file):
+        shutil.copy(args.blender_file, created_blender_file)
+    else:
+        # Create a new blender file
         create_empty_blend_cmd = (
             f"{args.blender_command} --background --factory-startup "
             f"--python-expr \"import bpy; bpy.ops.wm.read_factory_settings(use_empty=True); bpy.ops.wm.save_mainfile(filepath='" + created_blender_file + "')\""
         )
         subprocess.run(create_empty_blend_cmd, shell=True, check=True)
-    except Exception as e:
-        print(f"Warning: Failed to create empty blender file: {e}. Proceeding anyway.")
     
     # Build main.py command
     cmd = [
@@ -131,6 +136,7 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
         "--target-image-path", task_config["target_image_path"] if not args.text_only else "",
+        "--target-description", task_config["target_description"],
         "--output-dir", task_config["output_dir"],
         "--task-name", task_name,
         "--generator-tools", args.generator_tools,
@@ -151,8 +157,8 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         cmd.extend(["--explicit-comp"])
     if args.gpu_devices:
         cmd.extend(["--gpu-devices", args.gpu_devices])
-    if task_config["target_description"]:
-        cmd.extend(["--target-description", task_config["target_description"]])
+    if args.with_prior:
+        cmd.extend(["--with-prior"])
 
     try:
         result = subprocess.run(cmd)  # no timeout
@@ -229,7 +235,7 @@ def main():
     # Blender parameters
     parser.add_argument("--blender-command", default="utils/Infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default="data/static_scene/empty_scene.blend", help="Empty blender file for static scenes")
-    parser.add_argument("--blender-script", default="data/static_scene/generator_script.py", help="Blender execution script")
+    parser.add_argument("--blender-script", default="data/static_scene/generator_init_script.py", help="Blender execution script")
     parser.add_argument("--blender-save", default=f"data/static_scene/empty_scene.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
@@ -243,12 +249,14 @@ def main():
     # Additional parameters
     parser.add_argument("--explicit-comp", action="store_true", help="Enable explicit completion")
     parser.add_argument("--text-only", action="store_true", help="Only use text as reference")
+    parser.add_argument("--setting", choices=["minimal", "reasonable"], default="minimal", help="Setting for the static scene task")
+    parser.add_argument("--with-prior", action="store_true", help="Enable with prior")
     
     args = parser.parse_args()
     
     # Load dataset
     print(f"Loading static scene dataset from: {args.dataset_path}")
-    tasks = load_static_scene_dataset(args.dataset_path, args.task, args.test_id)
+    tasks = load_static_scene_dataset(args.dataset_path, args.task, args.setting, args.test_id)
     
     if not tasks:
         print("No valid static scene tasks found in dataset!")

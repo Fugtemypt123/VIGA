@@ -242,7 +242,7 @@ print("Scene info extracted successfully")
                 f.write(scene_info_script)
             
             # Execute Blender script
-            success, stdout, stderr = self._execute_blender(str(code_file))
+            success, imgs, stdout, stderr = self._execute_blender(str(code_file))
             
             if not success:
                 return {"status": "error", "output": {"text": ['Error: ' + (stderr or stdout)]}}
@@ -357,9 +357,9 @@ def main():
         # Read args from environment for convenience
         args = {
             "mode": "blenderstudio",
-            "blender_command": os.getenv("BLENDER_COMMAND", "utils/Infinigen/blender/blender"),
-            "blender_file": os.getenv("BLENDER_FILE", "data/blendergym/geometry20/blender_file.blend"),
-            "blender_script": os.getenv("BLENDER_SCRIPT", "data/blendergym/generator_script.py"),
+            "blender_command": os.getenv("BLENDER_COMMAND", "utils/infinigen/blender/blender"),
+            "blender_file": os.getenv("BLENDER_FILE", "data/static_scene/christmas1/reasonable_init/christmas1_gt.blend"),
+            "blender_script": os.getenv("BLENDER_SCRIPT", "data/static_scene/generator_script.py"),
             "output_dir": os.getenv("OUTPUT_DIR", "output/test/exec_blender"),
             "blender_save": os.getenv("BLENDER_SAVE", None),
             "gpu_devices": os.getenv("GPU_DEVICES", None),
@@ -372,10 +372,10 @@ def main():
         # Test get_scene_info
         scene_info_res = get_scene_info()
         print("[test:get_scene_info]", json.dumps(scene_info_res, ensure_ascii=False))
-        code_fpath = 'data/blendergym/geometry20/goal.py'
-        code = open(code_fpath, "r").read()
-        exec_res = execute_and_evaluate(thought="", code="")
-        print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
+        # code_fpath = 'data/blendergym/geometry20/goal.py'
+        # code = open(code_fpath, "r").read()
+        # exec_res = execute_and_evaluate(thought="", code="")
+        # print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         raise NotImplementedError
 
         # Note: The new blender file has a default Camera at position around (7,-6,4), facing direction (0,0,0)
