@@ -160,7 +160,7 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         cmd.extend(["--gpu-devices", args.gpu_devices])
     if args.with_prior:
         cmd.extend(["--with-prior"])
-    if task_config["target_description"]:
+    if "target_description" in task_config:
         cmd.extend(["--target-description", task_config["target_description"]])
 
     try:
