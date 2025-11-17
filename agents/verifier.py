@@ -10,6 +10,7 @@ class VerifierAgent:
     def __init__(self, args):
         self.config = args
         self.memory = []
+        self.saved_memory = []
         
         # Initialize chat args
         self.init_chat_args = {}
@@ -27,6 +28,7 @@ class VerifierAgent:
         self.prompt_builder = PromptBuilder(self.client, self.config)
         self.system_prompt = self.prompt_builder.build_prompt("verifier", "system")
         self.memory.extend(self.system_prompt)
+        self.saved_memory.extend(self.system_prompt)
         
     async def run(self, user_message: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -47,6 +49,7 @@ class VerifierAgent:
         else:
             print("Extend memory...")
             self.memory.extend(user_message)
+        self.saved_memory.extend(user_message)
         print("Save memory...")
         self._save_memory()
         result = None
@@ -74,6 +77,8 @@ class VerifierAgent:
             if not message.tool_calls and not self.config.get("no_tools"):
                 self.memory.append({"role": "assistant", "content": message.content})
                 self.memory.append({"role": "user", "content": "Each return message must contain a tool call. Your previous message did not contain a tool call. Please reconsider."})
+                self.saved_memory.append({"role": "assistant", "content": message.content})
+                self.saved_memory.append({"role": "user", "content": "Each return message must contain a tool call. Your previous message did not contain a tool call. Please reconsider."})
                 self._save_memory()
                 continue
             elif self.config.get("no_tools"):
@@ -88,6 +93,8 @@ class VerifierAgent:
                     print(f"Error executing tool: {e}")
                     self.memory.append({"role": "assistant", "content": content})
                     self.memory.append({"role": "user", "content": f"Error executing tool: {e}. Please try again."})
+                    self.saved_memory.append({"role": "assistant", "content": content})
+                    self.saved_memory.append({"role": "user", "content": f"Error executing tool: {e}. Please try again."})
                     self._save_memory()
                     continue
             else:
@@ -119,8 +126,10 @@ class VerifierAgent:
         if not self.config.get("no_tools"):
             assistant_tool_calls = message['assistant'].tool_calls[0].model_dump()
             self.memory.append({"role": "assistant", "content": assistant_content, "tool_calls": [assistant_tool_calls]})
+            self.saved_memory.append({"role": "assistant", "content": assistant_content, "tool_calls": [assistant_tool_calls]})
         else:
             self.memory.append({"role": "assistant", "content": assistant_content})
+            self.saved_memory.append({"role": "assistant", "content": assistant_content})
         
         # Add tool response
         if not self.config.get("no_tools"):
@@ -143,16 +152,19 @@ class VerifierAgent:
         
         if self.config.get("no_tools"):
             self.memory.append({"role": "assistant", "content": tool_response})
+            self.saved_memory.append({"role": "assistant", "content": tool_response})
         else:
             self.memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
+            self.saved_memory.append({"role": "tool", "content": tool_response, "name": tool_call_name, "tool_call_id": tool_call_id})
         if user_response:
             self.memory.append({"role": "user", "content": user_response})
-    
+            self.saved_memory.append({"role": "user", "content": user_response})
+
     def _save_memory(self):
         """Save the memory to the file"""
         output_file = self.config.get("output_dir") + "/verifier_memory.json"
         with open(output_file, "w") as f:
-            json.dump(self.memory, f, indent=4, ensure_ascii=False)
+            json.dump(self.saved_memory, f, indent=4, ensure_ascii=False)
             
     async def cleanup(self):
         await self.tool_client.cleanup()
