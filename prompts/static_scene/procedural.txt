@@ -21,7 +21,7 @@
 
 ## Stage B: Core Furniture Construction
 
-Sequentially generate and place the following objects:
+Sequentially generate (use 'get_better_object' tool) and place the following objects:
 
 ---
 
