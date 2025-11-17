@@ -61,12 +61,15 @@ def load_static_scene_dataset(base_path: str, task_name: str, setting: str, test
             target_image_path = str(task_path / "target.jpg")
         elif (task_path / "target").exists() and (task_path / "target").is_dir():
             target_image_path = str(task_path / "target")
-            
-        init_image_path = task_path / f"{setting}_init" / "render1.png"
         
         if not target_image_path:
             print(f"Warning: No target image found for task: {task}")
             continue
+        
+        init_image_path = task_path / f"{setting}_init" / "render1.png"
+        
+        if not init_image_path.exists():
+            init_image_path = ''
         
         # Look for description file
         description_path = task_path / "description.txt"
