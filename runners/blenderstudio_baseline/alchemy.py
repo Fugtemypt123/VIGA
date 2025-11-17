@@ -669,7 +669,7 @@ def main():
     
     # Set output directory
     if not args.output_dir:
-        args.output_dir = f"output/alchemy/{time.strftime('%Y%m%d_%H%M%S')}"
+        args.output_dir = f"output/blenderstudio/alchemy/{time.strftime('%Y%m%d_%H%M%S')}"
     
     # Always use 10 iterations
     args.max_iterations = 10
