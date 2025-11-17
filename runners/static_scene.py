@@ -138,7 +138,6 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         "--max-rounds", str(args.max_rounds),
         "--memory-length", str(args.memory_length),
         "--target-image-path", task_config["target_image_path"] if not args.text_only else "",
-        "--target-description", task_config["target_description"],
         "--output-dir", task_config["output_dir"],
         "--task-name", task_name,
         "--generator-tools", args.generator_tools,
@@ -161,6 +160,8 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         cmd.extend(["--gpu-devices", args.gpu_devices])
     if args.with_prior:
         cmd.extend(["--with-prior"])
+    if task_config["target_description"]:
+        cmd.extend(["--target-description", task_config["target_description"]])
 
     try:
         result = subprocess.run(cmd)  # no timeout
