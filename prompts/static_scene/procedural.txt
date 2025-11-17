@@ -1,4 +1,4 @@
-# 🧩 Procedural Generation Pipeline (Stage-by-Stage)
+# Procedural Generation Pipeline (Stage-by-Stage)
 
 ## Stage A: Structural Initialization
 
@@ -108,3 +108,4 @@ Add picture frames or other small ornaments to enhance realism.
 - Maintain consistent scale and avoid interpenetration.  
 - Keep coordinates within a reasonable centered range.  
 - Optimize for visual balance and spatial clarity.
+- If you can see the initial scene, it means there's a camera in the scene; do not modify the camera. If you cannot see the initial scene, it means there's no camera in the scene; you need to add one yourself to observe the scene.

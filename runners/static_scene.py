@@ -87,7 +87,6 @@ def load_static_scene_dataset(base_path: str, task_name: str, setting: str, test
             "task_name": task,
             "task_id": task,
             "target_image_path": target_image_path,
-            "target_description": "Your task is to place asset in the initial room properly, do not add or edit any camera, lighting, or background. They are already set up correctly.",
             "assets_dir": assets_dir,  # Add assets directory path
             "output_dir": f"output/static_scene/{test_id or time.strftime('%Y%m%d_%H%M%S')}/{task}",
             "init_code_path": "",  # Static scenes start from scratch
