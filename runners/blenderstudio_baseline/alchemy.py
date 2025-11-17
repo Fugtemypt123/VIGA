@@ -38,8 +38,7 @@ def encode_image(image_path: str) -> str:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 
-def vlm_compare_images(image1_path: str, image2_path: str, target_path: str, 
-                      api_key: str, base_url: str, model: str = "gpt-4o") -> int:
+def vlm_compare_images(image1_path: str, image2_path: str, target_path: str, model: str = "gpt-4o") -> int:
     """
     Use VLM to compare two images and determine which is closer to target.
     
@@ -47,8 +46,6 @@ def vlm_compare_images(image1_path: str, image2_path: str, target_path: str,
         image1_path: Path to first image
         image2_path: Path to second image  
         target_path: Path to target image
-        api_key: OpenAI API key
-        base_url: OpenAI base URL
         model: Vision model to use
         
     Returns:
@@ -406,8 +403,7 @@ Please output {num_candidates} complete code solutions, separated by "===CANDIDA
         return [current_code] * num_candidates
 
 
-def tournament_select_best(candidate_results: List[Dict], target_image_path: str,
-                           model: str = "gpt-4o") -> int:
+def tournament_select_best(candidate_results: List[Dict], target_image_path: str, model: str = "gpt-4o") -> int:
     """
     Run tournament to select the best candidate using VLM comparison.
     
