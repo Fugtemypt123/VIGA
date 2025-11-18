@@ -69,7 +69,7 @@ class VerifierAgent:
             
             # Generate response
             print("Generate response...")
-            response = get_model_response(self.client, chat_args)
+            response = get_model_response(self.client, chat_args, self.config)
             message = response.choices[0].message
             
             # Handle tool call

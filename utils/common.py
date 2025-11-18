@@ -7,17 +7,24 @@ from typing import Dict, List, Optional
 from openai import OpenAI
 import time
 from utils._api_keys import OPENAI_API_KEY, OPENAI_BASE_URL, CLAUDE_API_KEY, CLAUDE_BASE_URL, GEMINI_API_KEY, GEMINI_BASE_URL, QWEN_BASE_URL, MESHY_API_KEY, VA_API_KEY
+from pathlib import Path
 
-def get_model_response(client: OpenAI, chat_args: Dict):
+def get_model_response(client: OpenAI, chat_args: Dict, config: Dict):
     # repeat multiple time to avoid network errors
-    for i in range(3):
-        try:
-            response = client.chat.completions.create(**chat_args)
-            return response
-        except Exception as e:
-            print(f"Error getting model response: {e}")
-            time.sleep(1)
-    raise Exception("Failed to get model response")
+    # select the best candidate from the responses
+    candidate_responses = []
+    for idx in range(config.get("num_candidates", 4)):
+        for i in range(3):
+            try:
+                response = client.chat.completions.create(**chat_args)
+                candidate_responses.append(response)
+                break
+            except Exception as e:
+                print(f"Error getting model response: {e}")
+                time.sleep(1)
+    if len(candidate_responses) == 0:
+        raise Exception("Failed to get model response")
+    return candidate_responses[tournament_select_best(candidate_responses, config.get("target_image_path"), config.get("model"))]
 
 def build_client(model_name: str):
     model_name = model_name.lower()
@@ -134,3 +141,148 @@ def extract_code_pieces(text: str, concat: bool = True) -> list[str]:
         text = text[end_idx+3:].strip()
     if concat: return '\n\n'.join(code_pieces)
     return code_pieces
+
+def tournament_select_best(candidate_results: List[Dict], target_image_path: str, model: str = "gpt-4o") -> int:
+    """
+    Run tournament to select the best candidate using VLM comparison.
+    
+    Args:
+        candidate_results: List of dicts with keys 'render_dir' (path to render directory)
+        target_image_path: Path to target image
+        model: Vision model name
+        
+    Returns:
+        Index of the winning candidate
+    """
+    if len(candidate_results) == 0:
+        return 0
+    
+    if len(candidate_results) == 1:
+        return 0
+    
+    # Tournament: keep pairing and comparing until one winner
+    current_candidates = list(range(len(candidate_results)))
+    
+    while len(current_candidates) > 1:
+        next_round = []
+        
+        # Pair up candidates
+        for i in range(0, len(current_candidates), 2):
+            if i + 1 < len(current_candidates):
+                idx1 = current_candidates[i]
+                idx2 = current_candidates[i + 1]
+                
+                render_dir1 = candidate_results[idx1]['render_dir']
+                render_dir2 = candidate_results[idx2]['render_dir']
+                
+                # Find render1.png in each directory
+                render_dir1_path = Path(render_dir1)
+                render_dir2_path = Path(render_dir2)
+                
+                render1_files = sorted(render_dir1_path.glob("render*.png"))
+                render2_files = sorted(render_dir2_path.glob("render*.png"))
+                
+                if not render1_files or not render2_files:
+                    # If no renders, default to first candidate
+                    next_round.append(idx1)
+                    continue
+                
+                img1_path = str(render1_files[0])
+                img2_path = str(render2_files[0])
+                
+                # Compare which is closer to target
+                winner = vlm_compare_images(img1_path, img2_path, target_image_path, model)
+                
+                # Winner is 1 or 2, convert to index
+                winner_idx = idx1 if winner == 1 else idx2
+                next_round.append(winner_idx)
+            else:
+                # Odd number, last one gets bye
+                next_round.append(current_candidates[i])
+        
+        current_candidates = next_round
+    
+    return current_candidates[0]
+
+def vlm_compare_images(image1_path: str, image2_path: str, target_path: str, model: str = "gpt-4o") -> int:
+    """
+    Use VLM to compare two images and determine which is closer to target.
+    
+    Args:
+        image1_path: Path to first image
+        image2_path: Path to second image  
+        target_path: Path to target image
+        model: Vision model to use
+        
+    Returns:
+        1 if image1 is closer to target, 2 if image2 is closer to target
+    """
+    try:
+        # Encode images
+        image1_b64 = get_image_base64(image1_path)
+        image2_b64 = get_image_base64(image2_path)
+        target_b64 = get_image_base64(target_path)
+        
+        # Initialize OpenAI client
+        client = build_client(model)
+        
+        # Create messages
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "You are an expert at comparing 3D rendered images. I will show you two rendered images and a target image. Please determine which of the two rendered images is closer to the target image in terms of visual similarity, lighting, materials, geometry, and overall appearance. Respond with only '1' if the first image is closer to the target, or '2' if the second image is closer to the target."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": target_b64
+                        }
+                    },
+                    {
+                        "type": "text", 
+                        "text": "Target image:"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image1_b64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": "Image 1:"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image2_b64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": "Image 2:"
+                    }
+                ]
+            }
+        ]
+        
+        # Make API call
+        response = client.chat.completions.create(model=model, messages=messages)
+        
+        # Parse response
+        result = response.choices[0].message.content.strip()
+        if result == "1":
+            return 1
+        elif result == "2":
+            return 2
+        else:
+            # Default to image1 if response is unclear
+            print(f"Unexpected VLM response: {result}, defaulting to image1")
+            return 1
+            
+    except Exception as e:
+        print(f"VLM comparison failed: {e}, defaulting to image1")
+        return 1
