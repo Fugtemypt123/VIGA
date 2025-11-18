@@ -34,7 +34,7 @@ async def main():
     parser.add_argument("--no-tools", action="store_true", help="Use no tools mode")
     parser.add_argument("--init-setting", choices=["none", "minimal", "reasonable"], default="none", help="Setting for the static scene task")
     parser.add_argument("--prompt-setting", choices=["none", "procedural", "scene_graph"], default="none", help="Setting for the prompt")
-    parser.add_argument("--num-candidates", type=int, default=4, help="Number of candidates for the model")
+    parser.add_argument("--num-candidates", type=int, default=1, help="Number of candidates for the model")
     
     # Execution parameters
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")

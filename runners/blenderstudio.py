@@ -217,6 +217,7 @@ def run_blendergym_task(task_config: Dict, args) -> tuple:
         "--blender-script", args.blender_script,
         "--gpu-devices", args.gpu_devices,
         "--clear-memory",
+        "--num-candidates", str(args.num_candidates),
     ]
     
     if args.no_tools:
@@ -324,6 +325,7 @@ def main():
     parser.add_argument("--max-workers", type=int, default=8, help="Maximum number of parallel workers")
     parser.add_argument("--sequential", action="store_true", help="Run tasks sequentially instead of in parallel")
     parser.add_argument("--no-tools", action="store_true", help="Use no tools mode")
+    parser.add_argument("--num-candidates", type=int, default=1, help="Number of candidates for the model")
     
     available_gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES")
     if available_gpu_devices is None:
