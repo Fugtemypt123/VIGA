@@ -175,8 +175,11 @@ def tournament_select_best(candidate_results: List[Dict], target_image_path: str
                 render1_files = candidate_results[idx1]['image']
                 render2_files = candidate_results[idx2]['image']
                 
-                if not render1_files or not render2_files:
+                if not render1_files:
                     # If no renders, default to first candidate
+                    next_round.append(idx2)
+                    continue
+                elif not render2_files:
                     next_round.append(idx1)
                     continue
                 

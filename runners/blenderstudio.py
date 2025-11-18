@@ -314,7 +314,7 @@ def main():
     parser.add_argument("--memory-length", type=int, default=24, help="Memory length")
     
     # Blender parameters
-    parser.add_argument("--blender-command", default="utils/Infinigen/blender/blender", help="Blender command path")
+    parser.add_argument("--blender-command", default="utils/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-script", default="data/blenderstudio/generator_script.py", help="Blender execution script")
     
     # Tool server scripts (comma-separated)
