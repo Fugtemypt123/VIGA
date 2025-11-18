@@ -5,7 +5,7 @@ from typing import Dict, Any
 from agents.tool_client import ExternalToolClient
 from agents.verifier import VerifierAgent
 from agents.prompt_builder import PromptBuilder
-from utils.common import get_image_base64, get_model_response
+from utils.common import get_image_base64, get_model_response, tournament_select_best
 
 class GeneratorAgent:
     def __init__(self, args, verifier: VerifierAgent):
@@ -61,8 +61,8 @@ class GeneratorAgent:
 
             # Generate response
             print("Generate response...")
-            response = get_model_response(self.client, chat_args, self.config)
-            message = response.choices[0].message
+            responses = get_model_response(self.client, chat_args, self.config)
+            message = responses[0].choices[0].message
             
             # Handle tool call
             print("Handle tool call...")
@@ -75,23 +75,30 @@ class GeneratorAgent:
                 self._save_memory()
                 continue
             elif self.config.get("no_tools"):
-                content = message.content
-                try:
-                    json_content = content.split('```json')[1].split('```')[0]
-                    json_content = json.loads(json_content)
-                    json_content = {'thought': str(json_content.get('thought', '')), 'code_diff': str(json_content.get('code_diff', '')), 'code': str(json_content.get('code', ''))}
-                    tool_name = "execute_and_evaluate"
-                    tool_response = await self.tool_client.call_tool("execute_and_evaluate", json_content)
+                # We can support multiple candidates here
+                tool_responses = []
+                for response in responses:
+                    message = response.choices[0].message
+                    content = message.content
+                    try:
+                        json_content = content.split('```json')[1].split('```')[0]
+                        json_content = json.loads(json_content)
+                        json_content = {'thought': str(json_content.get('thought', '')), 'code_diff': str(json_content.get('code_diff', '')), 'code': str(json_content.get('code', ''))}
+                        tool_name = "execute_and_evaluate"
+                        tool_response = await self.tool_client.call_tool("execute_and_evaluate", json_content)
+                        tool_responses.append(tool_response)
+                    except Exception as e:
+                        print(f"Error executing tool: {e}")
+                        self.memory.append({"role": "assistant", "content": content})
+                        self.memory.append({"role": "user", "content": f"Error executing tool: {e}. Please try again."})
+                        self._save_memory()
+                        continue
                     
-                    if tool_response.get('require_verifier', False):
-                        verifier_result = await self.verifier.run({"argument": json_content, "execution": tool_response})
-                        tool_response['verifier_result'] = verifier_result
-                except Exception as e:
-                    print(f"Error executing tool: {e}")
-                    self.memory.append({"role": "assistant", "content": content})
-                    self.memory.append({"role": "user", "content": f"Error executing tool: {e}. Please try again."})
-                    self._save_memory()
-                    continue
+                best_idx = tournament_select_best(tool_responses, self.config.get("target_image_path"), self.config.get("model"))
+                tool_response = tool_responses[best_idx]
+                if tool_response.get('require_verifier', False):
+                    verifier_result = await self.verifier.run({"argument": json_content, "execution": tool_response})
+                    tool_response['verifier_result'] = verifier_result
             else:
                 tool_call = message.tool_calls[0]
                 tool_name = tool_call.function.name

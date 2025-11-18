@@ -24,7 +24,7 @@ def get_model_response(client: OpenAI, chat_args: Dict, config: Dict):
                 time.sleep(1)
     if len(candidate_responses) == 0:
         raise Exception("Failed to get model response")
-    return candidate_responses[tournament_select_best(candidate_responses, config.get("target_image_path"), config.get("model"))]
+    return candidate_responses
 
 def build_client(model_name: str):
     model_name = model_name.lower()
@@ -172,15 +172,8 @@ def tournament_select_best(candidate_results: List[Dict], target_image_path: str
                 idx1 = current_candidates[i]
                 idx2 = current_candidates[i + 1]
                 
-                render_dir1 = candidate_results[idx1]['render_dir']
-                render_dir2 = candidate_results[idx2]['render_dir']
-                
-                # Find render1.png in each directory
-                render_dir1_path = Path(render_dir1)
-                render_dir2_path = Path(render_dir2)
-                
-                render1_files = sorted(render_dir1_path.glob("render*.png"))
-                render2_files = sorted(render_dir2_path.glob("render*.png"))
+                render1_files = candidate_results[idx1]['image']
+                render2_files = candidate_results[idx2]['image']
                 
                 if not render1_files or not render2_files:
                     # If no renders, default to first candidate
