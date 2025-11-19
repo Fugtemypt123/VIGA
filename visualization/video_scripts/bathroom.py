@@ -9,13 +9,67 @@ except ImportError:
     )
 
 # ================== 可按需修改的参数 ==================
-FRAMES = 240          # 总帧数（比如 240 帧，配合 30 fps ≈ 8 秒）
-FPS = 30              # 帧率
-RADIUS = 1.0          # 摄像机离中心的距离
-HEIGHT = 1.7          # 摄像机高度
-CENTER = (0.0, 0.0, 1.2)  # 环绕中心（可以调成你浴室的中心高度）
-OUTPUT_PATH = "//bathroom.mp4"  # // 表示相对当前 .blend 文件所在目录
+FRAMES = 30                 # 总帧数
+FPS = 30                    # 帧率
+RADIUS = 1.0                # 摄像机离中心的水平距离
+HEIGHT = 0.0                # 摄像机相对中心的高度偏移
+CENTER = (0.0, 0.0, 1.0)    # 环绕中心
+OUTPUT_PATH = "//bathroom.mp4"  # 相对 .blend 的输出路径
 # =====================================================
+
+
+def enable_gpu_for_cycles():
+    """
+    将 Cycles 渲染设备切换到 GPU。
+    优先尝试 OPTIX，没有则退回 CUDA；如果失败则仍然使用 CPU。
+    """
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+
+    prefs_all = bpy.context.preferences
+
+    # 确保 Cycles 插件已启用
+    if "cycles" not in prefs_all.addons:
+        try:
+            bpy.ops.preferences.addon_enable(module="cycles")
+        except Exception as e:
+            print(f"[WARN] Cannot enable Cycles addon automatically: {e}")
+            return
+
+    try:
+        cycles_prefs = prefs_all.addons["cycles"].preferences
+    except KeyError:
+        print("[WARN] Cycles addon not found in preferences; fallback to CPU.")
+        return
+
+    backend_chosen = None
+    for backend in ("CUDA", "OPTIX"):
+        try:
+            cycles_prefs.compute_device_type = backend
+            backend_chosen = backend
+            break
+        except TypeError:
+            # 该 Blender 版本/编译不支持这个 backend
+            continue
+
+    if backend_chosen is None:
+        print("[WARN] No supported GPU backend (OPTIX/CUDA); fallback to CPU.")
+        return
+
+    # 刷新设备列表（不同版本函数签名可能略有差异）
+    try:
+        cycles_prefs.refresh_devices()
+    except TypeError:
+        cycles_prefs.refresh_devices(bpy.context)
+
+    # 只启用 GPU 设备
+    for dev in cycles_prefs.devices:
+        dev.use = (dev.type == "GPU" or dev.type == "CUDA")
+        print(f"[GPU] {dev.type}: {dev.name}, use={dev.use}")
+
+    # 场景层面指定使用 GPU
+    scene.cycles.device = "GPU"
+    print(f"[INFO] Cycles is now using GPU with backend = {backend_chosen}.")
 
 
 def clear_old_cameras():
@@ -27,7 +81,7 @@ def clear_old_cameras():
 
 
 def create_camera_and_target(center):
-    """创建一个摄像机和一个空物体作为跟踪目标."""
+    """创建一个摄像机和一个空物体作为跟踪目标。"""
     scene = bpy.context.scene
 
     # 摄像机
@@ -72,7 +126,7 @@ def animate_turntable(camera, center, radius, height, frames):
 
 
 def setup_render(output_path, frames, fps):
-    """设置渲染为 H264 MP4 输出."""
+    """设置渲染为 H264 MP4 输出。"""
     scene = bpy.context.scene
 
     scene.frame_start = 0
@@ -82,7 +136,7 @@ def setup_render(output_path, frames, fps):
     # 输出路径；// 表示相对 .blend 所在目录
     scene.render.filepath = output_path
 
-    # 引擎（要快可以换成 BLENDER_EEVEE）
+    # 引擎（这里仍使用 Cycles，设备由 enable_gpu_for_cycles 控制）
     scene.render.engine = "CYCLES"
 
     scene.render.image_settings.file_format = "FFMPEG"
@@ -97,6 +151,9 @@ def setup_render(output_path, frames, fps):
 
 def main():
     print("[INFO] Using current opened blend file:", bpy.data.filepath)
+
+    # ★ 先启用 GPU 渲染
+    enable_gpu_for_cycles()
 
     clear_old_cameras()
     camera = create_camera_and_target(CENTER)
