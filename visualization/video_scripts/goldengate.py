@@ -2,6 +2,7 @@ import math
 
 try:
     import bpy
+    from mathutils import Vector
 except ImportError:
     raise RuntimeError(
         "This script must be run inside Blender, e.g.:\n"
@@ -9,13 +10,67 @@ except ImportError:
     )
 
 # ================== 可按需修改的参数 ==================
-FRAMES = 240          # 总帧数（比如 240 帧，配合 30 fps ≈ 8 秒）
-FPS = 30              # 帧率
-RADIUS = 80.0          # 摄像机离中心的距离
-HEIGHT = 10         # 摄像机高度
-CENTER = (0.0, 0.0, 0.8)  # 环绕中心（可以调成你浴室的中心高度）
-OUTPUT_PATH = "//goldengate.mp4"  # // 表示相对当前 .blend 文件所在目录
+FRAMES = 80         # 总帧数
+FPS = 10            # 帧率
+START_POS = (45.0, 50.0, 10.0)     # 摄像机起点
+END_POS   = (-45.0, -50.0, 10.0)   # 摄像机终点
+OUTPUT_PATH = "//goldengate.mp4"  # 相对当前 .blend 文件所在目录
 # =====================================================
+
+
+def enable_gpu_for_cycles():
+    """
+    将 Cycles 渲染设备切换到 GPU。
+    首选 CUDA，其次 OPTIX；如果都不可用则退回 CPU。
+    """
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+
+    prefs_all = bpy.context.preferences
+
+    # 确保 Cycles 插件已启用
+    if "cycles" not in prefs_all.addons:
+        try:
+            bpy.ops.preferences.addon_enable(module="cycles")
+        except Exception as e:
+            print(f"[WARN] Cannot enable Cycles addon automatically: {e}")
+            return
+
+    try:
+        cycles_prefs = prefs_all.addons["cycles"].preferences
+    except KeyError:
+        print("[WARN] Cycles addon not found in preferences; fallback to CPU.")
+        return
+
+    backend_chosen = None
+    # ★ 首选 CUDA，再尝试 OPTIX
+    for backend in ("CUDA", "OPTIX"):
+        try:
+            cycles_prefs.compute_device_type = backend
+            backend_chosen = backend
+            break
+        except TypeError:
+            # 该 Blender 版本/编译不支持这个 backend
+            continue
+
+    if backend_chosen is None:
+        print("[WARN] No supported GPU backend (CUDA/OPTIX); fallback to CPU.")
+        return
+
+    # 刷新设备列表（不同版本函数签名可能略有差异）
+    try:
+        cycles_prefs.refresh_devices()
+    except TypeError:
+        cycles_prefs.refresh_devices(bpy.context)
+
+    # 只启用 GPU 设备
+    for dev in cycles_prefs.devices:
+        dev.use = (dev.type == "GPU" or dev.type == "CUDA")
+        print(f"[GPU] {dev.type}: {dev.name}, use={dev.use}")
+
+    # 场景层面指定使用 GPU
+    scene.cycles.device = "GPU"
+    print(f"[INFO] Cycles is now using GPU with backend = {backend_chosen}.")
 
 
 def clear_old_cameras():
@@ -26,49 +81,56 @@ def clear_old_cameras():
             bpy.data.objects.remove(obj, do_unlink=True)
 
 
-def create_camera_and_target(center):
-    """创建一个摄像机和一个空物体作为跟踪目标."""
+def create_camera():
+    """创建一个摄像机对象，不再使用空物体和 TrackTo 约束。"""
     scene = bpy.context.scene
 
-    # 摄像机
-    cam_data = bpy.data.cameras.new("TurntableCamera")
-    camera = bpy.data.objects.new("TurntableCamera", cam_data)
+    cam_data = bpy.data.cameras.new("TravelCamera")
+    camera = bpy.data.objects.new("TravelCamera", cam_data)
     scene.collection.objects.link(camera)
-
-    # 空物体：用于让摄像机始终看向它
-    target = bpy.data.objects.new("TurntableTarget", None)
-    target.location = center
-    scene.collection.objects.link(target)
-
-    # Track To 约束：摄像机始终看向 target
-    constr = camera.constraints.new(type="TRACK_TO")
-    constr.target = target
-    constr.track_axis = "TRACK_NEGATIVE_Z"
-    constr.up_axis = "UP_Y"
 
     # 设置为场景主摄像机
     scene.camera = camera
 
-    print("[INFO] Camera and target created.")
+    print("[INFO] Camera created.")
     return camera
 
 
-def animate_turntable(camera, center, radius, height, frames):
-    """给摄像机做绕 center 一圈的动画（360°）。"""
+def animate_linear_motion(camera, start_pos, end_pos, frames):
+    """
+    让摄像机从 start_pos 直线运动到 end_pos，
+    且视角始终沿运动方向。
+    """
     scene = bpy.context.scene
 
-    for f in range(frames):
-        angle = 2.0 * math.pi * (f / frames)
+    start = Vector(start_pos)
+    end = Vector(end_pos)
 
-        x = center[0] + radius * math.cos(angle)
-        y = center[1] + radius * math.sin(angle)
-        z = center[2] + height
+    # 运动方向向量（终点 - 起点）
+    direction = (end - start).normalized()
+
+    # 摄像机在 Blender 中默认是沿 -Z 轴看向前方，
+    # 因此让 -Z 轴对齐到运动方向 direction。
+    base_quat = direction.to_track_quat('-Z', 'Y')
+
+    for f in range(frames):
+        # t 从 0 到 1，均匀插值
+        if frames > 1:
+            t = f / (frames - 1)
+        else:
+            t = 0.0
+
+        # 线性插值位置
+        pos = start.lerp(end, t)
 
         scene.frame_set(f)
-        camera.location = (x, y, z)
-        camera.keyframe_insert(data_path="location", frame=f)
+        camera.location = pos
+        camera.rotation_euler = base_quat.to_euler()
 
-    print("[INFO] Turntable keyframes inserted.")
+        camera.keyframe_insert(data_path="location", frame=f)
+        camera.keyframe_insert(data_path="rotation_euler", frame=f)
+
+    print("[INFO] Linear motion keyframes (location + rotation) inserted.")
 
 
 def setup_render(output_path, frames, fps):
@@ -82,7 +144,7 @@ def setup_render(output_path, frames, fps):
     # 输出路径；// 表示相对 .blend 所在目录
     scene.render.filepath = output_path
 
-    # 引擎（要快可以换成 BLENDER_EEVEE）
+    # 引擎（这里使用 Cycles，设备由 enable_gpu_for_cycles 控制）
     scene.render.engine = "CYCLES"
 
     scene.render.image_settings.file_format = "FFMPEG"
@@ -98,9 +160,12 @@ def setup_render(output_path, frames, fps):
 def main():
     print("[INFO] Using current opened blend file:", bpy.data.filepath)
 
+    # ★ 先启用 GPU 渲染（首选 CUDA）
+    enable_gpu_for_cycles()
+
     clear_old_cameras()
-    camera = create_camera_and_target(CENTER)
-    animate_turntable(camera, CENTER, RADIUS, HEIGHT, FRAMES)
+    camera = create_camera()
+    animate_linear_motion(camera, START_POS, END_POS, FRAMES)
     setup_render(OUTPUT_PATH, FRAMES, FPS)
 
     print("[INFO] Start rendering animation...")

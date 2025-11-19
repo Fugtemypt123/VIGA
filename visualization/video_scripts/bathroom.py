@@ -9,11 +9,12 @@ except ImportError:
     )
 
 # ================== 可按需修改的参数 ==================
-FRAMES = 30                 # 总帧数
-FPS = 30                    # 帧率
+FRAMES = 80                 # 总帧数
+FPS = 10                  # 帧率
 RADIUS = 1.0                # 摄像机离中心的水平距离
-HEIGHT = 0.0                # 摄像机相对中心的高度偏移
-CENTER = (0.0, 0.0, 1.0)    # 环绕中心
+HEIGHT = 0.8               # 摄像机相对中心的高度偏移
+CENTER = (0.0, 0.0, 1.8)    # 环绕中心
+FOCAL_LENGTH = 20.0         # 摄像机焦距（mm），视角宽窄由此控制，常见值 24/35/50 等
 OUTPUT_PATH = "//bathroom.mp4"  # 相对 .blend 的输出路径
 # =====================================================
 
@@ -21,7 +22,7 @@ OUTPUT_PATH = "//bathroom.mp4"  # 相对 .blend 的输出路径
 def enable_gpu_for_cycles():
     """
     将 Cycles 渲染设备切换到 GPU。
-    优先尝试 OPTIX，没有则退回 CUDA；如果失败则仍然使用 CPU。
+    优先尝试 CUDA，再尝试 OPTIX；如果失败则仍然使用 CPU。
     """
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
@@ -81,11 +82,12 @@ def clear_old_cameras():
 
 
 def create_camera_and_target(center):
-    """创建一个摄像机和一个空物体作为跟踪目标。"""
+    """创建一个摄像机和一个空物体作为跟踪目标，并设置焦距。"""
     scene = bpy.context.scene
 
     # 摄像机
     cam_data = bpy.data.cameras.new("TurntableCamera")
+    cam_data.lens = FOCAL_LENGTH  # ★ 设置焦距（单位：毫米）
     camera = bpy.data.objects.new("TurntableCamera", cam_data)
     scene.collection.objects.link(camera)
 
@@ -103,7 +105,7 @@ def create_camera_and_target(center):
     # 设置为场景主摄像机
     scene.camera = camera
 
-    print("[INFO] Camera and target created.")
+    print(f"[INFO] Camera and target created. Focal length = {FOCAL_LENGTH} mm")
     return camera
 
 
