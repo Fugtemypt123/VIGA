@@ -181,7 +181,7 @@ def process_task_instance(output_base_dir: str, task_dir: str):
         best_n_clip_round = min(valid_rounds.keys(), key=lambda r: valid_rounds[r]['avg_n_clip'])
         best_pl_round = min(valid_rounds.keys(), key=lambda r: valid_rounds[r]['avg_pl'])
         best_n_clip = valid_rounds[best_n_clip_round]['avg_n_clip']
-        best_pl = valid_rounds[best_pl_round]['avg_pl']
+        best_pl = valid_rounds[best_n_clip_round]['avg_pl'] if best_n_clip_round in valid_rounds else None
 
     # Save individual instance scores
     instance_scores_path = os.path.join(task_instance_dir, 'scores.json')
