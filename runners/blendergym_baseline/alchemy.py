@@ -150,7 +150,7 @@ def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[st
         
     current_task_dirs: List[str] = []
     if test_id is not None:
-        current_task_path = Path(f"output/blendergym/alchemy/{test_id}/blendergym")
+        current_task_path = Path(f"output/blendergym/alchemy/{test_id}")
         for task in task_list:
             for task_dir in current_task_path.glob(f"{task}*"):
                 scores_path = task_dir / "renders/10"
@@ -488,13 +488,14 @@ def run_iterative_alchemy(task_config: Dict, args) -> Dict:
         Dictionary with results
     """
     
-    task_name = "/".join(task_config['task_dir'].split('/')[-2:])
+    task_display_name = task_config.get("task_name") or Path(task_config["task_dir"]).name
+    task_output_name = Path(task_config["task_dir"]).name
     print(f"\n{'='*60}")
-    print(f"Running iterative alchemy for task: {task_name}")
+    print(f"Running iterative alchemy for task: {task_display_name}")
     print(f"{'='*60}")
     
     # Setup paths
-    output_dir = Path(args.output_dir) / task_name
+    output_dir = Path(args.output_dir) / task_output_name
     output_dir.mkdir(parents=True, exist_ok=True)
     
     script_save_dir = output_dir / "scripts"
@@ -514,7 +515,7 @@ def run_iterative_alchemy(task_config: Dict, args) -> Dict:
     
     if not start_images or not target_images:
         return {
-            "task_name": task_name,
+            "task_name": task_display_name,
             "error": "Missing start or target images",
             "success": False
         }
@@ -635,7 +636,7 @@ def run_iterative_alchemy(task_config: Dict, args) -> Dict:
                 shutil.rmtree(temp_dir)
     
     return {
-        "task_name": task_name,
+        "task_name": task_display_name,
         "success": True,
         "rounds": args.max_iterations
     }
@@ -674,7 +675,9 @@ def main():
         args.gpu_devices = os.getenv("CUDA_VISIBLE_DEVICES", "0,1,2,3,4,5,6,7")
     
     # Set output directory
-    if not args.output_dir:
+    if args.test_id:
+        args.output_dir = f"output/blendergym/alchemy/{args.test_id}"
+    elif not args.output_dir:
         args.output_dir = f"output/blendergym/alchemy/{time.strftime('%Y%m%d_%H%M%S')}"
     
     # Always use 10 iterations
