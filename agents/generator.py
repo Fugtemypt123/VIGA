@@ -56,9 +56,6 @@ class GeneratorAgent:
             else:
                 chat_args = {"model": self.config.get("model"), "messages": memory, "tools": tool_configs, "tool_choice": "auto", **self.init_chat_args}
 
-            with open(self.config.get("output_dir") + "/_chat_args.json", "w") as f:
-                json.dump(chat_args, f, indent=4, ensure_ascii=False)
-
             # Generate response
             print("Generate response...")
             responses = get_model_response(self.client, chat_args, self.config.get("num_candidates", 4))
@@ -103,11 +100,12 @@ class GeneratorAgent:
                 tool_name = tool_call.function.name
                 print(f"Call tool {tool_name}...")
                 tool_arguments = json.loads(tool_call.function.arguments)
-                
-                with open(self.config.get("output_dir") + f"/_tool_call.json", "w") as f:
-                    json.dump({'name': tool_name, 'arguments': tool_arguments}, f, indent=4, ensure_ascii=False)
                     
                 tool_response = await self.tool_client.call_tool(tool_name, tool_arguments)
+                if tool_name == "get_better_object":
+                    with open(self.config.get("output_dir") + f"/_tool_call.json", "w") as f:
+                        json.dump({'name': tool_name, 'arguments': tool_arguments, 'response': tool_response}, f, indent=4, ensure_ascii=False)
+                
                 # If the tool is execute_and_evaluate, run the verifier
                 if tool_response.get('require_verifier', False):
                     verifier_result = await self.verifier.run({"argument": tool_arguments, "execution": tool_response, "init_plan": self.init_plan})
