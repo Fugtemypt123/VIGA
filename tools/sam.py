@@ -87,7 +87,7 @@ def get_better_object(thought: str, object_name: str) -> dict:
         )
         info = json.loads(r2.stdout.strip().splitlines()[-1])
         info["glb_path"] = info.get("glb_path") or glb_path
-        return {"status": "success", "output": {"text": ["Successfully generated static asset, downloaded to:  " + info['glb_path'], "Asset information: " + json.dumps(info)]}}
+        return {"status": "success", "output": {"text": [f"Successfully generated asset, downloaded to: {info['glb_path']}", f"Asset information: {json.dumps(info)}"]}}
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
