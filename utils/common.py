@@ -14,8 +14,15 @@ def get_model_response(client: OpenAI, chat_args: Dict, num_candidates: int):
     # select the best candidate from the responses
     candidate_responses = []
     for idx in range(num_candidates):
-        response = client.chat.completions.create(**chat_args)
-        candidate_responses.append(response)
+        max_retries = 3
+        while max_retries > 0:
+            try:
+                response = client.chat.completions.create(**chat_args)
+                candidate_responses.append(response)
+                break
+            except Exception as e:
+                max_retries -= 1
+                time.sleep(10)
     if len(candidate_responses) == 0:
         raise Exception("Failed to get model response")
     return candidate_responses

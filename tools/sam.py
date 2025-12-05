@@ -26,7 +26,7 @@ SAM3_WORKER = os.path.join(os.path.dirname(__file__), "sam3_worker.py")
 SAM3D_WORKER = os.path.join(os.path.dirname(__file__), "sam3d_worker.py")
 
 mcp = FastMCP("sam-bridge")
-_target_image = _output_dir = _sam3_cfg = None
+_target_image = _output_dir = _sam3_cfg = _blender_command = None
 _sam3_env_bin = path_to_cmd["tools/sam3_worker.py"]
 _sam3d_env_bin = path_to_cmd["tools/sam3d_worker.py"]
 
@@ -40,6 +40,7 @@ def initialize(args: dict) -> dict:
     _sam3_cfg = args.get("sam3d_config_path") or os.path.join(
         ROOT, "utils", "sam3d", "checkpoints", "hf", "pipeline.yaml"
     )
+    _blender_command = args.get("blender_command") or "utils/infinigen/blender/blender"
     return {"status": "success", "output": {"text": ["sam bridge init ok"], "tool_configs": tool_configs}}
 
 
@@ -80,6 +81,21 @@ def get_better_object(object_name: str) -> dict:
                 "--config",
                 _sam3_cfg,
                 "--glb",
+                glb_path,
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                _blender_command,
+                "-b",
+                "-P",
+                "tools/fix_glb.py",
+                "--",
+                glb_path,
                 glb_path,
             ],
             cwd=ROOT,
