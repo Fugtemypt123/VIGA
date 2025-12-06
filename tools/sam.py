@@ -33,7 +33,7 @@ _sam3d_env_bin = path_to_cmd["tools/sam3d_worker.py"]
 
 @mcp.tool()
 def initialize(args: dict) -> dict:
-    global _target_image, _output_dir, _sam3_cfg
+    global _target_image, _output_dir, _sam3_cfg, _blender_command
     _target_image = args["target_image_path"]
     _output_dir = args.get("output_dir") + "/sam_bridge"
     os.makedirs(_output_dir, exist_ok=True)
@@ -116,6 +116,7 @@ def main():
             {
                 "target_image_path": "data/static_scene/blackhouse/target.jpeg",
                 "output_dir": os.path.join(ROOT, "output", "test", "sam3"),
+                "blender_command": "utils/infinigen/blender/blender",
             }
         )
         print(get_better_object("house"))
