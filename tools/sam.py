@@ -107,7 +107,7 @@ def get_better_object(object_name: str) -> dict:
         info["glb_path"] = info.get("glb_path") or glb_path
         return {"status": "success", "output": {"text": [f"Successfully generated asset, downloaded to: {info['glb_path']}", f"Asset information: {json.dumps(info)}"]}}
     except subprocess.CalledProcessError as e:
-      return {"status": "error", "output": {"text": [e.stderr or str(e)]}}
+      return {"status": "error", "output": {"text": [f"Object {object_name} not found in the image."]}}
 
 
 def main():
