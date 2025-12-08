@@ -14,7 +14,7 @@ def get_model_response(client: OpenAI, chat_args: Dict, num_candidates: int):
     # select the best candidate from the responses
     candidate_responses = []
     for idx in range(num_candidates):
-        max_retries = 3
+        max_retries = 1
         while max_retries > 0:
             try:
                 response = client.chat.completions.create(**chat_args)
