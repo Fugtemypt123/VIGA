@@ -210,7 +210,7 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         initialize(
             {
-                "target_image_path": "data/static_scene/christmas/target.png",
+                "target_image_path": "data/static_scene/christmas1/target.png",
                 "output_dir": os.path.join(ROOT, "output", "test", "sam_init"),
                 "blender_command": "utils/infinigen/blender/blender",
             }
