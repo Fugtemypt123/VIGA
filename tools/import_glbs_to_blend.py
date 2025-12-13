@@ -50,6 +50,43 @@ def setup_camera():
     
     print(f"[INFO] Camera setup complete: location={camera.location}, FOV=60°")
 
+# ----------------- 设置环境光 -----------------
+def setup_lighting():
+    """Setup environment lighting for the scene."""
+    # 设置 World 环境光
+    world = bpy.context.scene.world
+    if world is None:
+        world = bpy.data.worlds.new("World")
+        bpy.context.scene.world = world
+    
+    # 使用节点系统设置环境光
+    world.use_nodes = True
+    bg_node = world.node_tree.nodes.get("Background")
+    if bg_node is None:
+        bg_node = world.node_tree.nodes.new(type='ShaderNodeBackground')
+    
+    # 设置环境光强度和颜色（白色环境光，强度适中）
+    bg_node.inputs['Strength'].default_value = 1.0  # 环境光强度
+    bg_node.inputs['Color'].default_value = (1.0, 1.0, 1.0, 1.0)  # 白色
+    
+    # 确保环境光节点连接到输出
+    output_node = world.node_tree.nodes.get("World Output")
+    if output_node:
+        world.node_tree.links.new(bg_node.outputs['Background'], output_node.inputs['Surface'])
+    
+    # 添加一个 Sun 光源作为主光源
+    if "Sun" not in bpy.data.objects:
+        bpy.ops.object.light_add(type='SUN')
+        sun = bpy.context.active_object
+        sun.name = "Sun"
+        sun.location = Vector((5.0, 5.0, 10.0))
+        sun.data.energy = 3.0  # 光源强度
+        sun.data.angle = 0.261799  # 约 15 度的角度
+    else:
+        sun = bpy.data.objects["Sun"]
+    
+    print(f"[INFO] Lighting setup complete: World background strength=1.0, Sun energy=3.0")
+
 # ----------------- 计算坐标系统修正矩阵 -----------------
 def get_coordinate_fix_matrix():
     """
@@ -199,6 +236,9 @@ def main():
     
     # 设置相机
     setup_camera()
+    
+    # 设置环境光
+    setup_lighting()
     
     # 导入所有对象
     success_count = 0
