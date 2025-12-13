@@ -9,6 +9,7 @@ path_to_cmd = {
     "tools/verifier_base.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
     "tools/undo.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
     "tools/sam.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3d-objects/bin/python",
+    "tools/sam_worker.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam/bin/python",
     "tools/sam3_worker.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3/bin/python",
     "tools/sam3d_worker.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3d-objects/bin/python",
 }
