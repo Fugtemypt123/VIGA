@@ -174,7 +174,8 @@ def import_glb_with_transform(glb_path, translation, translation_scale, rotation
         root = imported_objects[0]
     
     if name_prefix:
-        root.name = f"{name_prefix}_{root.name}"
+        # 直接使用 name_prefix 作为物体名称，而不是添加前缀
+        root.name = name_prefix
     
     # 1. 计算最终平移: T_final = translation * translation_scale
     trans_scale_val = 1
@@ -248,6 +249,10 @@ def main():
             print(f"[WARN] No 'glb' or 'glb_path' key for object {idx}, skipping")
             continue
         
+        # 从 glb_path 中提取文件名（不含扩展名）作为物体名称
+        glb_filename = os.path.basename(glb_path)
+        object_name = os.path.splitext(glb_filename)[0]  # 去掉 .glb 扩展名
+        
         # 获取变换参数
         translation = obj_data.get("translation")
         translation_scale = obj_data.get("translation_scale", 1.0)
@@ -255,7 +260,7 @@ def main():
         scale = obj_data.get("scale", 1.0)
         
         if translation is None or rotation is None:
-            print(f"[WARN] Missing translation or rotation for object {idx}, skipping")
+            print(f"[WARN] Missing translation or rotation for object {idx} ({object_name}), skipping")
             continue
         
         root = import_glb_with_transform(
@@ -264,7 +269,7 @@ def main():
             translation_scale=translation_scale,
             rotation_quaternion=rotation,
             scale=scale,
-            name_prefix=f"obj_{idx}"
+            name_prefix=object_name
         )
         if root:
             success_count += 1
