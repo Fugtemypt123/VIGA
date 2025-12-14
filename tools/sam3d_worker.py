@@ -34,15 +34,35 @@ def main():
     # convert tensor to list
     saved_output = {}
     for key, value in output.items():
+        # 跳过不能序列化的对象（如 mesh, glb 等）
+        if key in ['mesh', 'glb', 'gaussian', 'gs']:
+            continue
+        
         if hasattr(value, "cpu"):
-            saved_output[key] = value.cpu().numpy()
+            # 转换为 numpy 数组后再转为列表
+            np_value = value.cpu().numpy()
+            if isinstance(np_value, np.ndarray):
+                saved_output[key] = np_value.tolist()
+            else:
+                saved_output[key] = np_value
         elif hasattr(value, "numpy"):
-            saved_output[key] = value.numpy()
+            # 转换为 numpy 数组后再转为列表
+            np_value = value.numpy()
+            if isinstance(np_value, np.ndarray):
+                saved_output[key] = np_value.tolist()
+            else:
+                saved_output[key] = np_value
+        elif isinstance(value, np.ndarray):
+            # 如果已经是 numpy 数组，直接转为列表
+            saved_output[key] = value.tolist()
+        elif hasattr(value, "tolist"):
+            saved_output[key] = value.tolist()
         else:
-            saved_output[key] = value.tolist() if hasattr(value, "tolist") else value
+            # 尝试直接使用，如果不可序列化会在 json.dump 时报错
+            saved_output[key] = value
     
     with open(args.glb.replace('.glb', '_output.json'), 'w') as f:
-        json.dump(saved_output, f)
+        json.dump(saved_output, f, indent=2)
     
     glb = output.get("glb")
     if glb is not None and hasattr(glb, "export"):
