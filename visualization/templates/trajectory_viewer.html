@@ -19,9 +19,56 @@
             height: 100vh;
         }
 
+        /* Entry Page Styles */
+        #entry-page {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .entry-title {
+            font-size: 32px;
+            margin-bottom: 40px;
+            color: #b4dcff;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .preview-item {
+            aspect-ratio: 1;
+            cursor: pointer;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.3s, transform 0.3s;
+        }
+
+        .preview-item:hover {
+            border-color: #4a9eff;
+            transform: scale(1.05);
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Main Container Styles */
         .container {
             display: flex;
             height: 100vh;
+            display: none; /* Hidden by default, shown after entry selection */
         }
 
         .left-panel {
@@ -37,10 +84,27 @@
             width: 50%;
             background: #0a0a0a;
             display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .right-panel-top {
+            flex: 1;
+            display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-            overflow: hidden;
+            border-bottom: 2px solid #464650;
+        }
+
+        .right-panel-bottom {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
 
         .section {
@@ -110,12 +174,33 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
         .image-container img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+        }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .loading-gif {
+            width: 100px;
+            height: 100px;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #888;
+            font-size: 18px;
         }
 
         .video-container {
@@ -132,26 +217,17 @@
             object-fit: contain;
         }
 
-        .canvas-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #threejs-canvas {
-            width: 100%;
-            height: 100%;
-        }
-
         .controls {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
+            display: flex;
+            gap: 15px;
         }
 
-        .continue-btn {
+        .btn {
             background: #4a9eff;
             color: white;
             border: none;
@@ -163,13 +239,29 @@
             transition: background 0.2s;
         }
 
-        .continue-btn:hover {
+        .btn:hover:not(:disabled) {
             background: #3a8eef;
         }
 
-        .continue-btn:disabled {
+        .btn:disabled {
             background: #464650;
             cursor: not-allowed;
+        }
+
+        .btn-integrate {
+            background: #ffa500;
+        }
+
+        .btn-integrate:hover:not(:disabled) {
+            background: #ff9500;
+        }
+
+        .btn-resume {
+            background: #00c853;
+        }
+
+        .btn-resume:hover:not(:disabled) {
+            background: #00b248;
         }
 
         .step-indicator {
@@ -201,25 +293,28 @@
             color: #888;
             font-style: italic;
         }
+
+        .code-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+            font-size: 16px;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-        }
-    }
-    </script>
-    <script type="module">
-        // Three.js will be loaded as ES modules if needed for 3D viewer
-        // For now, we'll use a simpler approach with UMD build
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 </head>
 <body>
-    <div class="container">
+    <!-- Entry Page -->
+    <div id="entry-page">
+        <h1 class="entry-title">Select a Trajectory to View</h1>
+        <div class="preview-grid" id="preview-grid"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container" id="main-container">
         <div class="left-panel">
             <div class="section">
                 <div class="section-label">Thought</div>
@@ -234,12 +329,21 @@
             </div>
         </div>
         <div class="right-panel">
-            <div class="step-indicator" id="step-indicator">Step 0 / 0</div>
-            <div class="image-container" id="image-container"></div>
-            <div class="video-container" id="video-container" style="display: none;"></div>
-            <div class="canvas-container" id="canvas-container" style="display: none;"></div>
+            <div class="step-indicator" id="step-indicator">Step 0</div>
+            <div class="right-panel-top">
+                <div class="image-container" id="image-container-top"></div>
+            </div>
+            <div class="right-panel-bottom">
+                <div class="image-container" id="image-container-bottom">
+                    <div class="loading-container">
+                        <img src="https://i.stack.imgur.com/ATB3o.gif" alt="Loading" class="loading-gif" id="loading-gif">
+                        <div class="loading-text">Loading...</div>
+                    </div>
+                </div>
+            </div>
             <div class="controls">
-                <button class="continue-btn" id="continue-btn" onclick="nextStep()">Continue</button>
+                <button class="btn btn-integrate" id="integrate-btn" onclick="pauseAtIntegration()" disabled>Integrate</button>
+                <button class="btn btn-resume" id="resume-btn" onclick="resume()" style="display: none;">Resume</button>
             </div>
         </div>
     </div>
@@ -249,13 +353,52 @@
         let totalSteps = 0;
         let stepsData = [];
         let isTyping = false;
+        let isPaused = false;
+        let autoAdvanceTimeout = null;
+        let selectedStartIndex = 0;
+        let codeGenerated = false;
+        let imageLoaded = false;
         let typingTimeout = null;
-        let scene3D = null;
-        let camera3D = null;
-        let renderer3D = null;
-        let controls3D = null;
 
-        // Initialize
+        // Entry page initialization
+        async function initEntryPage() {
+            try {
+                const response = await fetch('/api/preview-images');
+                const data = await response.json();
+                const grid = document.getElementById('preview-grid');
+                
+                if (data.images.length === 0) {
+                    grid.innerHTML = '<div style="color: #888;">No preview images available</div>';
+                    return;
+                }
+
+                // Display up to 10 images
+                const imagesToShow = data.images.slice(0, 10);
+                imagesToShow.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    const img = document.createElement('img');
+                    img.src = `${item.image_url}?t=${Date.now()}`;
+                    img.alt = `Step ${item.step_index}`;
+                    div.appendChild(img);
+                    div.onclick = () => startFromStep(item.step_index);
+                    grid.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading preview images:', error);
+                document.getElementById('preview-grid').innerHTML = 
+                    '<div style="color: #ff4444;">Error loading preview images</div>';
+            }
+        }
+
+        function startFromStep(stepIndex) {
+            selectedStartIndex = stepIndex;
+            document.getElementById('entry-page').style.display = 'none';
+            document.getElementById('main-container').style.display = 'flex';
+            init();
+        }
+
+        // Initialize main page
         async function init() {
             try {
                 const response = await fetch('/api/steps');
@@ -264,9 +407,10 @@
                 stepsData = data.steps;
                 
                 if (totalSteps > 0) {
+                    currentStepIndex = selectedStartIndex - 1; // Will be incremented in loadStep
                     updateStepIndicator();
                     // Auto-start first step
-                    nextStep();
+                    loadStep(selectedStartIndex);
                 } else {
                     document.getElementById('thought-content').textContent = 'No steps found in trajectory.';
                 }
@@ -278,7 +422,7 @@
 
         function updateStepIndicator() {
             document.getElementById('step-indicator').textContent = 
-                `Step ${currentStepIndex + 1} / ${totalSteps}`;
+                `Step ${currentStepIndex + 1}`;
         }
 
         async function loadStep(stepIndex) {
@@ -288,51 +432,95 @@
 
             currentStepIndex = stepIndex;
             updateStepIndicator();
+            codeGenerated = false;
+            imageLoaded = false;
+
+            // Clear auto-advance timeout
+            if (autoAdvanceTimeout) {
+                clearTimeout(autoAdvanceTimeout);
+                autoAdvanceTimeout = null;
+            }
 
             try {
+                // If not the first step, load previous step image to top first
+                if (stepIndex > 0) {
+                    await loadPreviousStepImage(stepIndex - 1);
+                } else {
+                    // Clear top image for first step
+                    document.getElementById('image-container-top').innerHTML = '';
+                }
+
                 const response = await fetch(`/api/step/${stepIndex}`);
                 const step = await response.json();
 
-                // Clear previous content
+                // Clear current content
                 document.getElementById('thought-content').innerHTML = '';
                 document.getElementById('code-content').innerHTML = '';
-                document.getElementById('image-container').innerHTML = '';
-                document.getElementById('video-container').innerHTML = '';
-                document.getElementById('video-container').style.display = 'none';
-                document.getElementById('canvas-container').style.display = 'none';
                 
-                // Hide 3D canvas if exists
-                if (renderer3D) {
-                    renderer3D.domElement.style.display = 'none';
-                }
+                // Show loading in bottom panel
+                showBottomLoading();
+
+                // Reset buttons
+                document.getElementById('integrate-btn').disabled = true;
+                document.getElementById('integrate-btn').style.display = 'block';
+                document.getElementById('resume-btn').style.display = 'none';
+                isPaused = false;
 
                 // Type thought character by character
                 await typeThought(step.thought);
 
-                // Display code with syntax highlighting
+                // Display code with syntax highlighting (after thought is done)
                 displayCode(step.code);
+                codeGenerated = true;
 
-                // Load image or video
+                // Enable integrate button after code is displayed
+                document.getElementById('integrate-btn').disabled = false;
+
+                // Wait 1 second after code, then load image
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Load image
                 if (step.has_video) {
-                    await loadVideo(stepIndex);
+                    await loadVideo(stepIndex, 'bottom');
                 } else if (step.has_image) {
-                    await loadImage(stepIndex);
+                    await loadImage(stepIndex, 'bottom');
                 }
+                imageLoaded = true;
 
-                // Try to load 3D scene if blend file exists
-                if (step.has_blend) {
-                    // Note: Direct .blend loading in browser is complex
-                    // For now, we'll show the rendered image
-                    // Future: Could export to glTF and load with three.js
-                    console.log('Blend file available but not yet loaded in 3D viewer');
+                // Auto advance after 5 seconds (unless paused)
+                if (!isPaused) {
+                    autoAdvanceTimeout = setTimeout(() => {
+                        if (currentStepIndex < totalSteps - 1 && !isPaused) {
+                            loadStep(currentStepIndex + 1);
+                        }
+                    }, 5000);
                 }
-
-                // Enable continue button
-                document.getElementById('continue-btn').disabled = false;
             } catch (error) {
                 console.error('Error loading step:', error);
                 document.getElementById('thought-content').textContent = 'Error loading step data.';
             }
+        }
+
+        async function loadPreviousStepImage(stepIndex) {
+            try {
+                const response = await fetch(`/api/step/${stepIndex}`);
+                const step = await response.json();
+                if (step.has_image) {
+                    await loadImage(stepIndex, 'top');
+                }
+            } catch (error) {
+                console.error('Error loading previous step image:', error);
+            }
+        }
+
+        function showBottomLoading() {
+            const container = document.getElementById('image-container-bottom');
+            container.innerHTML = `
+                <div class="loading-container">
+                    <img src="https://i.stack.imgur.com/ATB3o.gif" alt="Loading" class="loading-gif">
+                    <div class="loading-text">Loading...</div>
+                </div>
+            `;
         }
 
         async function typeThought(text) {
@@ -340,31 +528,28 @@
             const thoughtEl = document.getElementById('thought-content');
             thoughtEl.innerHTML = '';
             
-            // Add typing cursor
             const cursor = document.createElement('span');
             cursor.className = 'typing-cursor';
             thoughtEl.appendChild(cursor);
 
             for (let i = 0; i < text.length; i++) {
-                if (!isTyping) break; // Allow interruption
+                if (!isTyping || isPaused) break;
                 
-                // Remove cursor, add character, add cursor back
                 cursor.remove();
                 thoughtEl.textContent += text[i];
                 thoughtEl.appendChild(cursor);
                 
-                // Small delay for typing effect (faster for spaces/newlines)
                 const delay = (text[i] === ' ' || text[i] === '\n') ? 10 : 30;
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
 
-            // Remove cursor when done
             cursor.remove();
             isTyping = false;
         }
 
         function displayCode(code) {
             const codeEl = document.getElementById('code-content');
+            codeEl.innerHTML = '';
             const pre = document.createElement('pre');
             const codeBlock = document.createElement('code');
             codeBlock.className = 'language-python';
@@ -372,12 +557,12 @@
             pre.appendChild(codeBlock);
             codeEl.appendChild(pre);
             
-            // Highlight syntax
             hljs.highlightElement(codeBlock);
         }
 
-        async function loadImage(stepIndex) {
-            const container = document.getElementById('image-container');
+        async function loadImage(stepIndex, position) {
+            const containerId = position === 'top' ? 'image-container-top' : 'image-container-bottom';
+            const container = document.getElementById(containerId);
             container.innerHTML = '';
             
             const img = document.createElement('img');
@@ -388,9 +573,9 @@
             container.appendChild(img);
         }
 
-        async function loadVideo(stepIndex) {
-            const container = document.getElementById('video-container');
-            container.style.display = 'flex';
+        async function loadVideo(stepIndex, position) {
+            const containerId = position === 'top' ? 'image-container-top' : 'image-container-bottom';
+            const container = document.getElementById(containerId);
             container.innerHTML = '';
             
             const video = document.createElement('video');
@@ -404,45 +589,39 @@
             container.appendChild(video);
         }
 
-        function nextStep() {
-            if (currentStepIndex < totalSteps - 1) {
-                document.getElementById('continue-btn').disabled = true;
-                isTyping = false; // Stop current typing
-                if (typingTimeout) {
-                    clearTimeout(typingTimeout);
-                }
-                loadStep(currentStepIndex + 1);
+        function pauseAtIntegration() {
+            isPaused = true;
+            isTyping = false;
+            if (autoAdvanceTimeout) {
+                clearTimeout(autoAdvanceTimeout);
+                autoAdvanceTimeout = null;
+            }
+            document.getElementById('integrate-btn').style.display = 'none';
+            document.getElementById('resume-btn').style.display = 'block';
+        }
+
+        function resume() {
+            isPaused = false;
+            document.getElementById('integrate-btn').style.display = 'block';
+            document.getElementById('resume-btn').style.display = 'none';
+            
+            // If code and image are both loaded, auto advance in 5 seconds
+            if (codeGenerated && imageLoaded) {
+                autoAdvanceTimeout = setTimeout(() => {
+                    if (currentStepIndex < totalSteps - 1 && !isPaused) {
+                        loadStep(currentStepIndex + 1);
+                    }
+                }, 5000);
             } else {
-                document.getElementById('continue-btn').disabled = true;
-                document.getElementById('thought-content').textContent = 'All steps completed!';
+                // Otherwise, continue with current step loading
+                loadStep(currentStepIndex);
             }
         }
 
-        // Initialize 3D viewer (for future Blender file support)
-        // Note: Direct .blend file loading in browser requires conversion to glTF/glb
-        // For now, this is a placeholder for future 3D interaction
-        function init3DViewer() {
-            // 3D viewer initialization will be implemented when Blender files
-            // are converted to web-compatible formats (glTF/glb)
-            // For now, we display rendered images
-            console.log('3D viewer placeholder initialized');
-        }
-        
-        // Future function to load 3D scene from Blender file (requires conversion)
-        async function loadBlenderScene(blendUrl) {
-            // This would require:
-            // 1. Converting .blend to .glb/.gltf on the server
-            // 2. Loading with GLTFLoader
-            // 3. Setting up OrbitControls for camera interaction
-            console.log('3D scene loading not yet implemented - requires Blender to glTF conversion');
-        }
-
-        // Initialize on page load
+        // Initialize entry page on load
         window.addEventListener('DOMContentLoaded', () => {
-            init();
-            init3DViewer();
+            initEntryPage();
         });
     </script>
 </body>
 </html>
-

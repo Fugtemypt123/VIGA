@@ -108,21 +108,21 @@ def process_single_object(args_tuple):
         glb_path_value = info.get("glb_path")
         if glb_path_value:
             # 修复 GLB 文件的贴图问题
-            subprocess.run(
-                [
-                    _blender_command,
-                    "-b",
-                    "-P",
-                    "tools/fix_glb.py",
-                    "--",
-                    glb_path_value,
-                    glb_path_value,
-                ],
-                cwd=ROOT,
-                check=True,
-                text=True,
-                capture_output=True,
-            )
+            # subprocess.run(
+            #     [
+            #         _blender_command,
+            #         "-b",
+            #         "-P",
+            #         "tools/fix_glb.py",
+            #         "--",
+            #         glb_path_value,
+            #         glb_path_value,
+            #     ],
+            #     cwd=ROOT,
+            #     check=True,
+            #     text=True,
+            #     capture_output=True,
+            # )
             # 构建变换信息
             object_transform = {
                 "glb_path": glb_path_value,
@@ -233,7 +233,7 @@ def reconstruct_full_scene() -> dict:
         # 使用线程池并行处理
         glb_paths = []
         object_transforms = []  # 存储每个物体的位置信息
-        max_workers = min(4, len(tasks))  # 限制并发数，避免资源耗尽
+        max_workers = min(2, len(tasks))  # 限制并发数，避免资源耗尽
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # 提交所有任务

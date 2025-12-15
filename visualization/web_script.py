@@ -153,6 +153,19 @@ def index():
     return render_template('trajectory_viewer.html')
 
 
+@app.route('/api/preview-images')
+def get_preview_images():
+    """Get preview images for entry page (first 10 images)"""
+    preview_images = []
+    for i, step in enumerate(STEPS_DATA[:10]):  # Only first 10 steps
+        if step.get("image_path"):
+            preview_images.append({
+                "step_index": step["step_index"],
+                "image_url": f"/api/image/{step['step_index']}"
+            })
+    return jsonify({"images": preview_images})
+
+
 @app.route('/api/steps')
 def get_steps():
     """Get all steps metadata"""

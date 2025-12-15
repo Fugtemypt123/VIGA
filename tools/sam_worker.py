@@ -72,10 +72,10 @@ def panic_filtering_process(raw_masks):
             occupancy_mask = np.logical_or(occupancy_mask, current_seg)
     
     # ---------------------------------------------------------
-    # 第四步：按 area 排序并只返回前 k=12 个
+    # 第四步：按 area 排序并只返回前 k 个
     # ---------------------------------------------------------
     final_masks.sort(key=lambda x: x['area'], reverse=True)
-    k = 20
+    k = 15
     final_masks = final_masks[:k]
     
     return final_masks
