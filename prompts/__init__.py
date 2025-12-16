@@ -23,7 +23,9 @@ prompts_dict = {
     'dynamic_scene': {
         'system': {
             'generator': dynamic_scene_generator_system,
-            'verifier': dynamic_scene_verifier_system
+            'verifier': dynamic_scene_verifier_system,
+            'generator_init': dynamic_scene_generator_system_init,
+            'verifier_init': dynamic_scene_verifier_system,
         }
     },
     'autopresent': {

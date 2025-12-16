@@ -160,6 +160,7 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         "--init-code-path", task_config["init_code_path"],
         "--init-image-path", task_config["init_image_path"],
         "--clear-memory",
+        "--prompt-setting", args.prompt_setting,
     ]
     
     if args.gpu_devices:
@@ -255,6 +256,7 @@ def main():
     
     # Additional parameters
     parser.add_argument("--text-only", action="store_true", help="Only use text as reference")
+    parser.add_argument("--prompt-setting", choices=["none", "init"], default="none", help="Setting for the prompt")
     
     args = parser.parse_args()
     

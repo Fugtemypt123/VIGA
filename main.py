@@ -33,7 +33,7 @@ async def main():
     parser.add_argument("--explicit-comp", action="store_true", help="Enable explicit completion")
     parser.add_argument("--no-tools", action="store_true", help="Use no tools mode")
     parser.add_argument("--init-setting", choices=["none", "minimal", "reasonable"], default="none", help="Setting for the static scene task")
-    parser.add_argument("--prompt-setting", choices=["none", "procedural", "scene_graph", "get_asset"], default="none", help="Setting for the prompt")
+    parser.add_argument("--prompt-setting", choices=["none", "procedural", "scene_graph", "get_asset", "init"], default="none", help="Setting for the prompt")
     parser.add_argument("--num-candidates", type=int, default=1, help="Number of candidates for the model")
     
     # Execution parameters
