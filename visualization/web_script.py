@@ -24,9 +24,13 @@ For now, the rendered images are displayed. The structure is in place for future
 import os
 import json
 import argparse
+import subprocess
+import threading
+import time
 from pathlib import Path
 from typing import List, Dict, Optional
 from flask import Flask, render_template, jsonify, send_from_directory, request
+from werkzeug.utils import secure_filename
 
 # Set template folder explicitly
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
@@ -59,6 +63,12 @@ SCENE_TRAJECTORY_MAP = {
 
 # Preloaded trajectories for all scenes
 PRELOADED_TRAJECTORIES: Dict[str, Dict] = {}
+
+# User upload and monitoring state
+USER_UPLOAD_DIR = "/mnt/data/users/shaofengyin/AgenticVerifier/data/static_scene/user"
+OUTPUT_BASE_DIR = "/mnt/data/users/shaofengyin/AgenticVerifier/output/static_scene"
+ACTIVE_MONITORING: Dict[str, Dict] = {}  # {task_id: {output_dir, last_step_count, monitoring_thread}}
+KNOWN_OUTPUT_DIRS: set = set()  # Track known output directories
 
 
 def parse_trajectory(traj_path: str, animation: bool = False, fix_camera: bool = False, return_data: bool = False):
@@ -236,15 +246,21 @@ def get_preview_images():
 @app.route('/api/target-image/<scene_name>')
 def get_target_image(scene_name):
     """Serve target image for a specific scene"""
-    # Try different file extensions
-    possible_extensions = ['png', 'jpeg', 'jpg']
-    target_path = None
-    
-    for ext in possible_extensions:
-        path = os.path.abspath(f'data/static_scene/{scene_name}/target.{ext}')
-        if os.path.exists(path):
-            target_path = path
-            break
+    # Special handling for user uploads
+    if scene_name == "user":
+        target_path = os.path.join(USER_UPLOAD_DIR, "target.png")
+        if not os.path.exists(target_path):
+            target_path = os.path.join(USER_UPLOAD_DIR, "target.jpeg")
+    else:
+        # Try different file extensions
+        possible_extensions = ['png', 'jpeg', 'jpg']
+        target_path = None
+        
+        for ext in possible_extensions:
+            path = os.path.abspath(f'data/static_scene/{scene_name}/target.{ext}')
+            if os.path.exists(path):
+                target_path = path
+                break
     
     if not target_path or not os.path.exists(target_path):
         print(f"[DEBUG] Target image not found for scene: {scene_name}")
@@ -450,6 +466,317 @@ def get_blend(step_index):
     print(f"[DEBUG] /api/blend: sending blend for step={step_index}, path={blend_path}")
     return send_from_directory(blend_dir, blend_file, as_attachment=True)
 
+
+def find_new_output_directories():
+    """Find new output directories in output/static_scene"""
+    global KNOWN_OUTPUT_DIRS
+    
+    if not os.path.exists(OUTPUT_BASE_DIR):
+        return []
+    
+    current_dirs = set()
+    new_dirs = []
+    
+    # Scan for directories (format: output/static_scene/demo/TIMESTAMP/TASKNAME or output/static_scene/useful/TIMESTAMP/TASKNAME)
+    for subdir in ['demo', 'useful']:
+        subdir_path = os.path.join(OUTPUT_BASE_DIR, subdir)
+        if not os.path.exists(subdir_path):
+            continue
+        
+        for timestamp_dir in os.listdir(subdir_path):
+            timestamp_path = os.path.join(subdir_path, timestamp_dir)
+            if not os.path.isdir(timestamp_path):
+                continue
+            
+            for task_dir in os.listdir(timestamp_path):
+                task_path = os.path.join(timestamp_path, task_dir)
+                if not os.path.isdir(task_path):
+                    continue
+                
+                full_path = os.path.abspath(task_path)
+                current_dirs.add(full_path)
+                
+                if full_path not in KNOWN_OUTPUT_DIRS:
+                    # Check if generator_memory.json exists
+                    traj_file = os.path.join(task_path, 'generator_memory.json')
+                    if os.path.exists(traj_file):
+                        new_dirs.append(full_path)
+    
+    # Update known directories
+    KNOWN_OUTPUT_DIRS.update(current_dirs)
+    
+    return new_dirs
+
+
+def monitor_user_task(task_id, output_dir):
+    """Monitor a user task's output directory for new steps"""
+    global ACTIVE_MONITORING
+    
+    print(f"[MONITOR] Starting monitoring for task {task_id}, output_dir: {output_dir}")
+    last_step_count = 0
+    
+    while task_id in ACTIVE_MONITORING:
+        try:
+            traj_file = os.path.join(output_dir, 'generator_memory.json')
+            if os.path.exists(traj_file):
+                # Parse trajectory to get current step count
+                try:
+                    parsed_data = parse_trajectory(traj_file, animation=False, fix_camera=False, return_data=True)
+                    current_step_count = len(parsed_data["steps_data"])
+                    
+                    if current_step_count > last_step_count:
+                        print(f"[MONITOR] Task {task_id}: Found {current_step_count} steps (was {last_step_count})")
+                        last_step_count = current_step_count
+                        # Update the active monitoring state
+                        ACTIVE_MONITORING[task_id]["last_step_count"] = current_step_count
+                except Exception as e:
+                    print(f"[MONITOR] Error parsing trajectory for {task_id}: {e}")
+            
+            time.sleep(2)  # Check every 2 seconds
+        except Exception as e:
+            print(f"[MONITOR] Error monitoring {task_id}: {e}")
+            time.sleep(2)
+
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    """Handle image upload and save to user directory"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    # Create user directory if it doesn't exist
+    os.makedirs(USER_UPLOAD_DIR, exist_ok=True)
+    
+    # Delete all existing image files in the user directory
+    image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
+    if os.path.exists(USER_UPLOAD_DIR):
+        for filename in os.listdir(USER_UPLOAD_DIR):
+            file_path = os.path.join(USER_UPLOAD_DIR, filename)
+            if os.path.isfile(file_path):
+                _, ext = os.path.splitext(filename.lower())
+                if ext in image_extensions:
+                    try:
+                        os.remove(file_path)
+                        print(f"[UPLOAD] Deleted existing image: {file_path}")
+                    except Exception as e:
+                        print(f"[UPLOAD] Warning: Failed to delete {file_path}: {e}")
+    
+    # Get file extension
+    filename = secure_filename(file.filename)
+    _, ext = os.path.splitext(filename)
+    
+    # Save as target.png (or preserve extension if it's jpeg/jpg)
+    if ext.lower() in ['.jpg', '.jpeg']:
+        target_filename = 'target.jpeg'
+    else:
+        target_filename = 'target.png'
+    
+    target_path = os.path.join(USER_UPLOAD_DIR, target_filename)
+    file.save(target_path)
+    
+    print(f"[UPLOAD] Saved image to {target_path}")
+    return jsonify({
+        "success": True,
+        "path": target_path,
+        "message": "Image uploaded successfully"
+    })
+
+
+@app.route('/api/start-task', methods=['POST'])
+def start_task():
+    """Start a new task using sbatch"""
+    try:
+        # Create sbatch script
+        script_content = f"""#!/bin/bash
+#SBATCH --job-name=user_task
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=128
+#SBATCH --mem=512G
+#SBATCH --time=24:00:00
+
+source ~/.bashrc
+cd /mnt/data/users/shaofengyin/AgenticVerifier
+/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python runners/static_scene.py --task=user --model=gpt-5 --generator-tools=tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py
+"""
+        
+        # Save script to temporary location
+        script_path = "/tmp/user_task_sbatch.sh"
+        with open(script_path, 'w') as f:
+            f.write(script_content)
+        
+        # Submit job
+        result = subprocess.run(
+            ['sbatch', script_path],
+            capture_output=True,
+            text=True,
+            cwd='/mnt/data/users/shaofengyin/AgenticVerifier'
+        )
+        
+        if result.returncode != 0:
+            return jsonify({"error": f"Failed to submit job: {result.stderr}"}), 500
+        
+        # Extract job ID from output (format: "Submitted batch job 12345")
+        job_id = result.stdout.strip().split()[-1]
+        
+        # Generate task ID
+        task_id = f"user_{int(time.time())}"
+        
+        # Initialize monitoring (will find output directory later)
+        ACTIVE_MONITORING[task_id] = {
+            "job_id": job_id,
+            "output_dir": None,
+            "last_step_count": 0,
+            "monitoring_thread": None,
+            "status": "starting"
+        }
+        
+        # Start monitoring thread to find output directory
+        def find_and_monitor():
+            global ACTIVE_MONITORING
+            max_wait = 600  # Wait up to 10 minutes
+            waited = 0
+            start_time = time.time()
+            
+            while task_id in ACTIVE_MONITORING and waited < max_wait:
+                # Look for new directories
+                new_dirs = find_new_output_directories()
+                for new_dir in new_dirs:
+                    # Check if this directory was created after task started (within 10 minutes)
+                    # and contains 'user' in the task name or is in useful/ directory
+                    dir_mtime = os.path.getmtime(new_dir)
+                    time_since_creation = time.time() - dir_mtime
+                    
+                    # Check if directory was created recently (within 10 minutes) and contains user task
+                    if (time_since_creation < 600 and 
+                        ('user' in new_dir.lower() or 'useful' in new_dir.lower())):
+                        # Verify it's actually a user task by checking if it's in useful/ or has user in name
+                        task_name = os.path.basename(new_dir)
+                        if 'user' in task_name.lower() or 'useful' in new_dir.lower():
+                            ACTIVE_MONITORING[task_id]["output_dir"] = new_dir
+                            ACTIVE_MONITORING[task_id]["status"] = "running"
+                            
+                            # Start monitoring thread
+                            monitor_thread = threading.Thread(
+                                target=monitor_user_task,
+                                args=(task_id, new_dir),
+                                daemon=True
+                            )
+                            monitor_thread.start()
+                            ACTIVE_MONITORING[task_id]["monitoring_thread"] = monitor_thread
+                            print(f"[MONITOR] Found output directory for {task_id}: {new_dir}")
+                            return
+                
+                time.sleep(5)
+                waited += 5
+            
+            if task_id in ACTIVE_MONITORING:
+                ACTIVE_MONITORING[task_id]["status"] = "failed"
+                print(f"[MONITOR] Failed to find output directory for {task_id} after {waited} seconds")
+        
+        find_thread = threading.Thread(target=find_and_monitor, daemon=True)
+        find_thread.start()
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "job_id": job_id,
+            "message": "Task started successfully"
+        })
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to start task: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/check-new-steps/<task_id>')
+def check_new_steps(task_id):
+    """Check if there are new steps for a user task"""
+    if task_id not in ACTIVE_MONITORING:
+        return jsonify({"error": "Task not found"}), 404
+    
+    task_info = ACTIVE_MONITORING[task_id]
+    output_dir = task_info.get("output_dir")
+    
+    if not output_dir or not os.path.exists(output_dir):
+        return jsonify({
+            "has_new": False,
+            "status": task_info.get("status", "unknown"),
+            "message": "Output directory not found yet"
+        })
+    
+    traj_file = os.path.join(output_dir, 'generator_memory.json')
+    if not os.path.exists(traj_file):
+        return jsonify({
+            "has_new": False,
+            "status": "preparing",
+            "message": "Preparing the assets..."
+        })
+    
+    try:
+        parsed_data = parse_trajectory(traj_file, animation=False, fix_camera=False, return_data=True)
+        current_step_count = len(parsed_data["steps_data"])
+        last_step_count = task_info.get("last_step_count", 0)
+        
+        has_new = current_step_count > last_step_count
+        
+        return jsonify({
+            "has_new": has_new,
+            "current_steps": current_step_count,
+            "last_steps": last_step_count,
+            "status": "running",
+            "output_dir": output_dir
+        })
+    except Exception as e:
+        return jsonify({
+            "has_new": False,
+            "status": "error",
+            "error": str(e)
+        })
+
+
+@app.route('/api/load-user-trajectory/<task_id>')
+def load_user_trajectory(task_id):
+    """Load trajectory for a user task"""
+    global STEPS_DATA, BASE_PATH, RENDERS_DIR, IMAGE_PATH, VIDEO_PATH
+    
+    if task_id not in ACTIVE_MONITORING:
+        return jsonify({"error": "Task not found"}), 404
+    
+    task_info = ACTIVE_MONITORING[task_id]
+    output_dir = task_info.get("output_dir")
+    
+    if not output_dir or not os.path.exists(output_dir):
+        return jsonify({"error": "Output directory not found"}), 404
+    
+    traj_file = os.path.join(output_dir, 'generator_memory.json')
+    if not os.path.exists(traj_file):
+        return jsonify({"error": "Trajectory file not found"}), 404
+    
+    try:
+        parsed_data = parse_trajectory(traj_file, animation=False, fix_camera=False, return_data=True)
+        
+        STEPS_DATA = parsed_data["steps_data"]
+        BASE_PATH = output_dir
+        RENDERS_DIR = parsed_data["renders_dir"]
+        IMAGE_PATH = parsed_data["image_path"]
+        VIDEO_PATH = parsed_data["video_path"]
+        
+        # Update monitoring state
+        task_info["last_step_count"] = len(STEPS_DATA)
+        
+        return jsonify({
+            "success": True,
+            "total_steps": len(STEPS_DATA),
+            "task_id": task_id
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 def main():
     global BASE_PATH
     
@@ -457,6 +784,21 @@ def main():
     ap.add_argument("--port", type=int, default=5000)
     ap.add_argument("--host", type=str, default="0.0.0.0")
     args = ap.parse_args()
+    
+    # Initialize known output directories
+    if os.path.exists(OUTPUT_BASE_DIR):
+        for subdir in ['demo', 'useful']:
+            subdir_path = os.path.join(OUTPUT_BASE_DIR, subdir)
+            if os.path.exists(subdir_path):
+                for timestamp_dir in os.listdir(subdir_path):
+                    timestamp_path = os.path.join(subdir_path, timestamp_dir)
+                    if os.path.isdir(timestamp_path):
+                        for task_dir in os.listdir(timestamp_path):
+                            task_path = os.path.join(timestamp_path, task_dir)
+                            if os.path.isdir(task_path):
+                                KNOWN_OUTPUT_DIRS.add(os.path.abspath(task_path))
+    
+    print(f"Initialized {len(KNOWN_OUTPUT_DIRS)} known output directories")
     
     # Preload all trajectories first
     preload_all_trajectories()

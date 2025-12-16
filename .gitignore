@@ -25,6 +25,7 @@ TODO.md
 *.mp4
 run.sh
 *.blend
+*.out
 
 utils/infinigen
 utils/sam3

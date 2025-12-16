@@ -91,8 +91,12 @@ def setup_lighting():
 def get_coordinate_fix_matrix():
     """
     Create the coordinate system correction matrix M_fix.
-    Converts from OpenCV (X Right, Y Down, Z Forward) to Blender (X Right, Y Forward, Z Up).
-    This is a 180-degree rotation around X-axis.
+    Converts from OpenCV/Camera coordinate system (X Right, Y Down, Z Forward) 
+    to Blender coordinate system (X Right, Y Forward, Z Up).
+    
+    This is a 180-degree rotation around X-axis:
+    - Y: Down -> Forward (multiply by -1)
+    - Z: Forward -> Up (multiply by -1)
     """
     # M_fix = [[1, 0, 0, 0],
     #           [0, -1, 0, 0],
@@ -177,38 +181,64 @@ def import_glb_with_transform(glb_path, translation, translation_scale, rotation
         # 直接使用 name_prefix 作为物体名称，而不是添加前缀
         root.name = name_prefix
     
-    # 1. 计算最终平移: T_final = translation * translation_scale
-    trans_scale_val = 1
+    # 1. 解析并应用 translation_scale
+    trans_scale_val = get_translation_scale(translation_scale)
+    
+    # 2. 解析平移向量
     if isinstance(translation, list) and len(translation) >= 3:
         # 处理嵌套列表
         if isinstance(translation[0], list):
             trans = translation[0]
         else:
             trans = translation
-        T_final = Vector([float(trans[i]) * trans_scale_val for i in range(3)])
+        # 应用 translation_scale
+        T_raw = Vector([float(trans[i]) * trans_scale_val for i in range(3)])
     else:
         print(f"[WARN] Invalid translation format: {translation}, using [0, 0, 0]")
-        T_final = Vector((0.0, 0.0, 0.0))
+        T_raw = Vector((0.0, 0.0, 0.0))
     
-    # 2. 解析四元数 [w, x, y, z]
+    # 3. 解析四元数 [w, x, y, z]
     if not isinstance(rotation_quaternion, list) or len(rotation_quaternion) != 4:
         print(f"[WARN] Invalid quaternion format: {rotation_quaternion}, using identity")
-        quat = Quaternion((1.0, 0.0, 0.0, 0.0))  # 单位四元数
+        quat_raw = Quaternion((1.0, 0.0, 0.0, 0.0))  # 单位四元数
     else:
         # Blender 的 Quaternion 使用 (w, x, y, z) 格式
-        quat = Quaternion((float(rotation_quaternion[0]), float(rotation_quaternion[1]), 
-                          float(rotation_quaternion[2]), float(rotation_quaternion[3])))
+        quat_raw = Quaternion((float(rotation_quaternion[0]), float(rotation_quaternion[1]), 
+                              float(rotation_quaternion[2]), float(rotation_quaternion[3])))
     
-    # 3. 设置位置、旋转和缩放
-    root.location = T_final
-    root.rotation_mode = 'QUATERNION'
-    root.rotation_quaternion = quat
+    # 4. 获取坐标系统修正矩阵
+    M_fix = get_coordinate_fix_matrix()
+    M_fix_3x3 = M_fix.to_3x3()
     
-    # 5. 应用缩放
+    # 5. 应用坐标系统修正到平移向量
+    # T_blender = M_fix @ T_camera (只使用 3x3 部分)
+    T_final = M_fix_3x3 @ T_raw
+    
+    # 6. 应用坐标系统修正到旋转四元数
+    # 根据 issue #103，需要将旋转从相机坐标系转换到 Blender 坐标系
+    # 方法：R_blender = M_fix @ R_camera @ M_fix^T
+    # 将四元数转换为旋转矩阵，应用坐标修正，再转回四元数
+    R_raw = quat_raw.to_matrix()
+    # 应用坐标系统修正：先应用 M_fix，再应用原始旋转，最后应用 M_fix 的转置
+    R_fixed = M_fix_3x3 @ R_raw @ M_fix_3x3.transposed()
+    quat_final = R_fixed.to_quaternion()
+    
+    # 7. 解析缩放
     scale_vec = get_scale_vector(scale)
-    root.scale = scale_vec
     
-    print(f"[INFO] Applied transform - Translation: {T_final}, Rotation (quaternion): {quat}, Scale: {scale_vec}")
+    # 8. 应用变换到对象（按正确顺序：先缩放，再旋转，最后平移）
+    # 注意：Blender 中变换的顺序是：Scale -> Rotation -> Translation
+    root.scale = scale_vec
+    root.rotation_mode = 'QUATERNION'
+    root.rotation_quaternion = quat_final
+    root.location = T_final
+    
+    print(f"[INFO] Applied transform:")
+    print(f"  - Translation (raw): {T_raw}, scale: {trans_scale_val}")
+    print(f"  - Translation (final): {T_final}")
+    print(f"  - Rotation (raw quaternion): {quat_raw}")
+    print(f"  - Rotation (final quaternion): {quat_final}")
+    print(f"  - Scale: {scale_vec}")
     print(f"[INFO] Imported {len(imported_objects)} objects from {glb_path}")
     
     return root

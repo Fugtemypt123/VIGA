@@ -12,92 +12,114 @@ if "CONDA_PREFIX" not in os.environ:
     conda_env = os.path.dirname(os.path.dirname(python_bin))
     os.environ["CONDA_PREFIX"] = conda_env
 
-from inference import Inference, load_image, load_mask
+from inference import Inference, load_image, load_mask, make_scene
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--image", required=True)
-    p.add_argument("--mask", required=True)
+    p.add_argument("--masks", required=True, nargs='+', help="One or more mask .npy file paths")
     p.add_argument("--config", required=True)
-    p.add_argument("--glb", required=True)
+    p.add_argument("--blend", required=True, help="Output .blend file path")
+    p.add_argument("--object-names", nargs='+', help="Optional object names corresponding to masks")
     args = p.parse_args()
 
     inference = Inference(args.config, compile=False)
     image = load_image(args.image)
-    # args.mask 现在是 .npy 文件路径，直接加载为 numpy 数组
-    import numpy as np
-    mask = np.load(args.mask)
-    mask = mask > 0
-    output = inference(image, mask, seed=42)
-    # output.keys: ['6drotation_normalized', 'scale', 'shape', 'translation', 'translation_scale', 'coords_original', 'coords', 'downsample_factor', 'rotation', 'mesh', 'gaussian', 'glb', 'gs', 'pointmap', 'pointmap_colors']
-    # convert tensor to list
     
-    glb = output.get("glb")
-    if glb is not None and hasattr(glb, "export"):
-        os.makedirs(os.path.dirname(args.glb), exist_ok=True)
-        glb.export(args.glb)
+    # Process all masks
+    outputs = []
+    for idx, mask_path in enumerate(args.masks):
+        mask = np.load(mask_path)
+        mask = mask > 0
+        output = inference(image, mask, seed=42)
+        outputs.append(output)
     
-    # 提取变换信息
-    translation = None
-    if "translation" in output:
-        trans_tensor = output["translation"]
-        # reshape to 3
-        trans_tensor = trans_tensor.reshape(3)
-        if hasattr(trans_tensor, "cpu"):
-            translation = trans_tensor.cpu().numpy().tolist()
-        elif hasattr(trans_tensor, "numpy"):
-            translation = trans_tensor.numpy().tolist()
-        else:
-            translation = trans_tensor.tolist() if hasattr(trans_tensor, "tolist") else trans_tensor
+    # Combine all outputs into a scene using make_scene (for Gaussian Splatting)
+    scene_gs = make_scene(*outputs)
     
-    # 提取 rotation（四元数格式 w, x, y, z）
-    rotation_quaternion = None
-    if "rotation" in output:
-        rot_tensor = output["rotation"]
-        # reshape to 4
-        rot_tensor = rot_tensor.reshape(4)
-        if hasattr(rot_tensor, "cpu"):
-            rot_np = rot_tensor.cpu().numpy()
-        elif hasattr(rot_tensor, "numpy"):
-            rot_np = rot_tensor.numpy()
-        else:
-            rot_np = rot_tensor
-        # 直接输出四元数 [w, x, y, z] 格式
-        rotation_quaternion = rot_np.tolist()
+    # Export each object's GLB and then import into Blender
+    import tempfile
+    import subprocess
     
-    translation_scale = None
-    if "translation_scale" in output:
-        scale_tensor = output["translation_scale"]
-        # reshape to 1
-        scale_tensor = scale_tensor.reshape(1)
-        if hasattr(scale_tensor, "cpu"):
-            translation_scale = scale_tensor.cpu().numpy().tolist()
-        elif hasattr(scale_tensor, "numpy"):
-            translation_scale = scale_tensor.numpy().tolist()
-        else:
-            translation_scale = scale_tensor.tolist() if hasattr(scale_tensor, "tolist") else scale_tensor
+    temp_dir = tempfile.mkdtemp()
+    glb_paths = []
+    object_names = args.object_names if args.object_names else [f"object_{i}" for i in range(len(outputs))]
     
-    scale = None
-    if "scale" in output:
-        scale_tensor = output["scale"]
-        # reshape to 3x1
-        scale_tensor = scale_tensor.reshape(3)
-        if hasattr(scale_tensor, "cpu"):
-            scale = scale_tensor.cpu().numpy().tolist()
-        elif hasattr(scale_tensor, "numpy"):
-            scale = scale_tensor.numpy().tolist()
-        else:
-            scale = scale_tensor.tolist() if hasattr(scale_tensor, "tolist") else scale_tensor
+    # Export GLB for each output
+    for idx, output in enumerate(outputs):
+        glb = output.get("glb")
+        if glb is not None and hasattr(glb, "export"):
+            glb_path = os.path.join(temp_dir, f"{object_names[idx]}.glb")
+            os.makedirs(os.path.dirname(glb_path), exist_ok=True)
+            glb.export(glb_path)
+            glb_paths.append(glb_path)
     
+    if not glb_paths:
+        print(json.dumps({"status": "error", "message": "No GLB files generated"}), file=sys.stderr)
+        sys.exit(1)
+    
+    # Create Blender import script
+    blend_path_escaped = args.blend.replace("\\", "\\\\").replace('"', '\\"')
+    blender_script = f"""
+import bpy
+import os
+
+# Clear scene
+bpy.ops.wm.read_factory_settings(use_empty=True)
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+
+# Import all GLB files
+glb_paths = {json.dumps(glb_paths)}
+object_names = {json.dumps(object_names)}
+
+for idx, glb_path in enumerate(glb_paths):
+    if os.path.exists(glb_path):
+        bpy.ops.import_scene.gltf(filepath=glb_path)
+        # Rename the imported object
+        if bpy.context.selected_objects:
+            obj = bpy.context.selected_objects[0]
+            if idx < len(object_names):
+                obj.name = object_names[idx]
+
+# Save blend file
+os.makedirs(os.path.dirname(r"{blend_path_escaped}"), exist_ok=True)
+bpy.ops.wm.save_as_mainfile(filepath=r"{blend_path_escaped}")
+"""
+    
+    # Write script to temp file
+    script_path = os.path.join(temp_dir, "import_to_blend.py")
+    with open(script_path, 'w') as f:
+        f.write(blender_script)
+    
+    # Get Blender command from environment or use default
+    blender_cmd = os.environ.get("BLENDER_CMD", "blender")
+    result = subprocess.run(
+        [blender_cmd, "-b", "-P", script_path],
+        cwd=ROOT,
+        capture_output=True,
+        text=True
+    )
+    
+    # Clean up temp files
+    import shutil
+    shutil.rmtree(temp_dir)
+    
+    if result.returncode != 0:
+        print(json.dumps({
+            "status": "error",
+            "message": f"Blender import failed: {result.stderr}"
+        }), file=sys.stderr)
+        sys.exit(1)
+    
+    # Output result
     print(
         json.dumps(
             {
-                "glb_path": args.glb,
-                "translation": translation,
-                "translation_scale": translation_scale,
-                "rotation": rotation_quaternion,  # 四元数格式 [w, x, y, z]
-                "scale": scale,
+                "blend_path": args.blend,
+                "num_objects": len(outputs),
+                "status": "success"
             }
         )
     )
