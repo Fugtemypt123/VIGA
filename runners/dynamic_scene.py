@@ -11,6 +11,7 @@ import argparse
 import subprocess
 import asyncio
 import signal
+import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -83,6 +84,13 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
         os.makedirs(assets_path, exist_ok=True)
         assets_dir = str(assets_path)
         
+        # Look for init image 
+        init_image_path = task_path / "start.png"
+        if init_image_path.exists():
+            init_image_path = str(init_image_path)
+        else:
+            init_image_path = ""
+        
         task_config = {
             "task_name": task,
             "task_id": task,
@@ -91,7 +99,7 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
             "assets_dir": assets_dir,  # Add assets directory path
             "output_dir": f"output/dynamic_scene/{test_id or time.strftime('%Y%m%d_%H%M%S')}/{task}",
             "init_code_path": "",  # Dynamic scenes start from scratch
-            "init_image_path": "",  # No initial scene
+            "init_image_path": init_image_path
         }
         
         tasks.append(task_config)
@@ -118,14 +126,15 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
 
     # Create an empty blender file inside output_dir for build-from-scratch flows
     created_blender_file = os.path.join(task_config["output_dir"], "blender_file.blend")
-    try:
+    # copy the blender file to the output directory
+    if os.path.exists(args.blender_file):
+        shutil.copy(args.blender_file, created_blender_file)
+    else:
         create_empty_blend_cmd = (
             f"{args.blender_command} --background --factory-startup "
             f"--python-expr \"import bpy; bpy.ops.wm.read_factory_settings(use_empty=True); bpy.ops.wm.save_mainfile(filepath='" + created_blender_file + "')\""
         )
         subprocess.run(create_empty_blend_cmd, shell=True, check=True)
-    except Exception as e:
-        print(f"Warning: Failed to create empty blender file: {e}. Proceeding anyway.")
     
     # Build main.py command
     cmd = [
