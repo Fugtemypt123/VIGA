@@ -104,7 +104,18 @@ def import_glb(glb_path, name_prefix=""):
     if name_prefix:
         root.name = name_prefix
     
-    print(f"[INFO] Imported {len(imported_objects)} objects from {glb_path}")
+    # 对所有导入的 MESH 对象执行 origin_set 操作
+    mesh_count = 0
+    for obj in imported_objects:
+        if obj.type == 'MESH':
+            # 必须设为 Active 才能执行 Ops
+            bpy.context.view_layer.objects.active = obj
+            # 执行原点重设
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+            mesh_count += 1
+            print(f"[INFO] Set origin for mesh: {obj.name}, location: {obj.location}")
+    
+    print(f"[INFO] Imported {len(imported_objects)} objects from {glb_path} (processed {mesh_count} meshes)")
     return root
 
 # ----------------- 保存为 .blend 文件 -----------------

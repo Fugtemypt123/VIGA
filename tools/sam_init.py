@@ -111,11 +111,10 @@ def process_single_object(args_tuple):
         if glb_path_value:
             object_transform = {
                 "glb_path": glb_path_value,
-                "transform_matrix": info.get("transform_matrix"),
+                "translation": info.get("translation"),
+                "rotation": info.get("rotation"),
+                "scale": info.get("scale"),
             }
-            # 保存 info 到 json
-            with open(os.path.join(_output_dir, f"{object_name}.json"), 'w') as f:
-                json.dump(info, f, indent=2)
             print(f"[SAM_INIT] Successfully reconstructed object {idx} ({object_name})")
             return (True, glb_path_value, object_transform, None)
         else:
