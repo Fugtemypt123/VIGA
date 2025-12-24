@@ -37,12 +37,15 @@ def setup_camera():
         camera = bpy.data.objects["Camera"]
     
     camera.location = Vector((0.0, 0.0, 0.0))
-    camera.rotation_euler = Euler((0.0, 0.0, 0.0), 'XYZ')
-    camera.data.lens_unit = 'FOV'
-    camera.data.angle = 60.0 * (3.14159265359 / 180.0)
-    camera.data.sensor_fit = 'VERTICAL'
-    
-    print(f"[INFO] Camera setup complete: location={camera.location}, FOV=60°")
+    # 让相机朝向世界坐标系的 -Y 方向，且世界 Z 轴为上
+    # - 相机的本地 -Z 轴是视线方向
+    # - 相机的本地 +Y 轴是“向上”方向
+    # 因此使用 to_track_quat('-Z', 'Y')，将 -Z 轴对准 (0, -1, 0)，Y 轴尽量对齐 (0, 0, 1)
+    direction = Vector((0.0, -1.0, 0.0))
+    up = Vector((0.0, 0.0, 1.0))
+    camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler('XYZ')
+
+    print(f"[INFO] Camera setup complete: location={camera.location}")
 
 # ----------------- 设置环境光 -----------------
 def setup_lighting():
