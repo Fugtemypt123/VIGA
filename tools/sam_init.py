@@ -6,19 +6,20 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.path import path_to_cmd
 
 # tool_configs for agent (only the function w/ @mcp.tool)
+# For initialized tools, agent is not able to call them during the conversation
 tool_configs = [
-    {
-        "type": "function",
-        "function": {
-            "name": "reconstruct_full_scene",
-            "description": "Reconstruct a complete 3D scene from an input image by detecting all objects with SAM and reconstructing each with SAM-3D. Outputs a .blend file containing all reconstructed objects.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    }
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "reconstruct_full_scene",
+    #         "description": "Reconstruct a complete 3D scene from an input image by detecting all objects with SAM and reconstructing each with SAM-3D. Outputs a .blend file containing all reconstructed objects.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {},
+    #             "required": []
+    #         }
+    #     }
+    # }
 ]
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
