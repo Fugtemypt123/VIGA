@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from re import T
 from typing import Dict, Any, Optional, List
 from mcp import ClientSession, StdioServerParameters
@@ -24,7 +25,9 @@ class ServerHandle:
     async def _runner(self):
         self.stack = AsyncExitStack()
         async with self.stack:
-            params = StdioServerParameters(command=path_to_cmd[self.path], args=[self.path])
+            # 传递当前环境变量
+            env = os.environ.copy()
+            params = StdioServerParameters(command=path_to_cmd[self.path], args=[self.path], env=env)
             stdio, write = await self.stack.enter_async_context(stdio_client(params))
             session = await self.stack.enter_async_context(ClientSession(stdio, write))
             await session.initialize()

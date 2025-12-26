@@ -1,6 +1,5 @@
 import os, sys, json, subprocess, shutil
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from mcp.server.fastmcp import FastMCP
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.path import path_to_cmd
@@ -350,34 +349,20 @@ def reconstruct_full_scene() -> dict:
                 _blender_command, _sam3d_env_bin, ROOT, SAM3D_WORKER
             ))
         
-        # 使用线程池并行处理
+        # 串行处理所有任务
         glb_paths = []
         object_transforms = []  # 存储每个物体的位置信息
-        max_workers = min(1, len(tasks))  # 限制并发数，避免资源耗尽
         
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # 提交所有任务
-            future_to_idx = {executor.submit(process_single_object, task): task[0] for task in tasks}
-            
-            # 按完成顺序收集结果（保持顺序）
-            results = [None] * len(tasks)
-            for future in as_completed(future_to_idx):
-                idx = future_to_idx[future]
-                try:
-                    success, glb_path, object_transform, error_msg = future.result()
-                    results[idx] = (success, glb_path, object_transform, error_msg)
-                except Exception as e:
-                    log(f"[SAM_INIT] Error processing object {idx}: {str(e)}")
-                    results[idx] = (False, None, None, str(e))
-        
-        # 按原始顺序处理结果
-        for idx, result in enumerate(results):
-            if result is None:
-                continue
-            success, glb_path, object_transform, error_msg = result
-            if success and glb_path and object_transform:
-                glb_paths.append(glb_path)
-                object_transforms.append(object_transform)
+        # 按顺序处理每个任务
+        for task in tasks:
+            idx = task[0]
+            try:
+                success, glb_path, object_transform, error_msg = process_single_object(task)
+                if success and glb_path and object_transform:
+                    glb_paths.append(glb_path)
+                    object_transforms.append(object_transform)
+            except Exception as e:
+                log(f"[SAM_INIT] Error processing object {idx}: {str(e)}")
         
         if len(glb_paths) == 0:
             return {"status": "error", "output": {"text": ["No objects were successfully reconstructed"]}}
