@@ -404,6 +404,11 @@ def reconstruct_full_scene() -> dict:
             blend_path,  # 输出 .blend 文件路径
         ]
         
+        # 将可能多出的.blend1文件删除
+        for file in os.listdir(_output_dir):
+            if file.endswith(".blend1"):
+                os.remove(os.path.join(_output_dir, file))
+        
         blender_log_path = os.path.join(_output_dir, "blender_import.log")
         log(f"[SAM_INIT] Blender import output will be saved to: {blender_log_path}")
         # 对于 Blender，使用当前环境的环境变量（Blender 通常不需要 CONDA_PREFIX）
