@@ -35,7 +35,7 @@ _sam3d_env_bin = path_to_cmd["tools/sam3d_worker.py"]
 def initialize(args: dict) -> dict:
     global _target_image, _output_dir, _sam3_cfg, _blender_command
     _target_image = args["target_image_path"]
-    _output_dir = args.get("output_dir") + "/sam_bridge"
+    _output_dir = args.get("output_dir") + "/sam"
     os.makedirs(_output_dir, exist_ok=True)
     _sam3_cfg = args.get("sam3d_config_path") or os.path.join(
         ROOT, "utils", "sam3d", "checkpoints", "hf", "pipeline.yaml"

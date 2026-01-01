@@ -390,9 +390,9 @@ def reconstruct_full_scene() -> dict:
         ]
         
         # 将可能多出的.blend1文件删除
-        for file in os.listdir(os.path.dirname(blend_path)):
+        for file in os.listdir(_output_dir):
             if file.endswith(".blend1"):
-                os.remove(os.path.join(os.path.dirname(blend_path), file))
+                os.remove(os.path.join(_output_dir, file))
         
         blender_log_path = os.path.join(_output_dir, "blender_import.log")
         log(f"[SAM_INIT] Blender import output will be saved to: {blender_log_path}")
