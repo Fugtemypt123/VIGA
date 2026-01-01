@@ -26,8 +26,10 @@ TODO.md
 run.sh
 *.blend
 *.out
+*.bin
 
 utils/infinigen
 utils/sam3
 utils/sam3d
 utils/sam
+utils/blender

@@ -41,6 +41,8 @@ if __name__ == "__main__":
     except Exception:
         # 没有 GPU 或设置失败时，回退到 CPU
         bpy.context.scene.cycles.device = 'CPU'
+        
+    print("[INFO] Cycles GPU device set to: ", bpy.context.scene.cycles.device)
 
     # ---- 基础渲染参数 ----
     scene = bpy.context.scene
@@ -64,8 +66,8 @@ if __name__ == "__main__":
 
     # ---- 读取动画范围 ----
     # 若外部代码未设置，Blender 默认 1..250
-    frame_start = 1 if scene.frame_start is None else scene.frame_start
-    frame_end   = 120 if scene.frame_end is None else scene.frame_end
+    frame_start = 1 # if scene.frame_start is None else scene.frame_start
+    frame_end   = 48 # if scene.frame_end is None else scene.frame_end
     
     scene.frame_start = frame_start
     scene.frame_end = frame_end
@@ -74,7 +76,7 @@ if __name__ == "__main__":
     total_frames = max(1, frame_end - frame_start + 1)
     
     # 获取 FPS（如果未设置则使用默认值）
-    fps = scene.render.fps if scene.render.fps > 0 else 24
+    fps = scene.render.fps if scene.render.fps > 0 else 16
     scene.render.ffmpeg.gopsize = int(fps)
 
     print(f"[INFO] Frame range: {frame_start}..{frame_end} (total {total_frames} frames)")
@@ -84,6 +86,7 @@ if __name__ == "__main__":
     cameras = [obj for obj in bpy.data.objects if obj.type == 'CAMERA']
     for cam in cameras:
         scene.camera = cam
+        scene.camera.data.lens = 18
         
         # 视频文件名：CameraName.mp4
         video_path = os.path.join(rendering_dir, f"{cam.name}.mp4")
