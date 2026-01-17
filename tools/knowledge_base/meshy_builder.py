@@ -235,7 +235,7 @@ def score_query(item: Dict[str, Any], query: str) -> float:
     return overlap * 0.6 + approx * 0.6 + bonus
 
 
-def search(q: str, topk: int = 5) -> Dict[str, Any]:
+def search(q: str, topk: int = 5) -> Optional[Dict[str, Any]]:
     """Search the knowledge base for matching animations.
 
     Args:
@@ -243,7 +243,7 @@ def search(q: str, topk: int = 5) -> Dict[str, Any]:
         topk: Number of top results to return.
 
     Returns:
-        Best matching animation item.
+        Best matching animation item, or None if no results found.
     """
     data = json.load(open(OUT_JSON, "r", encoding="utf-8"))
     kb = data["items"]
@@ -253,9 +253,11 @@ def search(q: str, topk: int = 5) -> Dict[str, Any]:
     for i, (s, it) in enumerate(scored[:topk], 1):
         print(f"{i:>2}. action_id={it['action_id']:<3}  name={it['name']:<24}  "
               f"cat={it['category']}/{it['subcategory']:<12}  score={s:.3f}")
-    if scored:
-        best = scored[0][1]
-        print(f"\nBest action_id: {best['action_id']}  ({best['name']})")
+    if not scored:
+        print("No matching animations found.")
+        return None
+    best = scored[0][1]
+    print(f"\nBest action_id: {best['action_id']}  ({best['name']})")
     return best
 
 
