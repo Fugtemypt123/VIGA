@@ -1,9 +1,21 @@
+"""Vision Chat Client for OpenAI-compatible Server.
+
+Command-line client for vision-based chat with local OpenAI-compatible servers
+such as vLLM or other inference backends that support multimodal inputs.
+"""
+
 import argparse
 import os
+
 from openai import OpenAI
 
 
-def main():
+def main() -> None:
+    """Run the vision chat client.
+
+    Parses command-line arguments and sends a vision chat completion request
+    to the specified OpenAI-compatible server with an image URL.
+    """
     parser = argparse.ArgumentParser(description="Vision chat with local OpenAI-compatible server")
     parser.add_argument("--base-url", default="http://localhost:8000/v1", type=str)
     parser.add_argument("--model", default="Qwen2-VL-7B-Instruct", type=str)
@@ -38,5 +50,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
