@@ -1,36 +1,44 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-SAFE RAG Crawler & JSONL Generator (Blender Python 4.5 + Infinigen docs only; avoids binaries)
+"""RAG Knowledge Base Crawler for Blender and Infinigen Documentation.
 
-Key additions:
+This script crawls Blender Python API docs and Infinigen documentation
+to build a JSONL knowledge base for RAG retrieval.
+
+Key safety features:
 - URL extension denylist (e.g., .zip/.tar.gz/.pdf/.png/...)
-- HEAD request for Content-Type + Content-Length check (skip non-docs or large files)
-- Content-Type allowlist (text/html, text/plain, text/markdown, application/xhtml+xml)
-- Streaming GET with byte cap (--max-bytes) to abort oversized responses
+- HEAD request for Content-Type + Content-Length check
+- Content-Type allowlist (text/html, text/plain, text/markdown)
+- Streaming GET with byte cap to abort oversized responses
 - Stricter link enqueue rules (same host + extension checks)
 
 Usage:
-  python rag_crawler_blender_infinigen.py \
-    --out knowledge.jsonl --blender --infinigen \
-    --max_pages 120 --delay 1.0 --max-bytes 2000000
+    python rag_builder.py --out knowledge.jsonl --blender --infinigen \\
+        --max_pages 120 --delay 1.0 --max-bytes 2000000
 
 Notes:
-- We do NOT fetch papers; for Infinigen only official site + GitHub docs/*.md (converted to raw) are parsed.
-- Respect your target sites; tune --delay and --max_pages as needed.
+    - Papers are not fetched; for Infinigen only official site + GitHub docs
+    - Respect target sites; tune --delay and --max_pages as needed
 """
 
-import argparse, os, sys, time, json, re, uuid, datetime
-from urllib.parse import urljoin, urlparse
+import argparse
+import datetime
+import json
+import os
+import re
+import sys
+import time
+import uuid
 from collections import deque
+from typing import Any, Deque, Dict, List, Optional, Set, Tuple
+from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
-BLENDER_VERSION = "4.5"
-TODAY = datetime.date.today().isoformat()
+BLENDER_VERSION: str = "4.5"
+TODAY: str = datetime.date.today().isoformat()
 
-DEFAULT_ALLOWLIST = [
+DEFAULT_ALLOWLIST: List[str] = [
     # Blender
     "https://docs.blender.org/api/current/index.html",
     "https://docs.blender.org/api/current/info_quickstart.html",
@@ -41,7 +49,7 @@ DEFAULT_ALLOWLIST = [
     "https://infinigen.org/",
     "https://infinigen.org/docs/installation/intro",
     "https://infinigen.org/docs/category/installation-instructions",
-    # Infinigen GitHub docs (HTML pages; we will map to raw for content where possible)
+    # Infinigen GitHub docs
     "https://github.com/princeton-vl/infinigen",
     "https://github.com/princeton-vl/infinigen/blob/main/docs/Installation.md",
     "https://github.com/princeton-vl/infinigen/blob/main/docs/HelloWorld.md",
@@ -51,33 +59,58 @@ DEFAULT_ALLOWLIST = [
     "https://github.com/princeton-vl/infinigen/blob/main/docs/Exporting.md",
 ]
 
-# --- Safety controls ---
-EXT_DENY = {
-    ".zip",".tar",".gz",".tgz",".bz2",".xz",".7z",
+# Safety controls - denied file extensions
+EXT_DENY: Set[str] = {
+    ".zip", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".7z",
     ".pdf",
-    ".png",".jpg",".jpeg",".gif",".svg",".webp",".ico",
-    ".mp4",".mov",".avi",".mkv",".webm",
-    ".mp3",".wav",".ogg",".flac",
-    ".woff",".woff2",".ttf",".otf",
-    ".exe",".msi",".dmg",".apk",".whl",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico",
+    ".mp4", ".mov", ".avi", ".mkv", ".webm",
+    ".mp3", ".wav", ".ogg", ".flac",
+    ".woff", ".woff2", ".ttf", ".otf",
+    ".exe", ".msi", ".dmg", ".apk", ".whl",
 }
-ALLOWED_CT_PREFIX = (
+
+ALLOWED_CT_PREFIX: Tuple[str, ...] = (
     "text/html",
     "application/xhtml+xml",
     "text/plain",
     "text/markdown",
 )
+
 # Some servers send text/x-markdown
-ALLOWED_CT_EXTRA = ("text/x-markdown",)
+ALLOWED_CT_EXTRA: Tuple[str, ...] = ("text/x-markdown",)
+
+
+class SkipFetch(Exception):
+    """Exception raised when a URL should be skipped."""
+    pass
+
 
 def has_denied_extension(url: str) -> bool:
+    """Check if URL has a denied file extension.
+
+    Args:
+        url: URL to check.
+
+    Returns:
+        True if the URL has a denied extension.
+    """
     path = urlparse(url).path.lower()
     for ext in EXT_DENY:
         if path.endswith(ext):
             return True
     return False
 
+
 def is_allowed(url: str) -> bool:
+    """Check if URL is in the allowed crawl scope.
+
+    Args:
+        url: URL to check.
+
+    Returns:
+        True if URL is allowed to be crawled.
+    """
     if has_denied_extension(url):
         return False
     return (
@@ -86,21 +119,39 @@ def is_allowed(url: str) -> bool:
         url.startswith("https://github.com/princeton-vl/infinigen")
     )
 
+
 def to_raw_github(url: str) -> str:
-    # Convert GitHub blob URL to raw URL if possible
+    """Convert GitHub blob URL to raw content URL.
+
+    Args:
+        url: GitHub blob URL.
+
+    Returns:
+        Raw githubusercontent URL if applicable, else original URL.
+    """
     m = re.match(r"https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)", url)
     if m:
         user, repo, branch, path = m.groups()
         return f"https://raw.githubusercontent.com/{user}/{repo}/{branch}/{path}"
     return url
 
-class SkipFetch(Exception):
-    pass
 
 def safe_fetch(url: str, max_bytes: int = 2_000_000, timeout: int = 20) -> requests.Response:
-    """
-    HEAD check for Content-Type/Length -> skip non-docs/large files.
-    Then GET with stream + byte cap. Returns a Response with ._text cached.
+    """Safely fetch a URL with size and content-type checks.
+
+    Performs HEAD check for Content-Type/Length, then GET with streaming
+    and byte cap.
+
+    Args:
+        url: URL to fetch.
+        max_bytes: Maximum response size in bytes.
+        timeout: Request timeout in seconds.
+
+    Returns:
+        Response object with _text attribute containing content.
+
+    Raises:
+        SkipFetch: If URL should be skipped due to extension, content-type, or size.
     """
     headers = {
         "User-Agent": "RAG-DOC-Crawler/1.1 (+research; contact: you@example.com)",
@@ -111,10 +162,10 @@ def safe_fetch(url: str, max_bytes: int = 2_000_000, timeout: int = 20) -> reque
     if has_denied_extension(url):
         raise SkipFetch("denied by extension")
 
-    # HEAD
+    # HEAD request to check content type and size
     try:
         h = requests.head(url, timeout=timeout, headers=headers, allow_redirects=True)
-        ct = h.headers.get("Content-Type","").split(";")[0].strip().lower()
+        ct = h.headers.get("Content-Type", "").split(";")[0].strip().lower()
         cl = h.headers.get("Content-Length")
         if ct and not (ct.startswith(ALLOWED_CT_PREFIX) or ct in ALLOWED_CT_EXTRA):
             raise SkipFetch(f"content-type not allowed: {ct}")
@@ -129,10 +180,10 @@ def safe_fetch(url: str, max_bytes: int = 2_000_000, timeout: int = 20) -> reque
         # Some servers do not support HEAD; continue to GET with streaming
         pass
 
-    # GET streaming with byte cap
+    # GET with streaming and byte cap
     r = requests.get(url, timeout=timeout, headers=headers, stream=True)
     r.raise_for_status()
-    ct = r.headers.get("Content-Type","").split(";")[0].strip().lower()
+    ct = r.headers.get("Content-Type", "").split(";")[0].strip().lower()
     if ct and not (ct.startswith(ALLOWED_CT_PREFIX) or ct in ALLOWED_CT_EXTRA):
         r.close()
         raise SkipFetch(f"content-type not allowed on GET: {ct}")
@@ -153,16 +204,35 @@ def safe_fetch(url: str, max_bytes: int = 2_000_000, timeout: int = 20) -> reque
     r._text = text
     return r
 
+
 def clean_text(s: str) -> str:
+    """Clean and truncate text for storage.
+
+    Args:
+        s: Input text.
+
+    Returns:
+        Cleaned text truncated to 1200 characters.
+    """
     s = re.sub(r"\s+", " ", s).strip()
     return s[:1200]
 
-def parse_blender_html(url: str, html: str):
-    from bs4 import BeautifulSoup
+
+def parse_blender_html(url: str, html: str) -> List[Dict[str, Any]]:
+    """Parse Blender API documentation HTML.
+
+    Args:
+        url: Source URL.
+        html: HTML content.
+
+    Returns:
+        List of knowledge base records.
+    """
     soup = BeautifulSoup(html, "html.parser")
     title = soup.find("h1")
     page_title = title.get_text(strip=True) if title else "Blender Python API"
-    records = []
+    records: List[Dict[str, Any]] = []
+
     for head in soup.select("h2, h3"):
         section_title = head.get_text(" ", strip=True)
         section_path = [page_title, section_title]
@@ -174,7 +244,7 @@ def parse_blender_html(url: str, html: str):
                 content_parts.append(sib.get_text(" ", strip=True))
         content = clean_text(" ".join(content_parts))
         code_refs = sorted(set([tok for tok in re.findall(r"\b[bB]py\.[\w\.]+", content)]))[:10]
-        tags = ["blender","api"]
+        tags = ["blender", "api"]
         if "bpy.types" in content or "bpy.types" in section_title:
             tags.append("bpy.types")
         if len(content) >= 40:
@@ -191,6 +261,7 @@ def parse_blender_html(url: str, html: str):
                 "code_refs": code_refs,
                 "source_type": "official-docs"
             })
+
     if not records:
         content = clean_text(soup.get_text(" ", strip=True))
         if content:
@@ -201,7 +272,7 @@ def parse_blender_html(url: str, html: str):
                 "url": url,
                 "version": BLENDER_VERSION,
                 "section_path": [page_title],
-                "tags": ["blender","api"],
+                "tags": ["blender", "api"],
                 "updated": TODAY,
                 "content_summary": content[:1200],
                 "code_refs": [],
@@ -209,12 +280,22 @@ def parse_blender_html(url: str, html: str):
             })
     return records
 
-def parse_infinigen_html(url: str, html: str):
-    from bs4 import BeautifulSoup
+
+def parse_infinigen_html(url: str, html: str) -> List[Dict[str, Any]]:
+    """Parse Infinigen website HTML.
+
+    Args:
+        url: Source URL.
+        html: HTML content.
+
+    Returns:
+        List of knowledge base records.
+    """
     soup = BeautifulSoup(html, "html.parser")
-    title = soup.find(["h1","title"])
+    title = soup.find(["h1", "title"])
     page_title = title.get_text(strip=True) if title else "Infinigen Docs"
-    records = []
+    records: List[Dict[str, Any]] = []
+
     for head in soup.select("h2, h3"):
         section_title = head.get_text(" ", strip=True)
         section_path = [page_title, section_title]
@@ -234,12 +315,13 @@ def parse_infinigen_html(url: str, html: str):
             "url": url,
             "version": "2024-site",
             "section_path": section_path,
-            "tags": ["infinigen","docs"],
+            "tags": ["infinigen", "docs"],
             "updated": TODAY,
             "content_summary": content,
             "code_refs": [],
             "source_type": "official-docs"
         })
+
     if not records:
         content = clean_text(soup.get_text(" ", strip=True))
         if content:
@@ -250,7 +332,7 @@ def parse_infinigen_html(url: str, html: str):
                 "url": url,
                 "version": "2024-site",
                 "section_path": [page_title],
-                "tags": ["infinigen","docs"],
+                "tags": ["infinigen", "docs"],
                 "updated": TODAY,
                 "content_summary": content[:1200],
                 "code_refs": [],
@@ -258,13 +340,25 @@ def parse_infinigen_html(url: str, html: str):
             })
     return records
 
-def parse_github_markdown(url: str, text: str):
+
+def parse_github_markdown(url: str, text: str) -> List[Dict[str, Any]]:
+    """Parse GitHub markdown documentation.
+
+    Args:
+        url: Source URL.
+        text: Markdown content.
+
+    Returns:
+        List of knowledge base records.
+    """
     lines = text.splitlines()
-    page_title = None
-    records = []
+    page_title: Optional[str] = None
+    records: List[Dict[str, Any]] = []
     current_title = ""
-    current_buf = []
-    def flush():
+    current_buf: List[str] = []
+
+    def flush() -> None:
+        nonlocal current_title, current_buf
         if not current_title and not current_buf:
             return
         content = clean_text(" ".join(current_buf))
@@ -276,13 +370,17 @@ def parse_github_markdown(url: str, text: str):
             "title": current_title or (page_title or "Infinigen Docs"),
             "url": url,
             "version": "repo-main",
-            "section_path": [page_title or "Infinigen Docs", current_title] if current_title else [page_title or "Infinigen Docs"],
-            "tags": ["infinigen","docs"],
+            "section_path": (
+                [page_title or "Infinigen Docs", current_title]
+                if current_title else [page_title or "Infinigen Docs"]
+            ),
+            "tags": ["infinigen", "docs"],
             "updated": TODAY,
             "content_summary": content,
             "code_refs": [],
             "source_type": "official-docs"
         })
+
     for ln in lines:
         if ln.startswith("# "):
             page_title = ln[2:].strip()
@@ -302,11 +400,32 @@ def parse_github_markdown(url: str, text: str):
     flush()
     return records
 
-def crawl(seeds, out_path, delay=1.0, max_pages=50, max_bytes=2_000_000, enable_blender=True, enable_infinigen=True):
-    seen = set()
-    q = deque(seeds)
+
+def crawl(
+    seeds: List[str],
+    out_path: str,
+    delay: float = 1.0,
+    max_pages: int = 50,
+    max_bytes: int = 2_000_000,
+    enable_blender: bool = True,
+    enable_infinigen: bool = True
+) -> None:
+    """Crawl documentation sites and build knowledge base.
+
+    Args:
+        seeds: List of seed URLs to start crawling.
+        out_path: Output JSONL file path.
+        delay: Delay between requests in seconds.
+        max_pages: Maximum number of pages to crawl.
+        max_bytes: Maximum response size in bytes.
+        enable_blender: Whether to crawl Blender docs.
+        enable_infinigen: Whether to crawl Infinigen docs.
+    """
+    seen: Set[str] = set()
+    q: Deque[str] = deque(seeds)
     total = 0
-    out = []
+    out: List[Dict[str, Any]] = []
+
     while q and total < max_pages:
         url = q.popleft()
         if url in seen:
@@ -314,6 +433,7 @@ def crawl(seeds, out_path, delay=1.0, max_pages=50, max_bytes=2_000_000, enable_
         seen.add(url)
         if not is_allowed(url):
             continue
+
         try:
             resp = safe_fetch(url, max_bytes=max_bytes)
         except SkipFetch as e:
@@ -325,13 +445,15 @@ def crawl(seeds, out_path, delay=1.0, max_pages=50, max_bytes=2_000_000, enable_
 
         text = getattr(resp, "_text", None)
         if text is None:
-            text = ""   # Or fetch again on demand, but don't directly trigger resp.text
+            text = ""
         total += 1
         print(f"[{total}/{max_pages}] fetched: {url} ({len(text)} bytes)")
 
         # Parse and enqueue links (same host only, and pass extension filter)
         try:
-            if resp.headers.get("Content-Type","").lower().startswith(("text/html","application/xhtml+xml")):
+            if resp.headers.get("Content-Type", "").lower().startswith(
+                ("text/html", "application/xhtml+xml")
+            ):
                 soup = BeautifulSoup(text, "html.parser")
                 for a in soup.find_all("a", href=True):
                     href = urljoin(url, a["href"])
@@ -369,24 +491,28 @@ def crawl(seeds, out_path, delay=1.0, max_pages=50, max_bytes=2_000_000, enable_
         time.sleep(delay)
 
     # Deduplicate
-    dedup = {}
+    dedup: Dict[Tuple[str, str, Tuple[str, ...]], Dict[str, Any]] = {}
     for r in out:
         key = (r["url"], r["title"], tuple(r["section_path"]))
         if key not in dedup:
             dedup[key] = r
+
     with open(out_path, "w", encoding="utf-8") as f:
         for r in dedup.values():
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     print(f"[done] wrote {len(dedup)} records to {out_path}")
 
-def main():
+
+def main() -> None:
+    """Run the RAG crawler CLI."""
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="knowledge.jsonl")
-    ap.add_argument("--max_pages", type=int, default=80)
-    ap.add_argument("--delay", type=float, default=1.0)
-    ap.add_argument("--max-bytes", type=int, default=2_000_000, help="Max bytes per response (skip larger)")
-    ap.add_argument("--blender", action="store_true", help="crawl Blender docs")
-    ap.add_argument("--infinigen", action="store_true", help="crawl Infinigen docs")
+    ap.add_argument("--out", default="knowledge.jsonl", help="Output JSONL file path")
+    ap.add_argument("--max_pages", type=int, default=80, help="Maximum pages to crawl")
+    ap.add_argument("--delay", type=float, default=1.0, help="Delay between requests")
+    ap.add_argument("--max-bytes", type=int, default=2_000_000,
+                    help="Max bytes per response (skip larger)")
+    ap.add_argument("--blender", action="store_true", help="Crawl Blender docs")
+    ap.add_argument("--infinigen", action="store_true", help="Crawl Infinigen docs")
     args = ap.parse_args()
 
     seeds = DEFAULT_ALLOWLIST
@@ -403,6 +529,7 @@ def main():
         enable_blender=args.blender,
         enable_infinigen=args.infinigen,
     )
+
 
 if __name__ == "__main__":
     main()

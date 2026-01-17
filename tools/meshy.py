@@ -1,18 +1,23 @@
-# meshy.py
-import os
-import sys
+"""Meshy MCP Server for 3D Asset Generation.
+
+Provides tools for generating high-quality 3D assets using Meshy API,
+including text-to-3D, image-to-3D, rigging, and animation capabilities.
+"""
+
 import base64
 import json
-import requests
-import time
 import logging
-import PIL
+import os
 import re
-from typing import Optional, List
+import sys
+import time
+from typing import Dict, List, Optional
+
+import requests
 from mcp.server.fastmcp import FastMCP
 
-# tool_configs for agent (only the function w/ @mcp.tools)
-tool_configs = [
+# Tool configuration for agent
+tool_configs: List[Dict[str, object]] = [
     {
         "type": "function",
         "function": {
@@ -35,13 +40,44 @@ tool_configs = [
 ]
 
 
+# Create MCP instance
 mcp = FastMCP("meshy-executor")
-_image_cropper = None
-_meshy_api = None
+
+# Global instances
+_image_cropper: Optional["ImageCropper"] = None
+_meshy_api: Optional["MeshyAPI"] = None
+
 
 class MeshyAPI:
-    """Meshy API client: Text-to-3D generation + polling + download"""
-    def __init__(self, api_key: str = None, save_dir: str = None, previous_assets_dir: str = None):
+    """Meshy API client for 3D asset generation.
+
+    Handles text-to-3D generation, image-to-3D generation, rigging,
+    animation, polling, and downloading of 3D assets.
+
+    Attributes:
+        api_key: Meshy API key.
+        base_url: Meshy API base URL.
+        headers: Request headers with authorization.
+        save_dir: Directory for saving downloaded assets.
+        previous_assets_dir: Directory to check for cached assets.
+    """
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        save_dir: Optional[str] = None,
+        previous_assets_dir: Optional[str] = None
+    ) -> None:
+        """Initialize the Meshy API client.
+
+        Args:
+            api_key: Meshy API key. Falls back to MESHY_API_KEY env var.
+            save_dir: Directory for saving downloaded assets.
+            previous_assets_dir: Directory to check for cached assets.
+
+        Raises:
+            ValueError: If no API key is provided.
+        """
         self.api_key = api_key or os.getenv("MESHY_API_KEY")
         if not self.api_key:
             raise ValueError("Meshy API key is required. Set MESHY_API_KEY environment variable or pass api_key parameter.")
@@ -56,6 +92,17 @@ class MeshyAPI:
             f.write(f"MeshyAPI initialized with save_dir: {self.save_dir} and previous_assets_dir: {self.previous_assets_dir}\n")
 
     def normalize_name(self, name: str) -> str:
+        """Normalize object name for fuzzy matching.
+
+        Converts to lowercase, removes spaces/underscores, and handles
+        common plural endings.
+
+        Args:
+            name: Object name to normalize.
+
+        Returns:
+            Normalized name string.
+        """
         if not name:
             return ""
         normalized = name.lower()
@@ -74,6 +121,16 @@ class MeshyAPI:
         return normalized
 
     def find_matching_files(self, target_name: str, extensions: List[str], prefix: str = "") -> List[str]:
+        """Find files matching target name with fuzzy matching.
+
+        Args:
+            target_name: Name to search for.
+            extensions: List of file extensions to match (e.g., ['.glb']).
+            prefix: Optional filename prefix filter.
+
+        Returns:
+            List of matching file paths.
+        """
         if not self.previous_assets_dir or not os.path.exists(self.previous_assets_dir):
             return []
         target_normalized = self.normalize_name(target_name)
@@ -100,6 +157,16 @@ class MeshyAPI:
         return matching_files
 
     def check_previous_asset(self, object_name: str, is_animated: bool = False, is_rigged: bool = False) -> Optional[str]:
+        """Check for previously cached asset matching the object name.
+
+        Args:
+            object_name: Name of the object to find.
+            is_animated: Whether to search for animated assets.
+            is_rigged: Whether to search for rigged assets.
+
+        Returns:
+            Path to cached asset if found, None otherwise.
+        """
         if not self.previous_assets_dir:
             return None
         extensions = [".glb"]
@@ -115,7 +182,16 @@ class MeshyAPI:
             return matched_file
         return None
 
-    def create_text_to_3d_preview(self, prompt: str, **kwargs) -> str:
+    def create_text_to_3d_preview(self, prompt: str, **kwargs: object) -> str:
+        """Create a text-to-3D preview task.
+
+        Args:
+            prompt: Text description of the 3D model to generate.
+            **kwargs: Additional parameters for the API request.
+
+        Returns:
+            Task ID for the preview generation.
+        """
         url = f"{self.base_url}/openapi/v2/text-to-3d"
         payload = {"mode": "preview", "prompt": prompt[:600]}
         payload.update(kwargs or {})
@@ -124,7 +200,20 @@ class MeshyAPI:
         data = resp.json()
         return data.get("result") or data.get("id")
 
-    def poll_text_to_3d(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
+    def poll_text_to_3d(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> Dict[str, object]:
+        """Poll text-to-3D task until completion.
+
+        Args:
+            task_id: ID of the task to poll.
+            interval_sec: Seconds between poll attempts.
+            timeout_sec: Maximum seconds to wait before timeout.
+
+        Returns:
+            Task result dictionary with status and model URLs.
+
+        Raises:
+            TimeoutError: If task doesn't complete within timeout.
+        """
         url = f"{self.base_url}/openapi/v2/text-to-3d/{task_id}"
         deadline = time.time() + timeout_sec
         while True:
@@ -138,7 +227,16 @@ class MeshyAPI:
                 raise TimeoutError(f"Meshy task {task_id} polling timeout")
             time.sleep(interval_sec)
 
-    def create_text_to_3d_refine(self, preview_task_id: str, **kwargs) -> str:
+    def create_text_to_3d_refine(self, preview_task_id: str, **kwargs: object) -> str:
+        """Create a text-to-3D refine task from a preview.
+
+        Args:
+            preview_task_id: ID of the completed preview task.
+            **kwargs: Additional parameters for the API request.
+
+        Returns:
+            Task ID for the refine generation.
+        """
         url = f"{self.base_url}/openapi/v2/text-to-3d"
         payload = {"mode": "refine", "preview_task_id": preview_task_id}
         payload.update(kwargs or {})
@@ -148,6 +246,15 @@ class MeshyAPI:
         return data.get("result") or data.get("id")
 
     def download_model_url(self, file_url: str, file_name: str) -> str:
+        """Download a 3D model from URL to local storage.
+
+        Args:
+            file_url: URL of the model file to download.
+            file_name: Local filename for the downloaded model.
+
+        Returns:
+            Path to the downloaded file.
+        """
         r = requests.get(file_url, stream=True)
         r.raise_for_status()
         output_path = os.path.join(self.save_dir, file_name)
@@ -159,7 +266,17 @@ class MeshyAPI:
             f.write(f"Downloaded {file_name} from {file_url} to {output_path}\n")
         return output_path
 
-    def create_image_to_3d_preview(self, image_path: str, prompt: str = None, **kwargs) -> str:
+    def create_image_to_3d_preview(self, image_path: str, prompt: Optional[str] = None, **kwargs: object) -> str:
+        """Create an image-to-3D task from an input image.
+
+        Args:
+            image_path: Path to the input image file.
+            prompt: Optional text prompt to guide generation.
+            **kwargs: Additional parameters for the API request.
+
+        Returns:
+            Task ID for the image-to-3D generation.
+        """
         url = f"{self.base_url}/openapi/v1/image-to-3d"
         with open(image_path, 'rb') as f:
             image_base64 = base64.b64encode(f.read()).decode('utf-8')
@@ -169,7 +286,20 @@ class MeshyAPI:
             data = resp.json()
             return data.get("result") or data.get("id")
 
-    def poll_image_to_3d(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
+    def poll_image_to_3d(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> Dict[str, object]:
+        """Poll image-to-3D task until completion.
+
+        Args:
+            task_id: ID of the task to poll.
+            interval_sec: Seconds between poll attempts.
+            timeout_sec: Maximum seconds to wait before timeout.
+
+        Returns:
+            Task result dictionary with status and model URLs.
+
+        Raises:
+            TimeoutError: If task doesn't complete within timeout.
+        """
         url = f"{self.base_url}/openapi/v1/image-to-3d/{task_id}"
         deadline = time.time() + timeout_sec
         while True:
@@ -184,6 +314,14 @@ class MeshyAPI:
             time.sleep(interval_sec)
 
     def create_rigging_task(self, model_url: str) -> str:
+        """Create a rigging task for a 3D model.
+
+        Args:
+            model_url: URL of the 3D model to rig.
+
+        Returns:
+            Task ID for the rigging operation.
+        """
         url = f"{self.base_url}/openapi/v1/rigging"
         payload = {"model_url": model_url}
         resp = requests.post(url, headers=self.headers, json=payload)
@@ -191,7 +329,20 @@ class MeshyAPI:
         data = resp.json()
         return data.get("result") or data.get("id")
 
-    def poll_rigging_task(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
+    def poll_rigging_task(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> Dict[str, object]:
+        """Poll rigging task until completion.
+
+        Args:
+            task_id: ID of the task to poll.
+            interval_sec: Seconds between poll attempts.
+            timeout_sec: Maximum seconds to wait before timeout.
+
+        Returns:
+            Task result dictionary with rigged model URL.
+
+        Raises:
+            TimeoutError: If task doesn't complete within timeout.
+        """
         url = f"{self.base_url}/openapi/v1/rigging/{task_id}"
         deadline = time.time() + timeout_sec
         while True:
@@ -206,6 +357,15 @@ class MeshyAPI:
             time.sleep(interval_sec)
 
     def create_animation_task(self, rig_task_id: str, action_description: str) -> str:
+        """Create an animation task for a rigged model.
+
+        Args:
+            rig_task_id: ID of the completed rigging task.
+            action_description: Description of the animation action.
+
+        Returns:
+            Task ID for the animation operation.
+        """
         from knowledge_base.meshy_builder import search
         action = search(action_description)
         if not action:
@@ -217,7 +377,20 @@ class MeshyAPI:
         data = resp.json()
         return data.get("result") or data.get("id")
 
-    def poll_animation_task(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> dict:
+    def poll_animation_task(self, task_id: str, interval_sec: float = 5.0, timeout_sec: int = 1800) -> Dict[str, object]:
+        """Poll animation task until completion.
+
+        Args:
+            task_id: ID of the task to poll.
+            interval_sec: Seconds between poll attempts.
+            timeout_sec: Maximum seconds to wait before timeout.
+
+        Returns:
+            Task result dictionary with animated model URL.
+
+        Raises:
+            TimeoutError: If task doesn't complete within timeout.
+        """
         url = f"{self.base_url}/openapi/v1/animations/{task_id}"
         deadline = time.time() + timeout_sec
         while True:
@@ -233,25 +406,51 @@ class MeshyAPI:
 
 
 class ImageCropper:
-    def __init__(self, api_key: str, target_image_path: str):
+    """Image cropping utility using Landing AI object detection.
+
+    Attributes:
+        url: Landing AI API endpoint URL.
+        headers: Request headers with authorization.
+        target_image_path: Path to the target image for cropping.
+    """
+
+    def __init__(self, api_key: str, target_image_path: str) -> None:
+        """Initialize the image cropper.
+
+        Args:
+            api_key: Landing AI API key.
+            target_image_path: Path to the image to crop from.
+        """
         self.url = "https://api.va.landing.ai/v1/tools/agentic-object-detection"
         self.headers = {"Authorization": f"Bearer {api_key}"}
         self.target_image_path = target_image_path
 
-    def crop_image_by_text(self, object_name: str) -> dict:
+    def crop_image_by_text(self, object_name: str) -> Dict[str, object]:
+        """Detect and get bounding box for an object by text description.
+
+        Args:
+            object_name: Name/description of the object to detect.
+
+        Returns:
+            API response with detected bounding boxes.
+        """
         files = {"image": open(self.target_image_path, "rb")}
         data = {"prompts": object_name, "model": "agentic"}
         response = requests.post(self.url, files=files, data=data, headers=self.headers)
         return response.json()
 
 
-def download_meshy_asset(object_name: str, description: str) -> dict:
-    """
-    Download Meshy Text-to-3D asset
-    
+def download_meshy_asset(object_name: str, description: str) -> Dict[str, object]:
+    """Download a Meshy text-to-3D asset.
+
+    Creates a preview, refines it, and downloads the final GLB model.
+
     Args:
-        object_name: Object name
-        description: Object description
+        object_name: Name for the downloaded asset file.
+        description: Text description of the 3D model to generate.
+
+    Returns:
+        Dictionary with status and output containing path and model URL.
     """
     try:
         global _meshy_api
@@ -303,14 +502,18 @@ def download_meshy_asset(object_name: str, description: str) -> dict:
         return {"status": "error", "output": str(e)}
 
 
-def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: str = None) -> dict:
-    """
-    Use Meshy Image-to-3D to generate asset from input image and download to local (generate→poll→download)
+def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: Optional[str] = None) -> Dict[str, object]:
+    """Download a Meshy image-to-3D asset.
+
+    Generates a 3D model from an input image and downloads the GLB file.
 
     Args:
-        object_name: Object name
-        image_path: Input image path
-        prompt: Optional text prompt for guiding generation
+        object_name: Name for the downloaded asset file.
+        image_path: Path to the input image.
+        prompt: Optional text prompt to guide generation.
+
+    Returns:
+        Dictionary with status and output containing path and model URL.
     """
     try:
         if not os.path.exists(image_path):
@@ -357,15 +560,17 @@ def download_meshy_asset_from_image(object_name: str, image_path: str, prompt: s
         return {"status": "error", "output": str(e)}
 
 
-def create_rigged_character(model_url: str, object_name: str) -> dict:
-    """
-    Create character model with rigging
-    
+def create_rigged_character(model_url: str, object_name: str) -> Dict[str, object]:
+    """Create a rigged character from a 3D model.
+
+    Submits a rigging task and downloads the rigged GLB model.
+
     Args:
-        model_url: URL of 3D model
-        
+        model_url: URL of the 3D model to rig.
+        object_name: Name for the downloaded asset file.
+
     Returns:
-        dict: Dictionary containing rigging results
+        Dictionary with status and output containing task ID, path, and URL.
     """
     try:
         global _meshy_api
@@ -407,16 +612,18 @@ def create_rigged_character(model_url: str, object_name: str) -> dict:
         return {"status": "error", "output": str(e)}
 
 
-def create_animated_character(rig_task_id: str, action_description: str, object_name: str) -> dict:
-    """
-    Create animation for rigged character
-    
+def create_animated_character(rig_task_id: str, action_description: str, object_name: str) -> Dict[str, object]:
+    """Create an animated character from a rigged model.
+
+    Submits an animation task and downloads the animated GLB model.
+
     Args:
-        rig_task_id: ID of rigging task
-        action_description: Animation action description
-        
+        rig_task_id: ID of the completed rigging task.
+        action_description: Description of the animation action.
+        object_name: Name for the downloaded asset file.
+
     Returns:
-        dict: Dictionary containing animation results
+        Dictionary with status and output containing task ID, path, and URL.
     """
     try:
         global _meshy_api
@@ -458,16 +665,19 @@ def create_animated_character(rig_task_id: str, action_description: str, object_
         return {"status": "error", "output": str(e)}
 
 
-def create_rigged_and_animated_character(model_url: str, action_description: str, object_name: str) -> dict:
-    """
-    Complete process: create rigged character and add animation
-    
+def create_rigged_and_animated_character(model_url: str, action_description: str, object_name: str) -> Dict[str, object]:
+    """Create a rigged and animated character in one workflow.
+
+    Combines rigging and animation tasks to produce a fully animated
+    character model.
+
     Args:
-        model_url: URL of 3D model
-        action_description: Animation action description
-        
+        model_url: URL of the 3D model to process.
+        action_description: Description of the animation action.
+        object_name: Name for the downloaded asset file.
+
     Returns:
-        dict: Dictionary containing complete results
+        Dictionary with status and output from the animation task.
     """
     try:
         global _meshy_api
@@ -498,7 +708,16 @@ def create_rigged_and_animated_character(model_url: str, action_description: str
         return {"status": "error", "output": str(e)}
     
 @mcp.tool()
-def initialize(args: dict) -> dict:
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the Meshy asset generation tool.
+
+    Args:
+        args: Configuration dictionary with 'meshy_api_key', 'output_dir',
+            and optionally 'va_api_key', 'target_image_path', 'assets_dir'.
+
+    Returns:
+        Dictionary with status and tool configurations on success.
+    """
     global _image_cropper
     global _meshy_api
     try:
@@ -507,22 +726,48 @@ def initialize(args: dict) -> dict:
         meshy_api_key = args.get("meshy_api_key") or os.getenv("MESHY_API_KEY")
         save_dir = args.get("output_dir") + "/assets"
         previous_assets_dir = args.get("assets_dir")
-        
+
         if not previous_assets_dir and target_image_path:
             target_dir = os.path.dirname(target_image_path)
             previous_assets_dir = os.path.join(target_dir, "assets")
-        
+
         if va_api_key and target_image_path:
             _image_cropper = ImageCropper(va_api_key, target_image_path)
         if meshy_api_key:
             _meshy_api = MeshyAPI(meshy_api_key, save_dir, previous_assets_dir)
-        return {"status": "success", "output": {"text": ["Meshy initialize completed"], "tool_configs": tool_configs}}
-    
+        return {
+            "status": "success",
+            "output": {"text": ["Meshy initialize completed"], "tool_configs": tool_configs}
+        }
+
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
     
 @mcp.tool()
-def get_better_object(thought: str, object_name: str, reference_type: str = 'text', object_description: str = None, rig_and_animate: bool = False, action_description: str = None) -> dict:
+def get_better_object(
+    thought: str,
+    object_name: str,
+    reference_type: str = 'text',
+    object_description: Optional[str] = None,
+    rig_and_animate: bool = False,
+    action_description: Optional[str] = None
+) -> Dict[str, object]:
+    """Generate and download a high-quality 3D asset.
+
+    Args:
+        thought: Reasoning about the object to download.
+        object_name: Name of the object (e.g., 'chair', 'table').
+        reference_type: 'text' for description-based or 'image' for image-based.
+        object_description: Detailed description if reference_type is 'text'.
+        rig_and_animate: Whether to add rigging and animation.
+        action_description: Action verb for animation (e.g., 'walk', 'run').
+
+    Returns:
+        Dictionary with status and path to downloaded asset.
+    """
+    # thought is used by the model for reasoning but not in execution
+    _ = thought
+
     try:
         global _meshy_api
         previous_asset = _meshy_api.check_previous_asset(object_name, is_animated=rig_and_animate, is_rigged=rig_and_animate)
@@ -569,7 +814,8 @@ def get_better_object(thought: str, object_name: str, reference_type: str = 'tex
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
-def main():
+def main() -> None:
+    """Run the MCP server or execute test mode."""
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         meshy_api_key = os.getenv("MESHY_API_KEY")
         va_api_key = os.getenv("VA_API_KEY")
@@ -587,17 +833,17 @@ def main():
         print("initialize result:", result)
 
         result = get_better_object(
+            thought="Testing cat generation",
             object_name="cat",
             reference_type="text",
-            object_description="Realistic domestic short-hair bicolor cat with gray and white coat similar to a tuxedo pattern: gray cap over head and ears, gray back and tail, white face blaze, chest, belly, and legs. Medium adult size with short fur. Blender-compatible quadruped rig suitable for walk cycle. Include natural materials with slight fur roughness and subtle color variation.",
+            object_description="Realistic domestic cat with gray and white coat.",
             rig_and_animate=True,
             action_description="walk",
         )
         print("download_object result:", result)
     else:
         mcp.run()
-        
-    # "{\"object_name\":\"cat\",\"reference_type\":\"text\",\"object_description\":\"Realistic domestic short-hair bicolor cat with gray and white coat similar to a tuxedo pattern: gray cap over head and ears, gray back and tail, white face blaze, chest, belly, and legs. Medium adult size with short fur. Blender-compatible quadruped rig suitable for walk cycle. Include natural materials with slight fur roughness and subtle color variation.\",\"rig_and_animate\":true,\"action_description\":\"walk\"}"
+
 
 if __name__ == "__main__":
     main()

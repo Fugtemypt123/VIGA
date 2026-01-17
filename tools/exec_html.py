@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
+"""HTML Executor MCP Server for Design2Code mode.
+
+Handles HTML/CSS code execution and screenshot generation using
+headless browser rendering.
 """
-HTML execution server for Design2Code mode.
-Handles HTML/CSS code execution and screenshot generation.
-"""
-import os
-import tempfile
-import subprocess
+
 import base64
 import io
-from pathlib import Path
-from typing import Dict, Tuple, Optional
-from PIL import Image
 import logging
-from mcp.server.fastmcp import FastMCP
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-# tool config for agent
-tool_configs = [
+from mcp.server.fastmcp import FastMCP
+from PIL import Image
+
+# Tool configuration for the agent
+tool_configs: List[Dict[str, object]] = [
     {
         "type": "function",
         "function": {
@@ -47,19 +50,42 @@ tool_configs = [
 mcp = FastMCP("html-executor")
 
 # Global executor instance
-_executor = None
+_executor: Optional["HTMLExecutor"] = None
 
 class HTMLExecutor:
-    """Executes HTML/CSS code and generates screenshots."""
-    
-    def __init__(self, output_dir: str, browser_command: str = "google-chrome"):
+    """Executes HTML/CSS code and generates screenshots.
+
+    This class manages HTML file creation, headless browser rendering,
+    and screenshot optimization for the Design2Code pipeline.
+
+    Attributes:
+        output_dir: Directory path for saving HTML files and screenshots.
+        browser_command: Command to invoke the headless browser.
+        count: Counter for naming output files.
+    """
+
+    def __init__(self, output_dir: str, browser_command: str = "google-chrome") -> None:
+        """Initialize the HTML executor.
+
+        Args:
+            output_dir: Directory path for output files.
+            browser_command: Browser command to use for rendering.
+        """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.browser_command = browser_command
         self.count = 0
-        
+
     def _save_html_file(self, html_code: str, filename: str = "index.html") -> str:
-        """Save HTML code to a temporary file."""
+        """Save HTML code to a file.
+
+        Args:
+            html_code: The HTML content to save.
+            filename: Name of the output file.
+
+        Returns:
+            The absolute path to the saved HTML file.
+        """
         html_path = os.path.join(self.output_dir, filename)
         
         with open(html_path, 'w', encoding='utf-8') as f:
@@ -67,9 +93,25 @@ class HTMLExecutor:
         
         return html_path
     
-    def _take_screenshot(self, html_path: str, output_path: str, 
-                        width: int = 1920, height: int = 1080) -> Tuple[bool, str]:
-        """Take a screenshot of the HTML page using headless browser."""
+    def _take_screenshot(
+        self,
+        html_path: str,
+        output_path: str,
+        width: int = 1920,
+        height: int = 1080
+    ) -> Tuple[bool, str]:
+        """Take a screenshot of the HTML page using headless browser.
+
+        Args:
+            html_path: Path to the HTML file to render.
+            output_path: Path where the screenshot will be saved.
+            width: Browser window width in pixels.
+            height: Browser window height in pixels.
+
+        Returns:
+            Tuple of (success, message) where success indicates if the
+            screenshot was taken successfully.
+        """
         try:
             # Use Chrome/Chromium in headless mode to take screenshot
             cmd = [
@@ -108,7 +150,16 @@ class HTMLExecutor:
             return False, f"Screenshot error: {str(e)}"
     
     def _optimize_image(self, image_path: str) -> str:
-        """Optimize the screenshot image."""
+        """Optimize the screenshot image for smaller file size.
+
+        Converts RGBA/LA/P mode images to RGB and resizes if too large.
+
+        Args:
+            image_path: Path to the image to optimize.
+
+        Returns:
+            Path to the optimized image file.
+        """
         try:
             with Image.open(image_path) as img:
                 # Convert to RGB if necessary
@@ -129,8 +180,19 @@ class HTMLExecutor:
             logging.warning(f"Image optimization failed: {e}")
             return image_path
     
-    def execute(self, html_code: str) -> Dict:
-        """Execute HTML code and generate screenshot."""
+    def execute(self, html_code: str) -> Dict[str, object]:
+        """Execute HTML code and generate screenshot.
+
+        Saves the HTML code, renders it in a headless browser, and
+        captures a screenshot.
+
+        Args:
+            html_code: The complete HTML code to render.
+
+        Returns:
+            Dictionary with 'status' and 'output' containing either
+            the screenshot path or error message.
+        """
         try:
             self.count += 1
             html_path = self._save_html_file(html_code, f"{self.count}.html")
@@ -145,46 +207,85 @@ class HTMLExecutor:
             return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    """
-    Initialize the HTML executor.
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the HTML executor.
+
+    Args:
+        args: Configuration dictionary with 'output_dir' and optional
+            'browser_command' keys.
+
+    Returns:
+        Dictionary with status and tool configurations on success,
+        or error message on failure.
     """
     global _executor
     try:
-        _executor = HTMLExecutor(args.get("output_dir"), args.get("browser_command", "google-chrome"))
-        return {"status": "success", "output": {"text": ["HTML executor initialized successfully."], "tool_configs": tool_configs}}
+        _executor = HTMLExecutor(
+            args.get("output_dir"),
+            args.get("browser_command", "google-chrome")
+        )
+        return {
+            "status": "success",
+            "output": {
+                "text": ["HTML executor initialized successfully."],
+                "tool_configs": tool_configs
+            }
+        }
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def execute_and_evaluate(thought: str = '', code_diff: str = '', code: str = '') -> dict:
-    """
-    Execute HTML/CSS code and generate screenshot.
-    
+def execute_and_evaluate(
+    thought: str = '',
+    code_diff: str = '',
+    code: str = ''
+) -> Dict[str, object]:
+    """Execute HTML/CSS code and generate screenshot.
+
     Args:
-        thought: Analysis of current state and plan for changes
-        code_diff: Code modifications in diff format
-        code: Complete HTML/CSS code that generates a screenshot
+        thought: Analysis of current state and plan for changes.
+        code_diff: Code modifications in diff format.
+        code: Complete HTML/CSS code to render.
+
+    Returns:
+        Dictionary with execution status and screenshot path or error.
     """
     global _executor
     if _executor is None:
-        return {"status": "error", "output": {"text": ["HTML executor not initialized. Call initialize_executor first."]}}
+        return {
+            "status": "error",
+            "output": {"text": ["HTML executor not initialized. Call initialize first."]}
+        }
     try:
         result = _executor.execute(code)
         return result
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
-def main():
+def main() -> None:
+    """Run the MCP server or execute test mode."""
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
-        args = {"output_dir": "output/test/design2code/", "browser_command": "google-chrome"}
+        args = {
+            "output_dir": "output/test/design2code/",
+            "browser_command": "google-chrome"
+        }
         initialize(args)
-        code = """<!DOCTYPE html>\\n<html lang=\\\"en\\\">\\n<head>\\n    <meta charset=\\\"UTF-8\\\">\\n    <meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1.0\\\">\\n    <title>Crosschain Risk Framework</title>\\n    <style>\\n        body {\\n            display: flex;\\n            margin: 0;\\n            font-family: Arial, sans-serif;\\n        }\\n        /* Sidebar */\\n        .sidebar {\\n            width: 20%;\\n            background-color: #f7f8fa;\\n            padding: 20px;\\n            box-shadow: 2px 0 5px rgba(0,0,0,0.1);\\n            min-height: 100vh;\\n        }\\n        .sidebar h2, .sidebar ul {\\n            margin: 0;\\n            padding: 0;\\n        }\\n        .sidebar ul {\\n            list-style-type: none;\\n            padding-top: 20px;\\n        }\\n        .sidebar li {\\n            padding: 10px 0;\\n        }\\n        \\n        /* Main Content */\\n        .main-content {\\n            width: 80%;\\n            padding: 20px;\\n        }\\n        h1, h2 {\\n            margin: 20px 0;\\n        }\\n\\n        /* Header */\\n        .header {\\n            display: flex;\\n            justify-content: flex-end;\\n            align-items: center;\\n            padding: 10px;\\n            background-color: #2c3e50;\\n            color: white;\\n        }\\n        .search-bar {\\n            margin-right: 15px;\\n        }\\n        .github-icon {\\n            width: 24px;\\n            height: 24px;\\n        }\\n    </style>\\n</head>\\n<body>\\n    <div class=\\\"sidebar\\\">\\n        <h2>Crosschain Risk Framework</h2>\\n        <ul>\\n            <li>Introduction</li>\\n            <li>Categories of Risk</li>\\n            <li>Network Consensus Risk</li>\\n            <li>Protocol Architecture Risk</li>\\n        </ul>\\n    </div>\\n    <div class=\\\"main-content\\\">\\n        <div class=\\\"header\\\">\\n            <input class=\\\"search-bar\\\" type=\\\"text\\\" placeholder=\\\"Search\\\" style=\\\"width:200px; height:30px;\\\">\\n            <img class=\\\"github-icon\\\" src=\\\"github-icon.png\\\" alt=\\\"GitHub\\\">\\n        </div>\\n        <h1>Introduction</h1>\\n        <p><!-- Introduction content goes here --></p>\\n    </div>\\n</body>\\n</html>"""
-        result = execute_and_evaluate(full_code=code)
-        print("Result: ", result)
+        test_code = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Hello World</h1>
+</body>
+</html>"""
+        result = execute_and_evaluate(code=test_code)
+        print("Result:", result)
     else:
         mcp.run(transport="stdio")
+
 
 if __name__ == "__main__":
     main()

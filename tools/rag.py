@@ -1,14 +1,19 @@
-# rag.py
-import os
-import re
+"""RAG MCP Server for Blender and Infinigen Documentation.
+
+Provides vector-based search through knowledge base for Blender bpy API
+and Infinigen documentation to support code generation.
+"""
+
 import json
 import logging
-from typing import Dict, List, Optional, Tuple
-from pathlib import Path
+import os
+import re
 import uuid
+from pathlib import Path
+from typing import Dict, List, Optional
 
-# tool_configs for agent (only the function w/ @mcp.tools)
-tool_configs = [
+# Tool configuration for agent
+tool_configs: List[Dict[str, object]] = [
     {
         "type": "function",
         "function": {
@@ -47,9 +52,29 @@ except ImportError:
 
 
 class BlenderInfinigenRAG:
-    """RAG tool: Vector-based search through knowledge.jsonl for Blender and Infinigen documentation"""
-    
-    def __init__(self, openai_api_key: str = None, knowledge_file: str = None):
+    """RAG tool for Blender and Infinigen documentation search.
+
+    Provides vector-based search through knowledge.jsonl for retrieving
+    relevant documentation to support Blender code generation.
+
+    Attributes:
+        openai_api_key: API key for OpenAI embeddings (optional).
+        knowledge_file: Path to the JSONL knowledge base file.
+        openai_client: OpenAI client instance for embeddings.
+        vector_db: ChromaDB client for vector storage.
+        embedding_model: Model used for generating embeddings.
+        instruction_patterns: Regex patterns for instruction classification.
+    """
+
+    def __init__(self, openai_api_key: Optional[str] = None, knowledge_file: Optional[str] = None) -> None:
+        """Initialize the RAG tool.
+
+        Args:
+            openai_api_key: OpenAI API key for embeddings. Falls back to
+                OPENAI_API_KEY environment variable if not provided.
+            knowledge_file: Path to JSONL knowledge base file. Defaults to
+                tools/knowledge_base/rag_kb_deduplicated.jsonl.
+        """
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.knowledge_file = knowledge_file or "tools/knowledge_base/rag_kb_deduplicated.jsonl"
         
@@ -89,13 +114,20 @@ class BlenderInfinigenRAG:
         }
     
     def _get_collection_name(self) -> str:
-        """Generate collection name based on knowledge file name"""
-        # Extract filename without extension and use as collection name
+        """Generate collection name based on knowledge file name.
+
+        Returns:
+            The filename stem (without extension) as collection name.
+        """
         filename = Path(self.knowledge_file).stem
         return filename
     
-    def _init_vector_db(self):
-        """Initialize vector database for knowledge search"""
+    def _init_vector_db(self) -> None:
+        """Initialize vector database for knowledge search.
+
+        Sets up ChromaDB persistent client and loads knowledge entries
+        from the JSONL file into the vector database.
+        """
         if not CHROMADB_AVAILABLE:
             logging.warning("ChromaDB not available. Falling back to simple text search.")
             return
@@ -126,8 +158,12 @@ class BlenderInfinigenRAG:
             logging.error(f"Failed to initialize vector database: {e}")
             self.vector_db = None
     
-    def _load_knowledge_to_vector_db(self):
-        """Load knowledge from JSONL file into vector database"""
+    def _load_knowledge_to_vector_db(self) -> None:
+        """Load knowledge from JSONL file into vector database.
+
+        Parses each line of the JSONL file and adds entries to the
+        ChromaDB collection with searchable text and metadata.
+        """
         if not self.vector_db or not os.path.exists(self.knowledge_file):
             return
         
@@ -189,8 +225,18 @@ class BlenderInfinigenRAG:
         except Exception as e:
             logging.error(f"Failed to load knowledge to vector database: {e}")
     
-    def _create_searchable_text(self, entry: Dict) -> str:
-        """Create searchable text from knowledge entry"""
+    def _create_searchable_text(self, entry: Dict[str, object]) -> str:
+        """Create searchable text from knowledge entry.
+
+        Combines title, content summary, tags, section path, and domain
+        into a single searchable string.
+
+        Args:
+            entry: Knowledge entry dictionary.
+
+        Returns:
+            Formatted searchable text string.
+        """
         parts = []
         
         # Add title
@@ -215,8 +261,17 @@ class BlenderInfinigenRAG:
         
         return "\n".join(parts)
     
-    def search_vector_knowledge(self, query: str, max_results: int = 5, domain_filter: str = None) -> List[Dict]:
-        """Search knowledge using vector similarity"""
+    def search_vector_knowledge(self, query: str, max_results: int = 5, domain_filter: Optional[str] = None) -> List[Dict[str, object]]:
+        """Search knowledge using vector similarity.
+
+        Args:
+            query: Search query string.
+            max_results: Maximum number of results to return.
+            domain_filter: Optional domain to filter results by.
+
+        Returns:
+            List of result dictionaries with title, url, snippet, etc.
+        """
         if not self.vector_db:
             return self._fallback_text_search(query, max_results, domain_filter)
         
@@ -261,8 +316,17 @@ class BlenderInfinigenRAG:
             logging.error(f"Vector search failed: {e}")
             return self._fallback_text_search(query, max_results, domain_filter)
     
-    def _fallback_text_search(self, query: str, max_results: int = 5, domain_filter: str = None) -> List[Dict]:
-        """Fallback text search when vector search is not available"""
+    def _fallback_text_search(self, query: str, max_results: int = 5, domain_filter: Optional[str] = None) -> List[Dict[str, object]]:
+        """Fallback text search when vector search is not available.
+
+        Args:
+            query: Search query string.
+            max_results: Maximum number of results to return.
+            domain_filter: Optional domain to filter results by.
+
+        Returns:
+            List of result dictionaries sorted by keyword match score.
+        """
         if not os.path.exists(self.knowledge_file):
             return []
         
@@ -319,8 +383,19 @@ class BlenderInfinigenRAG:
             logging.error(f"Fallback text search failed: {e}")
             return []
     
-    def parse_instruction(self, instruction: str) -> Dict:
-        """Parse user instruction and extract key information"""
+    def parse_instruction(self, instruction: str) -> Dict[str, object]:
+        """Parse user instruction and extract key information.
+
+        Identifies instruction type, objects mentioned, positions, and
+        physics parameters from natural language instructions.
+
+        Args:
+            instruction: User instruction text to parse.
+
+        Returns:
+            Dictionary with instruction_type, objects, position,
+            physics_params, and original_instruction.
+        """
         instruction_lower = instruction.lower()
         
         # Identify instruction type
@@ -373,8 +448,18 @@ class BlenderInfinigenRAG:
             'original_instruction': instruction
         }
     
-    def search_knowledge_base(self, parsed_instruction: Dict) -> List[Dict]:
-        """Search for relevant information in knowledge base using vector search"""
+    def search_knowledge_base(self, parsed_instruction: Dict[str, object]) -> List[Dict[str, object]]:
+        """Search for relevant information in knowledge base.
+
+        Uses vector search to find relevant API documentation and
+        knowledge entries based on the parsed instruction.
+
+        Args:
+            parsed_instruction: Dictionary from parse_instruction().
+
+        Returns:
+            List of deduplicated, relevant API result dictionaries.
+        """
         instruction = parsed_instruction.get('original_instruction', '')
         if not instruction:
             return []
@@ -425,8 +510,18 @@ class BlenderInfinigenRAG:
         deduplicated_results.sort(key=lambda x: x.get('similarity', 0), reverse=True)
         return deduplicated_results[:5]
     
-    def _deduplicate_results(self, results: List[Dict]) -> List[Dict]:
-        """Remove duplicate results based on exact name matches only"""
+    def _deduplicate_results(self, results: List[Dict[str, object]]) -> List[Dict[str, object]]:
+        """Remove duplicate results based on exact name matches.
+
+        Keeps the result with the highest similarity score when duplicates
+        are found.
+
+        Args:
+            results: List of result dictionaries to deduplicate.
+
+        Returns:
+            Deduplicated list of result dictionaries.
+        """
         if not results:
             return results
         
@@ -447,8 +542,18 @@ class BlenderInfinigenRAG:
         # Return all unique results
         return list(seen_names.values())
     
-    def rag_query(self, instruction: str) -> Dict:
-        """Main RAG query function using vector search"""
+    def rag_query(self, instruction: str) -> Dict[str, object]:
+        """Execute a RAG query using vector search.
+
+        Parses the instruction, searches the knowledge base, and returns
+        relevant API documentation.
+
+        Args:
+            instruction: Natural language instruction to search for.
+
+        Returns:
+            Dictionary with status and output containing search results.
+        """
         try:
             parsed_instruction = self.parse_instruction(instruction)
             relevant_apis = self.search_knowledge_base(parsed_instruction)
@@ -459,32 +564,41 @@ class BlenderInfinigenRAG:
             return {'status': 'error', 'output': {'text': [str(e)]}}
 
 # Global instance
-_rag_tool = None
+_rag_tool: Optional[BlenderInfinigenRAG] = None
 
 # MCP tool interface
 from mcp.server.fastmcp import FastMCP
+
+# Create MCP instance
 mcp = FastMCP("rag-tool")
 
+
 @mcp.tool()
-def rag_query(query: str) -> Dict:
-    """RAG query interface"""
+def rag_query(query: str) -> Dict[str, object]:
+    """Search knowledge base for relevant Blender/Infinigen documentation.
+
+    Args:
+        query: The query to search the documentation.
+
+    Returns:
+        Dictionary with search results or error message.
+    """
     global _rag_tool
     if _rag_tool is None:
         _rag_tool = BlenderInfinigenRAG()
-    
+
     return _rag_tool.rag_query(query)
 
+
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    """
-    Initialize RAG tool with vector database
-    
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the RAG tool with vector database.
+
     Args:
-        openai_api_key: OpenAI API key (optional)
-        knowledge_file: Path to knowledge.jsonl file (optional)
-        
+        args: Configuration with optional 'openai_api_key' and 'knowledge_file'.
+
     Returns:
-        dict: Initialization result
+        Dictionary with status and tool configurations on success.
     """
     try:
         global _rag_tool
@@ -492,37 +606,38 @@ def initialize(args: dict) -> dict:
             openai_api_key=args.get("openai_api_key"),
             knowledge_file=args.get("knowledge_file", "tools/knowledge_base/rag_kb_deduplicated.jsonl")
         )
-        return {"status": "success", "output": {"text": ["RAG tool initialized successfully with vector database"], "tool_configs": tool_configs}}
+        return {
+            "status": "success",
+            "output": {
+                "text": ["RAG tool initialized with vector database"],
+                "tool_configs": tool_configs
+            }
+        }
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 
-def main():
-    """Run MCP server or test the RAG tool when --test is provided"""
+def main() -> None:
+    """Run the MCP server or execute test mode."""
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
-        # Ensure tool is initialized (optionally with OPENAI_API_KEY env)
         global _rag_tool
         if _rag_tool is None:
             _rag_tool = BlenderInfinigenRAG(os.getenv("OPENAI_API_KEY"))
 
-        # Test 1: Initialize with vector database
-        print("[test:initialize] Initializing RAG tool with vector database...")
+        print("Initializing RAG tool with vector database...")
         init_args = {
             "openai_api_key": os.getenv("OPENAI_API_KEY"),
             "knowledge_file": "tools/knowledge_base/rag_kb_deduplicated.jsonl"
         }
         init_result = initialize(init_args)
-        print("[test:initialize]", json.dumps(init_result, ensure_ascii=False, indent=2))
+        print("initialize result:", json.dumps(init_result, ensure_ascii=False, indent=2))
 
-        # Test 2: RAG query
         result = rag_query("Create a living room with table and chair")
-        print("[test:rag_query]", json.dumps(result, ensure_ascii=False, indent=2))
-        with open('logs/rag.log', 'w') as f:
-            f.write(json.dumps(result, ensure_ascii=False, indent=2))
+        print("rag_query result:", json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        # Default: run as MCP server
         mcp.run()
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,16 @@
+"""Initialize Plan MCP Server.
+
+Provides tools for creating and storing detailed scene plans that guide
+the Generator agent's subsequent actions. Supports different plan formats
+for demo scenes, slides, and BlenderGym tasks.
+"""
+
+from typing import Dict, List
+
 from mcp.server.fastmcp import FastMCP
 
-demo_plan_tool = {
+# Tool configuration for demo scene planning
+demo_plan_tool: Dict[str, object] = {
     "type": "function",
     "function": {
         "name": "initialize_plan",
@@ -16,7 +26,8 @@ demo_plan_tool = {
     }
 }
 
-slide_plan_tool = {
+# Tool configuration for slide planning
+slide_plan_tool: Dict[str, object] = {
     "type": "function",
     "function": {
         "name": "initialize_plan",
@@ -31,7 +42,8 @@ slide_plan_tool = {
     }
 }
 
-blendergym_plan_tool = {
+# Tool configuration for BlenderGym scene editing
+blendergym_plan_tool: Dict[str, object] = {
     "type": "function",
     "function": {
         "name": "initialize_plan",
@@ -46,28 +58,58 @@ blendergym_plan_tool = {
     }
 }
 
+# Create MCP instance
 mcp = FastMCP("initialize-plan-executor")
 
+
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    if "blendergym" in args.get("mode"):
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the plan tool with mode-specific configuration.
+
+    Args:
+        args: Configuration dictionary with 'mode' key to select plan type.
+
+    Returns:
+        Dictionary with status and mode-specific tool configuration.
+    """
+    mode = args.get("mode", "")
+    if "blendergym" in mode:
         tool_configs = [blendergym_plan_tool]
-    elif "autopresent" in args.get("mode"):
+    elif "autopresent" in mode:
         tool_configs = [slide_plan_tool]
     else:
         tool_configs = [demo_plan_tool]
-    return {"status": "success", "output": {"text": ["Initialize plan completed"], "tool_configs": tool_configs}}
+    return {
+        "status": "success",
+        "output": {"text": ["Initialize plan completed"], "tool_configs": tool_configs}
+    }
+
 
 @mcp.tool()
-def initialize_plan(overall_description: str = '', detailed_plan: str = '') -> dict:
-    """
-    Store the detailed scene plan to a file and return the path.
+def initialize_plan(
+    overall_description: str = '',
+    detailed_plan: str = ''
+) -> Dict[str, object]:
+    """Store the detailed scene plan for guiding subsequent actions.
+
+    Args:
+        overall_description: Comprehensive description of the entire scene.
+        detailed_plan: Step-by-step plan for scene construction.
+
+    Returns:
+        Dictionary with the stored plan and success status.
     """
     output_text = f"{detailed_plan}\nPlease follow the plan carefully."
-    return {"status": "success", "output": {"plan": [output_text], "text": ["Plan initialized successfully"]}}
+    return {
+        "status": "success",
+        "output": {"plan": [output_text], "text": ["Plan initialized successfully"]}
+    }
 
-def main():
+
+def main() -> None:
+    """Run the MCP server."""
     mcp.run()
+
 
 if __name__ == "__main__":
     main()

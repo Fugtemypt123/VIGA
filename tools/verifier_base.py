@@ -1,9 +1,17 @@
+"""Verifier Base MCP Server.
+
+Provides the base MCP server for the Verifier agent with an 'end' tool
+to output visual difference analysis and edit suggestions.
+"""
+
+from typing import Dict, List, Optional
+
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("verifier-base")
 
-# tool_configs for agent (only the function w/ @mcp.tools)
-tool_configs = [
+# Tool configurations for the agent
+tool_configs: List[Dict[str, object]] = [
     {
         "type": "function",
         "function": {
@@ -36,24 +44,31 @@ tool_configs = [
 ]
 
 @mcp.tool()
-def end(visual_difference: str, edit_suggestion: str, image_paths: str = None) -> dict:
-    """
-    No-op tool used to indicate the process should end.
-    """
-    result = {"status": "success", "output": {"text": [f"Visual difference: {visual_difference}\nEdit suggestion: {edit_suggestion}"]}}
+def end(
+    visual_difference: str,
+    edit_suggestion: str,
+    image_paths: Optional[str] = None
+) -> Dict[str, object]:
+    """End verification and output analysis results."""
+    result: Dict[str, object] = {
+        "status": "success",
+        "output": {"text": [f"Visual difference: {visual_difference}\nEdit suggestion: {edit_suggestion}"]}
+    }
     if image_paths:
         result['output']['image'] = image_paths
     return result
 
+
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    """
-    Initialize the verifier base.
-    """
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the verifier base."""
     return {"status": "success", "output": {"text": ["Verifier base initialized successfully"], "tool_configs": tool_configs}}
 
-def main():
+
+def main() -> None:
+    """Run the MCP server."""
     mcp.run()
+
 
 if __name__ == "__main__":
     main()

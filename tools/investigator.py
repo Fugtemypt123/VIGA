@@ -1,14 +1,22 @@
-# blender_server.py
+"""Investigator MCP Server for 3D Scene Analysis.
+
+Provides tools for camera manipulation, scene inspection, and viewpoint
+management in Blender scenes. Used by the Verifier agent to analyze
+generated 3D content from multiple angles.
+"""
+
+import json
+import logging
 import math
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
-import logging
+from typing import Any, Dict, List, Optional
+
 from mcp.server.fastmcp import FastMCP
-import subprocess
-import json
-import shutil
-from typing import Optional, Dict, Any
+
 from blender_script_generators import (
     generate_scene_info_script,
     generate_render_script,
@@ -20,8 +28,8 @@ from blender_script_generators import (
     generate_viewpoint_script
 )
 
-# tool config for agent (only the function w/ @mcp.tools)
-tool_configs = [
+# Tool configuration for agent
+tool_configs: List[Dict[str, object]] = [
     {
         "type": "function",
         "function": {
@@ -140,26 +148,51 @@ tool_configs = [
     }
 ]
 
-# Create global MCP instance
+# Create MCP instance
 mcp = FastMCP("scene-server")
 
-# Global tool instance
-_investigator = None
+# Global investigator instance
+_investigator: Optional["Investigator3D"] = None
 
-# ======================
-# Camera investigator (Fixed: save path first then load)
-# ======================
 
-# Local lightweight Executor for running Blender with our verifier script
 class Executor:
-    def __init__(self,
-                 blender_command: str,
-                 blender_file: str,
-                 blender_script: str,
-                 script_save: str,
-                 render_save: str,
-                 blender_save: Optional[str] = None,
-                 gpu_devices: Optional[str] = None):
+    """Lightweight executor for running Blender scripts.
+
+    Handles script execution, rendering, and result collection for
+    the investigator tool.
+
+    Attributes:
+        blender_command: Command to invoke Blender.
+        blender_file: Path to the Blender scene file.
+        blender_script: Path to the execution script.
+        base: Base directory for outputs.
+        script_path: Directory for saving scripts.
+        render_path: Directory for rendered images.
+        blender_save: Path to save modified Blender files.
+        gpu_devices: CUDA device specification.
+        count: Execution counter.
+    """
+    def __init__(
+        self,
+        blender_command: str,
+        blender_file: str,
+        blender_script: str,
+        script_save: str,
+        render_save: str,
+        blender_save: Optional[str] = None,
+        gpu_devices: Optional[str] = None
+    ) -> None:
+        """Initialize the executor.
+
+        Args:
+            blender_command: Command to invoke Blender.
+            blender_file: Path to the Blender scene file.
+            blender_script: Path to the execution script.
+            script_save: Directory for saving scripts.
+            render_save: Directory for rendered images.
+            blender_save: Optional path to save modified Blender files.
+            gpu_devices: Optional CUDA device specification.
+        """
         self.blender_command = blender_command
         self.blender_file = blender_file
         self.blender_script = blender_script
@@ -174,6 +207,11 @@ class Executor:
         self.render_path.mkdir(parents=True, exist_ok=True)
 
     def next_run_dir(self) -> Path:
+        """Create and return the next run directory.
+
+        Returns:
+            Path to the newly created run directory.
+        """
         self.count += 1
         run_dir = self.render_path / f"{self.count}"
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -186,6 +224,15 @@ class Executor:
         return run_dir
 
     def _execute_blender(self, code_file: Path, run_dir: Path) -> Dict[str, Any]:
+        """Execute a Blender script and collect results.
+
+        Args:
+            code_file: Path to the Python script to execute.
+            run_dir: Directory for output files.
+
+        Returns:
+            Dictionary with status and output (images or error text).
+        """
         cmd = [
             self.blender_command,
             "--background", self.blender_file,
@@ -222,42 +269,86 @@ class Executor:
             return {"status": "error", "output": {"text": [e.stderr or e.stdout]}}
 
     def execute(self, full_code: str) -> Dict[str, Any]:
+        """Execute Blender code and return results.
+
+        Args:
+            full_code: Complete Python code to execute in Blender.
+
+        Returns:
+            Dictionary with status and output (images or error text).
+        """
         run_dir = self.next_run_dir()
         code_file = self.script_path / f"{self.count}.py"
         with open(code_file, "w") as f:
             f.write(full_code)
         result = self._execute_blender(code_file, run_dir)
-        # check: if run_dir is empty, remove run_dir
+        # Remove empty run directories
         if not os.listdir(run_dir):
             shutil.rmtree(run_dir)
             self.count -= 1
         return result
 
 class Investigator3D:
-    def __init__(self, save_dir: str, blender_path: str, blender_command: str, blender_script: str, gpu_devices: str):
+    """3D scene investigator for camera manipulation and analysis.
+
+    Provides methods for camera control, scene inspection, and viewpoint
+    management in Blender scenes.
+
+    Attributes:
+        blender_file: Path to the Blender scene file.
+        blender_command: Command to invoke Blender.
+        base: Base directory for outputs.
+        tmp_dir: Temporary directory for intermediate files.
+        executor: Blender script executor.
+        target: Current target object name for camera focus.
+        radius: Camera orbit radius.
+        theta: Camera azimuth angle.
+        phi: Camera elevation angle.
+        count: Operation counter.
+        scene_info_cache: Cached scene information.
+    """
+
+    def __init__(
+        self,
+        save_dir: str,
+        blender_path: str,
+        blender_command: str,
+        blender_script: str,
+        gpu_devices: str
+    ) -> None:
+        """Initialize the 3D investigator.
+
+        Args:
+            save_dir: Directory for saving outputs.
+            blender_path: Path to the Blender scene file.
+            blender_command: Command to invoke Blender.
+            blender_script: Path to the execution script.
+            gpu_devices: CUDA device specification.
+        """
         self.blender_file = blender_path
         self.blender_command = blender_command
         self.base = Path(save_dir)
         self.base.mkdir(parents=True, exist_ok=True)
         self.tmp_dir = self.base / "tmp"
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        # Create executor
+
         self.executor = Executor(
             blender_command=blender_command,
             blender_file=blender_path,
-            blender_script=blender_script,  # Default script
+            blender_script=blender_script,
             script_save=str(self.base / "scripts"),
             render_save=str(self.base / "renders"),
             blender_save=str(self.base / "current_scene.blend"),
             gpu_devices=gpu_devices
         )
-        # State variables
-        self.target = None
-        self.radius = 5.0
-        self.theta = 0.0
-        self.phi = 0.0
-        self.count = 0
-        self.scene_info_cache = None
+
+        # Camera state variables
+        self.target: Optional[str] = None
+        self.radius: float = 5.0
+        self.theta: float = 0.0
+        self.phi: float = 0.0
+        self.count: int = 0
+        self.scene_info_cache: Optional[Dict[str, Any]] = None
 
     def _generate_scene_info_script(self) -> str:
         """Generate script to get scene information"""
@@ -400,53 +491,127 @@ class Investigator3D:
         return self._execute_script(script, f"Set visibility: show {show_objects}, hide {hide_objects}")
 
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    """
-    Initialize 3D scene investigation tool.
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the 3D scene investigation tool.
+
+    Args:
+        args: Configuration dictionary with 'output_dir', 'blender_file',
+            'blender_command', 'blender_script', and 'gpu_devices' keys.
+
+    Returns:
+        Dictionary with status and tool configurations on success.
     """
     global _investigator
     try:
         save_dir = args.get("output_dir") + "/investigator/"
         blender_script = os.path.dirname(args.get("blender_script")) + "/verifier_script.py"
-        _investigator = Investigator3D(save_dir, str(args.get("blender_file")), str(args.get("blender_command")), blender_script, str(args.get("gpu_devices")))
-        return {"status": "success", "output": {"text": ["Investigator3D initialized successfully"], "tool_configs": tool_configs}}
+        _investigator = Investigator3D(
+            save_dir,
+            str(args.get("blender_file")),
+            str(args.get("blender_command")),
+            blender_script,
+            str(args.get("gpu_devices"))
+        )
+        return {
+            "status": "success",
+            "output": {
+                "text": ["Investigator3D initialized successfully"],
+                "tool_configs": tool_configs
+            }
+        }
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
     
 @mcp.tool()
-def get_scene_info() -> dict:
+def get_scene_info() -> Dict[str, object]:
+    """Get information about the current scene.
+
+    Returns:
+        Dictionary with scene objects, materials, lights, and cameras.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["SceneInfo not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.get_info()
 
-def focus(object_name: str) -> dict:
+
+def focus(object_name: str) -> Dict[str, object]:
+    """Focus camera on a specific object.
+
+    Args:
+        object_name: Name of the object to focus on.
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.focus_on_object(object_name)
 
-def zoom(direction: str) -> dict:
+
+def zoom(direction: str) -> Dict[str, object]:
+    """Zoom camera in or out.
+
+    Args:
+        direction: Either 'in' or 'out'.
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.zoom(direction)
 
-def move(direction: str) -> dict:
+
+def move(direction: str) -> Dict[str, object]:
+    """Move camera around target object.
+
+    Args:
+        direction: One of 'up', 'down', 'left', 'right'.
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.move_camera(direction)
 
-@mcp.tool()
-def initialize_viewpoint(object_names: list = []) -> dict:
-    global _investigator
-    if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
-    return _investigator.initialize_viewpoint(object_names)
 
 @mcp.tool()
-def investigate(operation: str = '', object_name: str = '', direction: str = '') -> dict:
+def initialize_viewpoint(object_names: List[str] = []) -> Dict[str, object]:
+    """Initialize viewpoints around specified objects.
+
+    Args:
+        object_names: List of object names to observe. Empty for all objects.
+
+    Returns:
+        Dictionary with camera positions and rendered images.
+    """
+    global _investigator
+    if _investigator is None:
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
+    return _investigator.initialize_viewpoint(object_names)
+
+
+@mcp.tool()
+def investigate(
+    operation: str = '',
+    object_name: str = '',
+    direction: str = ''
+) -> Dict[str, object]:
+    """Investigate the scene with camera operations.
+
+    Args:
+        operation: One of 'focus', 'zoom', or 'move'.
+        object_name: Required for 'focus' operation.
+        direction: Required for 'zoom' (in/out) or 'move' (up/down/left/right).
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     if operation == "focus":
         if not object_name:
             return {"status": "error", "output": {"text": ["object_name is required for focus"]}}
@@ -457,147 +622,131 @@ def investigate(operation: str = '', object_name: str = '', direction: str = '')
         return zoom(direction=direction)
     elif operation == "move":
         if direction not in ("up", "down", "left", "right"):
-            return {"status": "error", "output": {"text": ["direction must be one of up/down/left/right for move"]}}
+            return {"status": "error", "output": {"text": ["direction must be up/down/left/right for move"]}}
         return move(direction=direction)
     else:
         return {"status": "error", "output": {"text": [f"Unknown operation: {operation}"]}}
 
+
 @mcp.tool()
-def set_visibility(show_objects: list = [], hide_objects: list = []) -> dict:
+def set_visibility(
+    show_objects: List[str] = [],
+    hide_objects: List[str] = []
+) -> Dict[str, object]:
+    """Set visibility of objects in the scene.
+
+    Args:
+        show_objects: List of object names to show.
+        hide_objects: List of object names to hide.
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.set_visibility(show_objects, hide_objects)
-        
+
+
 @mcp.tool()
-def set_keyframe(frame_number: int = 1) -> dict:
+def set_keyframe(frame_number: int = 1) -> Dict[str, object]:
+    """Set the scene to a specific frame number.
+
+    Args:
+        frame_number: The frame number to set.
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.set_keyframe(frame_number)
-    
+
+
 @mcp.tool()
-def set_camera(location: list = [0, 0, 0], rotation_euler: list = [0, 0, 0]) -> dict:
+def set_camera(
+    location: List[float] = [0, 0, 0],
+    rotation_euler: List[float] = [0, 0, 0]
+) -> Dict[str, object]:
+    """Set camera position and rotation.
+
+    Args:
+        location: Camera location in world coordinates [x, y, z].
+        rotation_euler: Camera rotation in euler angles [x, y, z].
+
+    Returns:
+        Dictionary with status and rendered image.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     return _investigator.set_camera(location, rotation_euler)
-    
+
+
 @mcp.tool()
-def reload_scene() -> dict:
+def reload_scene() -> Dict[str, object]:
+    """Reload the original Blender scene file.
+
+    Returns:
+        Dictionary with status message.
+    """
     global _investigator
     if _investigator is None:
-        return {"status": "error", "output": {"text": ["Investigator3D not initialized. Call initialize first."]}}
-    # Reload the blender_background file
+        return {"status": "error", "output": {"text": ["Not initialized. Call initialize first."]}}
     _investigator.executor.blender_file = _investigator.blender_file
     return {"status": "success", "output": {"text": ["Scene reloaded successfully"]}}
 
-# ======================
-# Entry point and testing
-# ======================
-
-def main():
-    # Check if script is run directly (for testing)
+def main() -> None:
+    """Run the MCP server or execute test mode."""
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         print("Running investigator tools test...")
         test_tools()
     else:
-        # Run MCP server normally
         mcp.run()
 
-def test_tools():
-    """Test all investigator tool functions (read environment variable configuration)"""
+
+def test_tools() -> None:
+    """Test investigator tool functions using environment variable configuration."""
     print("=" * 50)
     print("Testing Scene Tools")
     print("=" * 50)
 
-    # Set test paths (read from environment variables)
+    # Read test paths from environment variables
     blender_file = os.getenv("BLENDER_FILE", "data/blendergym/placement2/blender_file.blend")
     test_save_dir = os.getenv("THOUGHT_SAVE", "output/test/investigator/")
     blender_command = os.getenv("BLENDER_COMMAND", "utils/blender/infinigen/blender/blender")
     blender_script = os.getenv("BLENDER_SCRIPT", "data/blendergym/pipeline_render_script.py")
     gpu_devices = os.getenv("GPU_DEVICES", "0,1,2,3,4,5,6,7")
-    
-    # Check if blender file exists
+
     if not os.path.exists(blender_file):
-        print(f"⚠ Blender file not found: {blender_file}")
+        print(f"Blender file not found: {blender_file}")
         print("Skipping all tests.")
         return
 
-    print(f"✓ Using blender file: {blender_file}")
+    print(f"Using blender file: {blender_file}")
 
-    # Test 1: Initialize investigation tool
+    # Test initialize
     print("\n1. Testing initialize...")
-    args = {"output_dir": test_save_dir, "blender_file": blender_file, "blender_command": blender_command, "blender_script": blender_script, "gpu_devices": gpu_devices}
+    args = {
+        "output_dir": test_save_dir,
+        "blender_file": blender_file,
+        "blender_command": blender_command,
+        "blender_script": blender_script,
+        "gpu_devices": gpu_devices
+    }
     result = initialize(args)
     print(f"Result: {result}")
-    
-    # # Test set camera
-    # print("\n1.1. Testing set camera...")
-    # set_camera_result = set_camera(location=[0, 0, 0], rotation_euler=[0, 0, 0])
-    # print(f"Result: {set_camera_result}")
-        
-    # Test 2: Get scene info
+
+    # Test get scene info
     print("\n2. Testing get_scene_info...")
     scene_info = get_scene_info()
     print(f"Result: {scene_info}")
-    raise NotImplementedError
-    
-    object_names = ['Fireplace_Block']
-    print(f"Object names: {object_names}")
-        
-    # Test 4: Initialize viewpoint
-    # print("\n4. Testing initialize_viewpoint...")
-    # viewpoint_result = initialize_viewpoint(object_names=object_names)
-    # print(f"Result: {viewpoint_result}")
-
-    # Test 5: Focus, zoom, move, set_keyframe if objects exist
-    first_object = object_names[0]
-    # print(f"\n5. Testing camera operations with object: {first_object}")
-    
-    # # Test focus
-    # print("\n5.1. Testing focus...")
-    # focus_result = focus(object_name=first_object)
-    # print(f"Result: {focus_result}")
-
-    # # Test zoom
-    # print("\n5.2. Testing zoom...")
-    # zoom_result = zoom(direction="in")
-    # print(f"Result: {zoom_result}")
-
-    # # Test move
-    # print("\n5.3. Testing move...")
-    # move_result = move(direction="left")
-    # print(f"Result: {move_result}")
-    
-    # # Test set_keyframe
-    # print("\n5.4. Testing set_keyframe...")
-    # keyframe_result = set_keyframe(frame_number=1)
-    # print(f"Result: {keyframe_result}")
-    
-    # Test set_visibility
-    print("\n5.5. Testing set_visibility...")
-    visibility_result = set_visibility(hide_objects=[first_object])
-    print(f"Result: {visibility_result}")
-    
-    # Test 3: Reload scene
-    # print("\n3. Testing reload_scene...")
-    # reload_result = reload_scene()
-    # print(f"Result: {reload_result}")
-
-    # # Test focus
-    # print("\n5.1. Testing focus...")
-    # focus_result = focus(object_name=first_object)
-    # print(f"Result: {focus_result}")
 
     print("\n" + "=" * 50)
     print("Test completed!")
     print("=" * 50)
     print(f"\nTest files saved to: {test_save_dir}")
-    print("\nTo run the MCP server normally:")
-    print("python tools/investigator.py")
-    print("\nTo run tests:")
-    print("BLENDER_FILE=/path/to.blend THOUGHT_SAVE=output/test/scene_test python tools/investigator.py --test")
 
 
 if __name__ == "__main__":

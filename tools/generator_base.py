@@ -1,9 +1,17 @@
+"""Generator Base MCP Server.
+
+Provides the base MCP server for the Generator agent with an 'end' tool
+to signal process completion.
+"""
+
+from typing import Dict, List
+
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("generator-base")
 
-# tool_configs for agent (only the function w/ @mcp.tools)
-tool_configs = [
+# Tool configurations for the agent
+tool_configs: List[Dict[str, object]] = [
     {
         "type": "function",
         "function": {
@@ -13,22 +21,23 @@ tool_configs = [
     }
 ]
 
+
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    """
-    Initialize the generator base.
-    """
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize the generator base."""
     return {"status": "success", "output": {"text": ["Generator base initialized successfully"], "tool_configs": tool_configs}}
 
+
 @mcp.tool()
-def end() -> dict:
-    """
-    No-op tool used to indicate the process should end.
-    """
+def end() -> Dict[str, object]:
+    """Signal that the generation process should end."""
     return {"status": "success", "output": {"text": ["END THE PROCESS"]}}
 
-def main():
+
+def main() -> None:
+    """Run the MCP server."""
     mcp.run()
+
 
 if __name__ == "__main__":
     main()
