@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Evaluation script for AgenticVerifier blenderstudio baseline results.
+Evaluation script for AgenticVerifier blenderbench baseline results.
 Combines reference-based (CLIP + photometric loss) and reference-free (GPT) evaluation methods.
-Baseline renders are located at: data/blenderstudio/{level}/{task}/baseline/{model_name}/render1.png
+Baseline renders are located at: data/blenderbench/{level}/{task}/baseline/{model_name}/render1.png
 """
 
 import os
@@ -374,13 +374,13 @@ def extract_task_type_and_number(task_dir_name):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Evaluate AgenticVerifier blenderstudio baseline results')
-    parser.add_argument('--data_dir', type=str, default='data/blenderstudio',
-                       help='Base directory containing baseline results (default: data/blenderstudio)')
+    parser = argparse.ArgumentParser(description='Evaluate AgenticVerifier blenderbench baseline results')
+    parser.add_argument('--data_dir', type=str, default='data/blenderbench',
+                       help='Base directory containing baseline results (default: data/blenderbench)')
     parser.add_argument('--model_name', type=str, default='gpt_4o',
                        help='Model name in baseline directory (default: gpt_4o)')
     parser.add_argument('--output_dir', type=str, default=None,
-                       help='Output directory for evaluation results (default: data/blenderstudio/_evaluation)')
+                       help='Output directory for evaluation results (default: data/blenderbench/_evaluation)')
     parser.add_argument('--eval_type', type=str, choices=['ref_based', 'ref_free', 'both'], default='both',
                        help='Evaluation type: ref_based (CLIP+PL), ref_free (GPT), or both (default: both)')
     parser.add_argument('--gpt_model', type=str, default='gpt-4o',

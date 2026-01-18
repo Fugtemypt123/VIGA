@@ -1,3 +1,4 @@
+"""Gather and aggregate SlideBench evaluation results."""
 import json
 import os
 import argparse
@@ -29,7 +30,7 @@ def gather_results(test_id: str, slide_name: str = 'all'):
     total_num = 0
 
     for name in names:
-        slide_path = os.path.join(f"data/autopresent/examples", name, f"{name}.pptx")
+        slide_path = os.path.join(f"data/slidebench/examples", name, f"{name}.pptx")
         if not os.path.exists(slide_path):
             print(f"Warning: {slide_path} not found, skipping {name}")
             continue
@@ -38,7 +39,7 @@ def gather_results(test_id: str, slide_name: str = 'all'):
         pages_num = len(prs.slides)
         
         for slide_num in range(1, pages_num + 1):
-            slide_dir = os.path.join(f"output/autopresent/{test_id}", name, f"slide_{slide_num}")
+            slide_dir = os.path.join(f"output/slidebench/{test_id}", name, f"slide_{slide_num}")
             
             # Find the best round (highest average score) for this slide
             best_round_score = -1

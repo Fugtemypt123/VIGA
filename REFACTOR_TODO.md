@@ -8,8 +8,8 @@ This document tracks all code quality issues that need to be fixed for open-sour
 - [x] Phase 2: tools/ ✅ COMPLETED
 - [x] Phase 3: models/ ✅ COMPLETED
 - [x] Phase 4: runners/ ✅ COMPLETED
-- [ ] Phase 5: visualization/
-- [ ] Phase 6: evaluators/
+- [x] Phase 5: visualization/ ✅ N/A (directory removed)
+- [x] Phase 6: evaluators/ ✅ COMPLETED
 - [ ] Phase 7: utils/
 - [ ] Phase 8: prompts/
 
@@ -203,50 +203,48 @@ Large files have been improved with better documentation but splitting is deferr
 
 ---
 
-## Phase 5: visualization/
+## Phase 5: visualization/ ✅ N/A
 
-### 5.1 Type Annotations
-
-| File | Line | Issue |
-|------|------|-------|
-| `web_script.py` | 79 | `parse_trajectory` no return type |
-| `web_script.py` | 220 | `index()` missing return type |
-| `web_script.py` | 226 | `get_preview_images()` missing return type |
-| `web_script.py` | 296 | `find_trajectory_file` missing all types |
-| `web_script.py` | 317 | `preload_all_trajectories` missing return type |
-| `web_script.py` | 51 | `RENDERS_DIR: Path = None` should be `Optional[Path]` |
-
-### 5.2 Hardcoded Paths (SECURITY RISK)
-
-| File | Lines | Issue |
-|------|-------|-------|
-| `web_script.py` | 55-67 | `SCENE_TRAJECTORY_MAP` with hardcoded timestamps |
-| `web_script.py` | 73-75 | Absolute paths with username exposed |
-
-### 5.3 Chinese Comments
-
-| File | Lines | Comments |
-|------|-------|----------|
-| `web_script.py` | 2, 289, 433, 438 | Multiple Chinese comments |
-| `run_blendergym_steps.py` | multiple | Chinese comments |
-| `run_blendergym_anim.py` | multiple | Chinese comments |
-
-### 5.4 God Files (Split Later)
-
-| File | Lines | Recommendation |
-|------|-------|----------------|
-| `web_script.py` | 995 | Split into `trajectory_parser.py`, `app.py`, `file_server.py` |
+**Status**: Directory was removed from the codebase (commit f35af1e). No action required.
 
 ---
 
-## Phase 6: evaluators/
+## Phase 6: evaluators/ ✅ COMPLETED
 
-### 6.1 God Files (Split Later)
+### Changes Made:
 
-| File | Lines | Recommendation |
-|------|-------|----------------|
-| `design2code/evaluate.py` | 743 | Extract metrics to `metrics/` submodule |
-| `blenderstudio/evaluate_baseline.py` | 596 | Consider splitting |
+**SlideBench Metrics (evaluators/slidebench/metrics/):**
+- **__init__.py**: Added module docstring, fixed relative imports
+- **position.py**: Added module docstring, type hints, moved test code to `if __name__` block
+- **text.py**: Added module docstring, type hints, lazy model loading, moved test code
+- **color.py**: Added module docstring, type hints to all functions
+- **clip.py**: Added module docstring, type hints, lazy model loading
+
+**SlideBench Evaluators (evaluators/slidebench/):**
+- **evaluate.py**: Added module docstring, fixed path bugs (`autopresent` → `slidebench`)
+- **evaluate_baseline.py**: Added module docstring, fixed path bugs
+- **gather.py**: Added module docstring, fixed path bugs
+- **gather_baseline.py**: Added module docstring, fixed path bugs
+- **match.py**: Added module docstring
+- **page_eval.py**: Has existing docstring
+- **reference_free_eval.py**: Added module docstring
+
+**BlenderGym Evaluators (evaluators/blendergym/):**
+- All files already had proper module docstrings
+
+**BlenderBench Evaluators (evaluators/blenderbench/):**
+- **evaluate.py**: Added module docstring, fixed path bugs (`blenderstudio` → `blenderbench`)
+- **evaluate_baseline.py**: Fixed path bugs
+- **gather.py**: Added module docstring, fixed path bugs
+- **gather_baseline.py**: Added module docstring, fixed path bugs
+- **ref_based_eval.py**: Fixed path bugs
+- **ref_free_eval.py**: Fixed path bugs
+
+### Bug Fixes:
+- **slidebench/**: Fixed all `evaluators/autopresent` → `evaluators/slidebench` path references
+- **slidebench/**: Fixed all `data/autopresent` → `data/slidebench` path references
+- **slidebench/**: Fixed all `output/autopresent` → `output/slidebench` path references
+- **blenderbench/**: Fixed all `blenderstudio` → `blenderbench` path references (data, output, evaluators)
 
 ---
 

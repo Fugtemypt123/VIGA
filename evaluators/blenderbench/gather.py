@@ -1,3 +1,4 @@
+"""Gather and aggregate BlenderBench evaluation results."""
 import argparse
 import json
 
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     parser.add_argument('test_id', type=str, help='Test ID (e.g., 20250815_150016)')
     args = parser.parse_args()
 
-    eval_dir = f'output/blenderstudio/{args.test_id}/_evaluation'
+    eval_dir = f'output/blenderbench/{args.test_id}/_evaluation'
 
     score_file = f'{eval_dir}/overall_scores.json'
     with open(score_file, 'r') as f:

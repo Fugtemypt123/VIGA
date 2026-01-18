@@ -212,14 +212,14 @@ def process_task_instance_reference_free(output_base_dir: str, task_dir: str, mo
         return task_dir, {}, {}
 
     # Load task description
-    gt_task_dir = f"data/blenderstudio/{task_dir}/task.txt"
+    gt_task_dir = f"data/blenderbench/{task_dir}/task.txt"
     print(f"Loading task description from {gt_task_dir}")
     task_description = load_task_description(gt_task_dir)
     if not task_description:
         print(f"Warning: No task description found for {task_dir}")
         task_description = "Task description not available"
 
-    gt_renders_dir = f"data/blenderstudio/{task_dir}/renders/goal"
+    gt_renders_dir = f"data/blenderbench/{task_dir}/renders/goal"
     if not os.path.exists(gt_renders_dir):
         return task_dir, {}, None, None
 
@@ -350,7 +350,7 @@ def main():
     test_id = args.test_id
     
     # Set up paths
-    output_base_dir = f"output/blenderstudio/{test_id}"
+    output_base_dir = f"output/blenderbench/{test_id}"
     if not os.path.exists(output_base_dir):
         raise ValueError(f"Output directory {output_base_dir} does not exist.")
     

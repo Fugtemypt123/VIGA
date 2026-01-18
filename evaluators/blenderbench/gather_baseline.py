@@ -1,3 +1,4 @@
+"""Gather and aggregate BlenderBench baseline evaluation results."""
 import json
 import argparse
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     model = args.model.replace('-', '_').replace('.', '_')
     
-    score_file = f'data/blenderstudio/_evaluation/ref_based_overall_scores_{model}.json'
+    score_file = f'data/blenderbench/_evaluation/ref_based_overall_scores_{model}.json'
     with open(score_file, 'r') as f:
         scores = json.load(f)
         
@@ -39,7 +40,7 @@ if __name__ == "__main__":
     with open(score_file, 'w') as f:
         json.dump(scores, f, indent=4)
         
-    vlm_score_file = f'data/blenderstudio/_evaluation/ref_free_overall_scores_{model}.json'
+    vlm_score_file = f'data/blenderbench/_evaluation/ref_free_overall_scores_{model}.json'
     with open(vlm_score_file, 'r') as f:
         vlm_scores = json.load(f)
         

@@ -1,3 +1,4 @@
+"""SlideBench evaluation runner for reference-based and reference-free metrics."""
 import os
 import argparse
 import subprocess
@@ -40,8 +41,8 @@ def evaluate_single_slide(slide_dirs: str, index: int) -> int:
         else:
             print(f"Running ref-based evaluation: {ref_eval_path}")
             command = [
-                "python", "evaluators/autopresent/page_eval.py",
-                "--reference_pptx", f"data/autopresent/examples/{slide_name}/{slide_name}.pptx",
+                "python", "evaluators/slidebench/page_eval.py",
+                "--reference_pptx", f"data/slidebench/examples/{slide_name}/{slide_name}.pptx",
                 "--generated_pptx", pptx_path,
                 "--reference_page", str(index),
                 "--output_path", ref_eval_path,
@@ -64,7 +65,7 @@ def evaluate_single_slide(slide_dirs: str, index: int) -> int:
         else:
             print(f"Running ref-free evaluation: {ref_free_eval_path}")
             command = [
-                "python", "evaluators/autopresent/reference_free_eval.py",
+                "python", "evaluators/slidebench/reference_free_eval.py",
                 "--image_path", jpg_path,
                 "--response_path", ref_free_eval_path,
             ]
@@ -82,7 +83,7 @@ def main():
         slides_list = [args.slide_name]
 
     for slide_name in slides_list:
-        slide_dirs = f"output/autopresent/{args.test_id}/{slide_name}"
+        slide_dirs = f"output/slidebench/{args.test_id}/{slide_name}"
         slides_dirs = os.listdir(slide_dirs)
         # remove the non-directory files
         slides_dirs = [slide_dir for slide_dir in slides_dirs if '.' not in slide_dir]

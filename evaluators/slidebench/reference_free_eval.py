@@ -1,3 +1,4 @@
+"""Reference-free slide evaluation using VLM scoring."""
 import os
 import json
 import pptx

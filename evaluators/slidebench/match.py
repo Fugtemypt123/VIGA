@@ -1,3 +1,4 @@
+"""Block matching algorithm for slide evaluation using Hungarian algorithm."""
 import numpy as np
 from copy import deepcopy
 from collections import Counter

@@ -1,3 +1,4 @@
+"""Gather and aggregate SlideBench baseline evaluation results."""
 import json
 import os
 import argparse
@@ -20,7 +21,7 @@ def gather_results(model_name: str, slide_name: str = 'all'):
     total_num = 0
 
     for name in names:
-        slide_path = os.path.join(f"data/autopresent/examples", name, f"{name}.pptx")
+        slide_path = os.path.join(f"data/slidebench/examples", name, f"{name}.pptx")
         if not os.path.exists(slide_path):
             print(f"Warning: {slide_path} not found, skipping {name}")
             continue
@@ -29,7 +30,7 @@ def gather_results(model_name: str, slide_name: str = 'all'):
         pages_num = len(prs.slides)
         
         for slide_num in range(1, pages_num + 1):
-            slide_dir = f"data/autopresent/examples/{name}/slide_{slide_num}"
+            slide_dir = f"data/slidebench/examples/{name}/slide_{slide_num}"
             
             # Find the best round (highest average score) for this slide
             best_round_score = -1
@@ -115,7 +116,7 @@ def gather_results(model_name: str, slide_name: str = 'all'):
                     ref_free_eval_result['layout'] + ref_free_eval_result['color']) / 8 * (total_num - fail_num) / total_num
     print(f"Overall score: {overall_score:.4f}")
     
-    with open(f"data/autopresent/baseline/{model_name}.txt", 'w') as f:
+    with open(f"data/slidebench/baseline/{model_name}.txt", 'w') as f:
         f.write(f"Model name: {model_name}\n")
         f.write(f"Success rate: {(total_num - fail_num) / total_num:.4f}\n")
         f.write(f"Total slides processed: {total_num}\n")
