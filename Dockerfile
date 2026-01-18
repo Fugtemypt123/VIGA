@@ -134,6 +134,7 @@ echo "  - autopresent: 2D slide/document layout synthesis"\n\
 echo ""\n\
 echo "For help: python main.py --help"\n\
 echo "================================="\n\
+exec "$@"\n\
 ' > /workspace/startup.sh && chmod +x /workspace/startup.sh
 
 # Set the entrypoint to show info and start bash
