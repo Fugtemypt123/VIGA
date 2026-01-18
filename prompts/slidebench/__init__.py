@@ -1,4 +1,4 @@
-"""Autopresent prompts module"""
+"""SlideBench prompts module."""
 
 from .generator import autopresent_generator_system
 from .verifier import autopresent_verifier_system

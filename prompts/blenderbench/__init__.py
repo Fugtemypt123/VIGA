@@ -1,4 +1,4 @@
-"""BlenderStudio prompts module"""
+"""BlenderBench prompts module."""
 
 from .generator import blenderstudio_generator_system
 from .verifier import blenderstudio_verifier_system
