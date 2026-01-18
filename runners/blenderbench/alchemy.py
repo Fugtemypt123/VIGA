@@ -121,12 +121,12 @@ def vlm_compare_images(image1_path: str, image2_path: str, target_path: str, mod
         return 1
 
 
-def load_blenderstudio_dataset(base_path: str, task_name: str, task_id: Optional[str] = None) -> List[Dict]:
+def load_blenderbench_dataset(base_path: str, task_name: str, task_id: Optional[str] = None) -> List[Dict]:
     """
-    Load BlenderStudio dataset structure (similar to load_blendergym_dataset in blenderstudio.py).
-    
+    Load BlenderBench dataset structure.
+
     Args:
-        base_path: Path to BlenderStudio dataset root
+        base_path: Path to BlenderBench dataset root
         task_name: Task name (e.g., 'level1', 'level2', 'level3', or 'all')
         task_id: Optional task ID to filter specific tasks
         
@@ -137,7 +137,7 @@ def load_blenderstudio_dataset(base_path: str, task_name: str, task_id: Optional
     base_path = Path(base_path)
     
     if not base_path.exists():
-        print(f"Error: BlenderStudio dataset path does not exist: {base_path}")
+        print(f"Error: BlenderBench dataset path does not exist: {base_path}")
         return tasks
     
     if task_name == 'all':
@@ -633,10 +633,10 @@ def run_iterative_alchemy(task_config: Dict, args: argparse.Namespace) -> Dict:
 
 def main() -> None:
     """Entry point for the BlenderBench alchemy runner."""
-    parser = argparse.ArgumentParser(description="Iterative Alchemy Runner for BlenderStudio")
+    parser = argparse.ArgumentParser(description="Iterative Alchemy Runner for BlenderBench")
     
     # Input parameters
-    parser.add_argument("--dataset-path", default="data/blenderstudio", help="Path to BlenderStudio dataset")
+    parser.add_argument("--dataset-path", default="data/blenderbench", help="Path to BlenderBench dataset")
     parser.add_argument("--task", choices=['all', 'level1', 'level2', 'level3'], default='all', help="Task name")
     parser.add_argument("--task-id", default=None, help="Specific task ID to run")
     parser.add_argument("--output-dir", default=None, help="Output directory for results")
@@ -647,7 +647,7 @@ def main() -> None:
     
     # Blender parameters
     parser.add_argument("--blender-command", default="utils/infinigen/blender/blender", help="Blender command path")
-    parser.add_argument("--blender-script", default="data/blenderstudio/generator_script.py", help="Blender execution script")
+    parser.add_argument("--blender-script", default="data/blenderbench/generator_script.py", help="Blender execution script")
     parser.add_argument("--gpu-devices", default=None, help="GPU devices string (e.g., '0,1')")
     
     # VLM parameters
@@ -665,14 +665,14 @@ def main() -> None:
     
     # Set output directory
     if not args.output_dir:
-        args.output_dir = f"output/blenderstudio/alchemy/{time.strftime('%Y%m%d_%H%M%S')}"
+        args.output_dir = f"output/blenderbench/alchemy/{time.strftime('%Y%m%d_%H%M%S')}"
     
     # Always use 10 iterations
     args.max_iterations = 10
     
     # Load dataset
-    print(f"Loading BlenderStudio dataset from: {args.dataset_path}")
-    tasks = load_blenderstudio_dataset(args.dataset_path, args.task, args.task_id)
+    print(f"Loading BlenderBench dataset from: {args.dataset_path}")
+    tasks = load_blenderbench_dataset(args.dataset_path, args.task, args.task_id)
     
     if not tasks:
         print("No valid tasks found!")

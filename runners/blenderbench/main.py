@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-BlenderStudio Runner for AgenticVerifier
-Loads BlenderStudio dataset and runs the dual-agent system for 3D scene generation.
+BlenderBench Baseline Runner for AgenticVerifier.
+
+Loads BlenderBench dataset and runs baseline generation for 3D scene generation.
 """
 import os
 import sys
@@ -18,12 +19,12 @@ from utils.common import get_image_base64, extract_code_pieces, build_client
 
 prompt = """You are the BlenderGymGenerator—a professional Blender code agent responsible for converting an initial 3D scene into a target scene and generating it based on a provided target image. You will receive: (1) initial Python code to set up the current scene; (2) initial images displaying the current scene; and (3) target images displaying the target scene. (4) task description that describes what you need to do. Your task is to modify the code to transform the initial scene into the target scene. Please output the complete modified code."""
 
-def load_blenderstudio_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
+def load_blenderbench_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
     """
-    Load BlenderStudio dataset structure.
+    Load BlenderBench dataset structure.
 
     Args:
-        base_path: Path to BlenderStudio dataset root.
+        base_path: Path to BlenderBench dataset root.
         task_name: Name of the task type to load.
         test_id: Optional test ID for filtering completed tasks.
 
@@ -34,7 +35,7 @@ def load_blenderstudio_dataset(base_path: str, task_name: str, test_id: Optional
     base_path = Path(base_path)
     
     if not base_path.exists():
-        print(f"Error: BlenderStudio dataset path does not exist: {base_path}")
+        print(f"Error: BlenderBench dataset path does not exist: {base_path}")
         return tasks
     
     if task_name == 'all':
@@ -42,7 +43,7 @@ def load_blenderstudio_dataset(base_path: str, task_name: str, test_id: Optional
     else:
         task_list = [task_name]
         
-    current_task_path = Path(f'output/blenderstudio/{test_id}')
+    current_task_path = Path(f'output/blenderbench/{test_id}')
     current_task_dirs = []
     for task in task_list:
         for task_dir in current_task_path.glob(f"{task}*"):
@@ -88,9 +89,9 @@ def load_blenderstudio_dataset(base_path: str, task_name: str, test_id: Optional
     
     return tasks
 
-def run_blenderstudio_task(task_config: Dict, args: argparse.Namespace) -> Tuple[str, bool, str]:
+def run_blenderbench_task(task_config: Dict, args: argparse.Namespace) -> Tuple[str, bool, str]:
     """
-    Run a single BlenderGym task using main.py
+    Run a single BlenderBench task using main.py
     
     Args:
         task_config: Task configuration dictionary
@@ -131,7 +132,7 @@ def run_blenderstudio_task(task_config: Dict, args: argparse.Namespace) -> Tuple
     cmd = [
         "utils/infinigen/blender/blender",
         "--background", task_config['blender_file'],
-        "--python", "data/blenderstudio/generator_script.py",
+        "--python", "data/blenderbench/generator_script.py",
         "--", os.path.join(output_base, f"{output_name}.py"), os.path.join(output_base, f"{output_name}")
     ]
     subprocess.run(cmd, check=True)
@@ -162,7 +163,7 @@ def run_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_task = {
-            executor.submit(run_blenderstudio_task, task_config, args): task_config 
+            executor.submit(run_blenderbench_task, task_config, args): task_config 
             for task_config in tasks
         }
         
@@ -194,10 +195,10 @@ def run_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers:
 
 def main() -> None:
     """Entry point for the BlenderBench baseline runner."""
-    parser = argparse.ArgumentParser(description="BlenderGym Runner for AgenticVerifier")
+    parser = argparse.ArgumentParser(description="BlenderBench Baseline Runner for AgenticVerifier")
     
     # Dataset parameters
-    parser.add_argument("--dataset-path", default="data/blenderstudio", help="Path to BlenderGym dataset root directory")
+    parser.add_argument("--dataset-path", default="data/blenderbench", help="Path to BlenderBench dataset root directory")
     
     # Task selection
     parser.add_argument("--task", choices=['all', 'level1', 'level2', 'level3'], default='all', help="Specific task to run")
@@ -215,8 +216,8 @@ def main() -> None:
     args = parser.parse_args()
     
     # Normal execution - load dataset
-    print(f"Loading BlenderStudio dataset from: {args.dataset_path}")
-    tasks = load_blenderstudio_dataset(args.dataset_path, args.task, None)
+    print(f"Loading BlenderBench dataset from: {args.dataset_path}")
+    tasks = load_blenderbench_dataset(args.dataset_path, args.task, None)
     
     if not tasks:
         print("No valid tasks found in dataset!")
@@ -245,7 +246,7 @@ def main() -> None:
         
         for i, task_config in enumerate(tasks, 1):
             print(f"\nTask {i}/{len(tasks)}")
-            task_name, success, error_msg = run_blenderstudio_task(task_config, args)
+            task_name, success, error_msg = run_blenderbench_task(task_config, args)
             
             if success:
                 successful_tasks += 1

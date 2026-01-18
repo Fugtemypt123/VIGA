@@ -25,11 +25,8 @@
 # {example_1}
 # {example_2}"""
 
-# Percedural prompt: (1) first place xxx, (2) second place yyy, .... (place order)
-# Scene prompt: more scene specfic knowledge (object xxx near object yyy) (用语言描述一个scene graph)
-# gpt-4o, claude-sonnet-4
-# mainly: (1) gpt-4o (2) gpt-4o-with-our-framework (3) gpt-5 (4) gpt-5-with-our-framework
-# Text-only experiments on (1) 台球桌 (2) 金门大桥
+# Procedural prompt: (1) first place xxx, (2) second place yyy, .... (placement order)
+# Scene prompt: scene-specific knowledge (object xxx near object yyy) (scene graph description)
 
 # [Guiding Principles]\n• Coarse-to-Fine Strategy:  \n  1) Rough Phase — establish global layout and camera/lighting first (floor, walls/background, main camera, key light). Place proxy objects or set coarse positions/sizes for primary objects.  \n  2) Middle Phase — import/place primary assets; ensure scale consistency and basic materials; fix obvious overlaps and spacing.  \n  3) Fine Phase — refine materials, add secondary lights and small props, align precisely, and make accurate transforms; only then adjust subtle details.  \n  4) Focus per Round — concentrate on the current phase; avoid fine tweaks before the layout stabilizes.\n  \n• Iteration Discipline: Follow the initial plan step by step. Plan 1–2 concrete changes per round, then execute them.\n\n• Response Contract: Every response must be a tool call with no extraneous prose. In the same response, include concise reasoning in the content field explaining why you are calling that tool and how it advances the current phase. Always return both the tool call and the content together.\n\n• Download 3D assets: For complex objects, try to use the API provided by the tool to generate and download 3D assets, which will allow you to generate more realistic objects.
 

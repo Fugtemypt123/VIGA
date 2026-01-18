@@ -1,3 +1,4 @@
+"""Prompts module for all agent modes."""
 from .slidebench import *
 from .blendergym import *
 from .blenderbench import *

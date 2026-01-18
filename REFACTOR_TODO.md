@@ -11,7 +11,7 @@ This document tracks all code quality issues that need to be fixed for open-sour
 - [x] Phase 5: visualization/ ✅ N/A (directory removed)
 - [x] Phase 6: evaluators/ ✅ COMPLETED
 - [x] Phase 7: utils/ ✅ COMPLETED
-- [ ] Phase 8: prompts/
+- [x] Phase 8: prompts/ ✅ COMPLETED
 - [ ] Phase 9: data/ (helper scripts)
 
 ---
@@ -282,16 +282,32 @@ Large files have been improved with better documentation but splitting is deferr
 
 ---
 
-## Phase 8: prompts/
+## Phase 8: prompts/ ✅ COMPLETED
 
-**Files to review (17 Python files):**
-- `prompt_manager.py`
-- `__init__.py`
-- `blenderbench/__init__.py`, `generator.py`, `verifier.py`
-- `blendergym/__init__.py`, `generator.py`, `verifier.py`
-- `dynamic_scene/__init__.py`, `generator.py`, `verifier.py`
-- `slidebench/__init__.py`, `generator.py`, `verifier.py`
-- `static_scene/__init__.py`, `generator.py`, `verifier.py`
+### Changes Made:
+
+All files in prompts/ have been refactored to follow the coding standards:
+
+**Core Files:**
+- **prompt_manager.py**: Already had module docstring, type hints, and docstrings ✓
+- **__init__.py**: Added module docstring
+
+**Submodules (already compliant):**
+- **blendergym/__init__.py, generator.py, verifier.py**: Already had module docstrings ✓
+- **blenderbench/__init__.py, generator.py, verifier.py**: Already had module docstrings ✓
+- **slidebench/__init__.py, generator.py, verifier.py**: Already had module docstrings ✓
+
+**Fixed Files:**
+- **static_scene/__init__.py**: Added module docstring
+- **static_scene/generator.py**: Translated Chinese comments to English (removed internal development notes)
+- **dynamic_scene/__init__.py**: Converted comment to module docstring
+- **dynamic_scene/generator.py**: Converted comment to module docstring
+- **dynamic_scene/verifier.py**: Converted comment to module docstring
+
+### Bug Fixes:
+- **runners/slidebench/**: Fixed all `autopresent` → `slidebench` path references (data paths, output paths)
+- **runners/blenderbench/**: Fixed all `blenderstudio` → `blenderbench` path references (data paths, output paths)
+- Note: Mode parameters kept as `autopresent` and `blenderstudio` for backward compatibility with main.py
 
 ---
 

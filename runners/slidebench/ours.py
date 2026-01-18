@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-AutoPresent Runner for AgenticVerifier
-Loads AutoPresent dataset and runs the dual-agent system for 2D slides generation.
+SlideBench Runner for AgenticVerifier.
+
+Loads SlideBench dataset and runs the dual-agent system for 2D slides generation.
 """
 import os
 import sys
@@ -84,12 +85,12 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
     print(f"Found {len(failed_tasks)} failed tasks")
     return failed_tasks
 
-def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[str] = None) -> List[Dict]:
+def load_slidebench_dataset(base_path: str, task_name: str, task_id: Optional[str] = None) -> List[Dict]:
     """
-    Load AutoPresent dataset structure.
+    Load SlideBench dataset structure.
 
     Args:
-        base_path: Path to AutoPresent dataset root.
+        base_path: Path to SlideBench dataset root.
         task_name: Name of the task type to load.
         task_id: Optional specific task ID to run.
 
@@ -100,7 +101,7 @@ def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[s
     base_path = Path(base_path)
     
     if not base_path.exists():
-        print(f"Error: AutoPresent dataset path does not exist: {base_path}")
+        print(f"Error: SlideBench dataset path does not exist: {base_path}")
         return tasks
     
     if task_name == 'all':
@@ -149,9 +150,9 @@ def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[s
     
     return tasks
 
-def run_autopresent_task(task_config: Dict, args: argparse.Namespace) -> Tuple[str, bool, str]:
+def run_slidebench_task(task_config: Dict, args: argparse.Namespace) -> Tuple[str, bool, str]:
     """
-    Run a single AutoPresent task using main.py
+    Run a single SlideBench task using main.py
     
     Args:
         task_config: Task configuration dictionary
@@ -236,7 +237,7 @@ def run_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_task = {
-            executor.submit(run_autopresent_task, task_config, args): task_config 
+            executor.submit(run_slidebench_task, task_config, args): task_config 
             for task_config in tasks
         }
         
@@ -268,11 +269,11 @@ def run_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers:
 
 def main() -> None:
     """Entry point for the SlideBench runner."""
-    parser = argparse.ArgumentParser(description="AutoPresent Runner for AgenticVerifier")
+    parser = argparse.ArgumentParser(description="SlideBench Runner for AgenticVerifier")
     
     # Dataset parameters
-    parser.add_argument("--dataset-path", default="data/autopresent/examples", help="Path to AutoPresent dataset root directory")
-    parser.add_argument("--output-dir", default=f"output/autopresent/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
+    parser.add_argument("--dataset-path", default="data/slidebench/examples", help="Path to SlideBench dataset root directory")
+    parser.add_argument("--output-dir", default=f"output/slidebench/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
     
     # Task selection
     parser.add_argument("--task", default="all", choices=['all', 'art_photos', 'business', 'design', 'entrepreneur', 'environment', 'food', 'marketing', 'social_media', 'technology'], help="Specific task to run")
@@ -300,7 +301,7 @@ def main() -> None:
     # Handle test-id logic
     if args.test_id is not None:
         # Check for failed tasks in the specified test output directory
-        test_output_dir = f"output/autopresent/{args.test_id}"
+        test_output_dir = f"output/slidebench/{args.test_id}"
         failed_task_configs = check_failed_tasks(test_output_dir)
         
         if not failed_task_configs:
@@ -313,7 +314,7 @@ def main() -> None:
         tasks = []
         for failed_config in failed_task_configs:
             # Load the specific task from dataset
-            retest_tasks = load_autopresent_dataset(args.dataset_path, failed_config["task_name"], failed_config["task_id"])
+            retest_tasks = load_slidebench_dataset(args.dataset_path, failed_config["task_name"], failed_config["task_id"])
             if retest_tasks:
                 tasks.extend(retest_tasks)
                 print(f"Will retest: {failed_config['task_name']}/slide_{failed_config['task_id']}")
@@ -323,8 +324,8 @@ def main() -> None:
             sys.exit(1)
     else:
         # Normal execution - load dataset
-        print(f"Loading AutoPresent dataset from: {args.dataset_path}")
-        tasks = load_autopresent_dataset(args.dataset_path, args.task, args.task_id)
+        print(f"Loading SlideBench dataset from: {args.dataset_path}")
+        tasks = load_slidebench_dataset(args.dataset_path, args.task, args.task_id)
         
         if not tasks:
             print("No valid tasks found in dataset!")
@@ -344,7 +345,7 @@ def main() -> None:
     # Create output directory
     if args.test_id is not None:
         # For retesting, create a new output directory with retest suffix
-        args.output_dir = f"output/autopresent/{args.test_id}"
+        args.output_dir = f"output/slidebench/{args.test_id}"
         print(f"Retesting failed tasks. Use original output directory: {args.output_dir}")
     
     os.makedirs(args.output_dir, exist_ok=True)
@@ -369,7 +370,7 @@ def main() -> None:
         
         for i, task_config in enumerate(tasks, 1):
             print(f"\nTask {i}/{len(tasks)}")
-            task_name, success, error_msg = run_autopresent_task(task_config, args)
+            task_name, success, error_msg = run_slidebench_task(task_config, args)
             
             if success:
                 successful_tasks += 1

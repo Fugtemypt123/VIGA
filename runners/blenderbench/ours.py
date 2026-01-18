@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-BlenderStudio Runner for AgenticVerifier
-Loads BlenderStudio dataset and runs the dual-agent system for 3D scene generation.
+BlenderBench Runner for AgenticVerifier.
+
+Loads BlenderBench dataset and runs the dual-agent system for 3D scene generation.
 """
 import os
 import sys
@@ -299,11 +300,11 @@ def run_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers:
 
 def main() -> None:
     """Entry point for the BlenderBench runner."""
-    parser = argparse.ArgumentParser(description="BlenderGym Runner for AgenticVerifier")
+    parser = argparse.ArgumentParser(description="BlenderBench Runner for AgenticVerifier")
     
     # Dataset parameters
-    parser.add_argument("--dataset-path", default="data/blenderstudio", help="Path to BlenderStudio dataset root directory")
-    parser.add_argument("--output-dir", default=f"output/blenderstudio/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
+    parser.add_argument("--dataset-path", default="data/blenderbench", help="Path to BlenderBench dataset root directory")
+    parser.add_argument("--output-dir", default=f"output/blenderbench/{time.strftime('%Y%m%d_%H%M%S')}", help="Output directory for results")
     
     # Task selection
     parser.add_argument("--task", choices=['all', 'level1', 'level2', 'level3'], default='all', help="Specific task to run")
@@ -317,7 +318,7 @@ def main() -> None:
     
     # Blender parameters
     parser.add_argument("--blender-command", default="utils/infinigen/blender/blender", help="Blender command path")
-    parser.add_argument("--blender-script", default="data/blenderstudio/generator_script.py", help="Blender execution script")
+    parser.add_argument("--blender-script", default="data/blenderbench/generator_script.py", help="Blender execution script")
     
     # Tool server scripts (comma-separated)
     parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
@@ -339,7 +340,7 @@ def main() -> None:
     # Handle test-id logic
     if args.test_id is not None:
         # Check for failed tasks in the specified test output directory
-        test_output_dir = f"output/blenderstudio/{args.test_id}"
+        test_output_dir = f"output/blenderbench/{args.test_id}"
         failed_task_configs = check_failed_tasks(test_output_dir)
         
         if not failed_task_configs:
@@ -362,7 +363,7 @@ def main() -> None:
             sys.exit(1)
     else:
         # Normal execution - load dataset
-        print(f"Loading BlenderStudio dataset from: {args.dataset_path}")
+        print(f"Loading BlenderBench dataset from: {args.dataset_path}")
         tasks = load_blendergym_dataset(args.dataset_path, args.task, args.task_id)
         
         if not tasks:
@@ -383,7 +384,7 @@ def main() -> None:
     # Create output directory (currently use the original output directory)
     if args.test_id is not None:
         # For retesting, create a new output directory with retest suffix
-        args.output_dir = f"output/blenderstudio/{args.test_id}"
+        args.output_dir = f"output/blenderbench/{args.test_id}"
         print(f"Retesting failed tasks. Use original output directory: {args.output_dir}")
     
     os.makedirs(args.output_dir, exist_ok=True)

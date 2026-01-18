@@ -1,4 +1,4 @@
-"""AutoPresent Baseline Runner.
+"""SlideBench Baseline Runner.
 
 Runs baseline slide generation using LLM-generated Python code.
 """
@@ -69,12 +69,12 @@ def main() -> None:
     tasks = []
 
     for slide_name in slide_dirs:
-        slide_dir = os.path.join("data/autopresent/examples", slide_name)
+        slide_dir = os.path.join("data/slidebench/examples", slide_name)
         page_dirs = [d for d in os.listdir(slide_dir) if d.startswith("slide_")]
         page_dirs = sorted(page_dirs, key=lambda x: int(x.split("_")[1]))
         for page_dir in page_dirs:
             output_path = os.path.join(
-                "data/autopresent/examples", slide_name, page_dir, f"baseline/{args.model_name.replace('-', '_')}.py"
+                "data/slidebench/examples", slide_name, page_dir, f"baseline/{args.model_name.replace('-', '_')}.py"
             )
             pptx_path = output_path.replace(".py", ".pptx")
             if os.path.exists(pptx_path) and not args.cover_all:
@@ -85,7 +85,7 @@ def main() -> None:
 
             slide_command = [
                 "python", "runners/slidebench/create_slide.py",
-                "--example_dir", f"data/autopresent/examples/{slide_name}/{page_dir}",
+                "--example_dir", f"data/slidebench/examples/{slide_name}/{page_dir}",
                 "--model_name", args.model_name
             ] + command
 
