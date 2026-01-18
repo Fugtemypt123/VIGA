@@ -1,5 +1,7 @@
-import os
+"""Script to extract media files from PPTX slides."""
 import argparse
+import os
+
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 

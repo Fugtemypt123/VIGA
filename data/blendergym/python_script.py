@@ -1,10 +1,8 @@
+"""Blender script with argparse for executing code and rendering."""
+import argparse
 import bpy
-import random
-import json
 import os
 import sys
-from sys import platform
-import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

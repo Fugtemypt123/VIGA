@@ -1,10 +1,12 @@
-import os
+"""Script to generate Python code that reproduces slides from PPTX."""
 import argparse
+import os
+
 from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
-from pptx.enum.text import  MSO_AUTO_SIZE
+from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.enum.text import MSO_AUTO_SIZE
+from pptx.util import Inches, Pt
 
 
 def get_text_format(shape, default_font_size: int = 18):

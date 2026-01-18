@@ -1,9 +1,7 @@
+"""Blender script for static scene initialization with Camera1 rendering."""
 import bpy
-import random
-import json
 import os
 import sys
-from sys import platform
 
 if __name__ == "__main__":
 

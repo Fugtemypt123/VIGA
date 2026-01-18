@@ -1,3 +1,4 @@
+"""Utility script to replace imports in material task Python files."""
 import os
 
 for task_name in os.listdir("."):

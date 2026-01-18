@@ -1,9 +1,11 @@
-import os
-import base64
+"""Script to generate slide instructions using LLM from seed examples."""
 import argparse
-from pptx import Presentation
+import base64
+import os
 
 import openai
+from pptx import Presentation
+
 openai.api_key = os.environ["OPENAI_API_KEY"]
 client = openai.OpenAI()
 

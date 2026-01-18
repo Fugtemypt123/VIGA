@@ -1,3 +1,4 @@
+"""Utility script to copy blender files to task directories."""
 import os
 import subprocess
 

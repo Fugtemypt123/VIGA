@@ -1,16 +1,14 @@
+"""Blender script to render all camera views (Camera1-5) after executing scene code."""
 import bpy
-import random
-import json
 import os
 import sys
-from sys import platform
 
-# 场景层面禁用音频同步/回放
+# Disable audio sync/playback at scene level
 for scene in bpy.data.scenes:
     scene.use_audio = False
-    scene.sync_mode = 'NONE'  # 或 'AUDIO_SYNC' 以外的选项
+    scene.sync_mode = 'NONE'
 
-# 偏好设置层面禁用音频设备（不同版本可能是 'NONE'/'NULL'/'OpenAL' 等）
+# Disable audio device in preferences
 try:
     bpy.context.preferences.system.audio_device = 'NONE'
 except Exception:

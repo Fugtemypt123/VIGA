@@ -12,7 +12,7 @@ This document tracks all code quality issues that need to be fixed for open-sour
 - [x] Phase 6: evaluators/ ✅ COMPLETED
 - [x] Phase 7: utils/ ✅ COMPLETED
 - [x] Phase 8: prompts/ ✅ COMPLETED
-- [ ] Phase 9: data/ (helper scripts)
+- [x] Phase 9: data/ ✅ COMPLETED
 
 ---
 
@@ -311,14 +311,48 @@ All files in prompts/ have been refactored to follow the coding standards:
 
 ---
 
-## Phase 9: data/ (helper scripts)
+## Phase 9: data/ ✅ COMPLETED
 
-**Files to review (20+ Python scripts):**
-- `blenderbench/generator_script.py`, `verifier_script.py`
-- `blendergym/pipeline_render_script.py`, `cp_blender_files.py`, `generator_script.py`, etc.
-- `dynamic_scene/generator_script.py`, `verifier_script.py`
-- `slidebench/library.py`, `reproduce_code.py`, `create_dataset.py`, etc.
-- `static_scene/generator_init_script.py`
+### Changes Made:
+
+**data/blendergym/ (10 files):**
+- **generator_script.py**: Added module docstring, removed unused imports
+- **verifier_script.py**: Added module docstring, removed unused imports
+- **pipeline_render_script.py**: Added module docstring, removed unused imports
+- **all_render_script.py**: Added module docstring, **translated Chinese comments to English**, removed unused imports
+- **eval_render_script.py**: Added module docstring, **translated Chinese comments to English**, removed unused imports
+- **single_render_script.py**: Added module docstring, **translated Chinese comments to English**, removed unused imports
+- **cp_blender_files.py**: Added module docstring
+- **python_script.py**: Added module docstring, fixed import order, removed unused imports
+- **rebuild_scene.py**: Added module docstring, **translated extensive Chinese comments to English** (both in script and generated rebuild template)
+- **replace_import.py**: Added module docstring
+
+**data/blenderbench/ (2 files):**
+- **generator_script.py**: Added module docstring, removed unused imports
+- **verifier_script.py**: Added module docstring, removed unused imports
+
+**data/dynamic_scene/ (2 files):**
+- **generator_script.py**: Added module docstring, **translated Chinese comments to English**
+- **verifier_script.py**: Added module docstring, removed unused imports
+
+**data/static_scene/ (3 files):**
+- **generator_init_script.py**: Added module docstring, removed unused imports
+- **generator_script.py**: Added module docstring, removed unused imports
+- **verifier_script.py**: Added module docstring, removed unused imports
+
+**data/slidebench/ (5 files):**
+- **create_dataset.py**: Added module docstring, fixed import order
+- **library.py**: Added module docstring, fixed import order, **changed "Rets:" to "Returns:" in all docstrings**
+- **parse_media.py**: Added module docstring, fixed import order
+- **reproduce_code.py**: Added module docstring, fixed import order
+- **seed_instruction.py**: Added module docstring, fixed import order
+
+### Summary:
+- Added module docstrings to all 22 Python files
+- Translated Chinese comments to English in 5 files
+- Fixed import order (stdlib → third-party → local)
+- Removed unused imports (random, json, platform)
+- Fixed "Rets:" to "Returns:" in docstrings
 
 ---
 

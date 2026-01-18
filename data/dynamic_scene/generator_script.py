@@ -1,21 +1,22 @@
+"""Blender script for dynamic scene generation with keyframe rendering."""
 import bpy
 import os
 import sys
 
 if __name__ == "__main__":
 
-    # ---- 命令行参数 ----
-    code_fpath   = sys.argv[6]  # 生成/编辑场景的代码文件路径
+    # ---- Command line arguments ----
+    code_fpath = sys.argv[6]  # Path to scene generation/editing code
     if len(sys.argv) > 7:
-        rendering_dir = sys.argv[7]  # 渲染输出目录
+        rendering_dir = sys.argv[7]  # Rendering output directory
     else:
         rendering_dir = None
     if len(sys.argv) > 8:
-        save_blend = sys.argv[8]  # 可选：保存 .blend 的路径
+        save_blend = sys.argv[8]  # Optional: path to save .blend file
     else:
         save_blend = None
 
-    # ---- 执行外部代码，构建场景 ----
+    # ---- Execute external code to build scene ----
     with open(code_fpath, "r", encoding="utf-8") as f:
         code = f.read()
     try:
@@ -26,23 +27,23 @@ if __name__ == "__main__":
     if not rendering_dir:
         print("[INFO] No rendering directory provided, skipping rendering.")
         exit(0)
-        
+
     bpy.context.scene.render.engine = 'CYCLES'
     try:
         prefs = bpy.context.preferences.addons['cycles'].preferences
-        # 可选：'CUDA' 或 'OPTIX'（视你的显卡支持）
+        # Optional: 'CUDA' or 'OPTIX' depending on GPU support
         prefs.compute_device_type = 'CUDA'
         prefs.get_devices()
-        # 选择所有 GPU 设备
+        # Select all GPU devices
         for device in prefs.devices:
             if device.type == 'GPU':
                 device.use = True
         bpy.context.scene.cycles.device = 'GPU'
     except Exception:
-        # 没有 GPU 或设置失败时，回退到 CPU
+        # Fall back to CPU if no GPU or setup fails
         bpy.context.scene.cycles.device = 'CPU'
 
-    # ---- 基础渲染参数 ----
+    # ---- Basic render parameters ----
     scene = bpy.context.scene
     scene.render.resolution_x = 512
     scene.render.resolution_y = 512
@@ -51,42 +52,42 @@ if __name__ == "__main__":
     scene.render.image_settings.file_format = 'PNG'
     scene.render.use_file_extension = True
 
-    # ---- 输出目录准备 ----            
+    # ---- Prepare output directory ----
     os.makedirs(rendering_dir, exist_ok=True)
 
-    # ---- 读取动画范围并计算三帧 ----
-    # 若外部代码未设置，Blender 默认 1..250
+    # ---- Read animation range and compute three keyframes ----
+    # If not set by external code, Blender defaults to 1..250
     frame_start = scene.frame_start if scene.frame_start else 1
-    frame_end   = scene.frame_end   if scene.frame_end   else 250
+    frame_end = scene.frame_end if scene.frame_end else 250
 
-    # 总帧数（用于日志或扩展）
+    # Total frames (for logging or extension)
     total_frames = max(1, frame_end - frame_start + 1)
 
-    # 中点帧（取整到整数帧）
+    # Midpoint frame (rounded to integer)
     frame_mid = (frame_start + frame_end) // 2
 
-    # 三帧集合（去重并排序，防止 start=end 的情况）
+    # Three-frame set (deduplicated and sorted, handles start=end case)
     frames_to_render = sorted(set([frame_start, frame_mid, frame_end]))
 
     print(f"[INFO] Frame range: {frame_start}..{frame_end} (total {total_frames})")
     print(f"[INFO] Will render frames: {frames_to_render}")
 
-    # ---- 渲染（对每台相机分别渲染三帧）----
+    # ---- Render (render three frames for each camera) ----
     cameras = [obj for obj in bpy.data.objects if obj.type == 'CAMERA']
     for cam in cameras:
         scene.camera = cam
 
         for f in frames_to_render:
             scene.frame_set(f)
-            # 强制更新（有时对约束/驱动/物理更稳）
+            # Force update (sometimes more stable for constraints/drivers/physics)
             bpy.context.view_layer.update()
 
-            # 文件名：CameraName_fXXXX.png
+            # Filename: CameraName_fXXXX.png
             scene.render.filepath = os.path.join(rendering_dir, f"{cam.name}_f{f:04d}.png")
             print(f"[RENDER] {cam.name} @ frame {f} -> {scene.render.filepath}")
             bpy.ops.render.render(write_still=True)
 
-    # ---- 可选：保存 .blend ----
+    # ---- Optional: save .blend ----
     if save_blend:
         bpy.context.preferences.filepaths.save_version = 0
         bpy.ops.wm.save_as_mainfile(filepath=save_blend)

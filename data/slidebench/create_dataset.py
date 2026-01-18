@@ -1,5 +1,6 @@
-import os
+"""Script to create dataset CSV from slide examples."""
 import csv
+import os
 
 # Define the root directory where all the folders are located
 ROOT_DIR = "../slidesbench/examples"

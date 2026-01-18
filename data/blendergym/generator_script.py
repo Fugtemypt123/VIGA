@@ -1,9 +1,7 @@
+"""Blender script for generator to execute code and render Camera1 view."""
 import bpy
-import random
-import json
 import os
 import sys
-from sys import platform
 
 if __name__ == "__main__":
 
