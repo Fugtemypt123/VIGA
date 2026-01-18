@@ -1,3 +1,8 @@
+"""Tool script to Python environment path mappings.
+
+Configure these paths to point to the appropriate conda environment Python interpreters.
+See requirements/ for the environment setup instructions.
+"""
 path_to_cmd = {
     "tools/exec_blender.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/blender/bin/python",
     "tools/exec_slides.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/pptx/bin/python",

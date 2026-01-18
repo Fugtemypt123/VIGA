@@ -1,4 +1,6 @@
+"""Script to extract function signatures and docstrings from library files."""
 import ast
+
 
 def extract_functions(filename: str) -> str:
     with open(filename, "r") as f:

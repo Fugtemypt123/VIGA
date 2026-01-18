@@ -1,12 +1,15 @@
-from .search import GoogleSearch
-from .vqa import VQA
-from .image_gen import Dalle3
-from .llm import LLM
-from .ppt_gen import SlideAgent 
-from pptx.util import Inches, Pt
+"""SlidesLib: Helper classes and functions for slide generation."""
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE
-from pptx.dml.color import RGBColor
+from pptx.util import Inches, Pt
+
+from .image_gen import Dalle3
+from .llm import LLM
+from .ppt_gen import SlideAgent
+from .search import GoogleSearch
+from .vqa import VQA
+
+
 def search_result(question: str, screenshot_path: str = "screenshot.png") -> str:
     """
     Search a question on Google, and take a screenshot of the search result.
@@ -28,7 +31,7 @@ def get_answer(question: str) -> str:
     """
     return LLM.get_answer(question)
 
-def get_code(request:str, examples:str = "") -> str:
+def get_code(request: str, examples: str = "") -> str:
     """ 
     Calls the LLM to generate code for a request. 
     request: the task that the model should conduct
@@ -56,7 +59,7 @@ def add_title(
         font_size: int, Font size in int (point size), e.g., 44
         font_color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
         background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
-    Rets:
+    Returns:
         slide: Slide object with the title added
     """
     title_shape = slide.shapes.title
@@ -90,7 +93,7 @@ def add_text(
         color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
         background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
         auto_size: bool, True if auto-size the text box, False otherwise
-    Rets:
+    Returns:
         slide: Slide object with the text box added
     """
     # Create the text box shape
@@ -136,7 +139,7 @@ def add_bullet_points(
         font_size: int, Font size in int (point size), e.g., 18
         color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
         background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
-    Rets:
+    Returns:
         slide: Slide object with the bullet points added
     """
     left, top, width, height = coords
@@ -168,7 +171,7 @@ def add_image(slide, image_path: str, coords: list[float]):
         slide: Slide object as in pptx library
         image_path: str, Path to the image file
         coords: list(float), [left, top, width, height] in inches
-    Rets:
+    Returns:
         slide: Slide object with the image added
     """
     left, top, width, height = coords

@@ -1,4 +1,5 @@
-from SlidesLib import GoogleSearch, Dalle3
+"""Image search and generation helper functions."""
+from SlidesLib import Dalle3, GoogleSearch
 
 def google_search_screenshot(question: str, save_path: str = "screenshot.png") -> str:
     """
@@ -19,7 +20,7 @@ def search_image(query: str, save_path: str = "image.png") -> str:
     Args:
         query: str, The query to search for.
         save_path: str, The path to save the downloaded image.
-    Rets:
+    Returns:
         the save_path.
     """
     return GoogleSearch.search_image(query, save_path)
@@ -31,7 +32,7 @@ def generate_image(query: str, save_path: str = "image.png") -> str:
     Args:
         query: str, The text query to generate the image.
         save_path: str, The path to save the generated image.
-    Rets:
+    Returns:
         The path of the saved image
     """
     return Dalle3.generate_image(query, save_path)

@@ -1,9 +1,12 @@
-from pptx import Presentation
-from pptx.util import Inches as _Inches, Pt as _Pt
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE
-from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_SHAPE_TYPE
+"""PowerPoint presentation generation utilities."""
 from io import BytesIO
+
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_SHAPE_TYPE
+from pptx.enum.text import MSO_AUTO_SIZE, PP_ALIGN
+from pptx.util import Inches as _Inches
+from pptx.util import Pt as _Pt
 
 ARROW_ADD = '"""<a:tailEnd type="arrow" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/>"""'
 

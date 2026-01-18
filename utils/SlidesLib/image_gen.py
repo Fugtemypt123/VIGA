@@ -1,14 +1,20 @@
-from openai import OpenAI
+"""DALL-E 3 image generation utilities."""
 import requests
 
-class Dalle3():
+from openai import OpenAI
+
+
+class Dalle3:
+    """DALL-E 3 image generation class."""
+
     @classmethod
-    def __init_dalle__(cls):
+    def __init_dalle__(cls) -> OpenAI:
+        """Initialize and return OpenAI client."""
         client = OpenAI()
         return client
-        
+
     @classmethod
-    def generate_image(cls, query: str, save_path: str = "downloaded_image.png"):
+    def generate_image(cls, query: str, save_path: str = "downloaded_image.png") -> str:
         """Generate an image based on a text query, save the image to the save_path"""
         client = cls.__init_dalle__()
         response = client.images.generate(
