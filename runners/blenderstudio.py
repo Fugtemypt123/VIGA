@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-BlenderGym Runner for AgenticVerifier
-Loads BlenderGym dataset and runs the dual-agent system for 3D scene generation.
+BlenderStudio Runner for AgenticVerifier
+Loads BlenderStudio dataset and runs the dual-agent system for 3D scene generation.
 """
 import os
 import sys
@@ -12,7 +12,6 @@ import argparse
 import subprocess
 import asyncio
 import signal
-import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -71,7 +70,7 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
             failure_reason = "scores.json not found"
         
         if failed:
-            print(f"❌ Found failed task: {task_name} - {failure_reason}")
+            print(f"Found failed task: {task_name} - {failure_reason}")
             # Try to reconstruct task config from task name
             # Task name format is typically like "blendshape1", "geometry2", etc.
             task_type = None
@@ -277,14 +276,14 @@ def run_tasks_parallel(tasks: List[Dict], args, max_workers: int = 10) -> tuple:
                 task_name, success, error_msg = future.result()
                 if success:
                     successful_tasks += 1
-                    print(f"✅ {task_name} completed successfully")
+                    print(f"{task_name} completed successfully")
                 else:
                     failed_tasks += 1
                     failed_task_details.append({
                         "task_name": task_name,
                         "error": error_msg
                     })
-                    print(f"❌ {task_name} failed: {error_msg}")
+                    print(f"{task_name} failed: {error_msg}")
             except Exception as e:
                 failed_tasks += 1
                 task_name = task_config['task_dir'].split('/')[-1]
@@ -292,7 +291,7 @@ def run_tasks_parallel(tasks: List[Dict], args, max_workers: int = 10) -> tuple:
                     "task_name": task_name,
                     "error": str(e)
                 })
-                print(f"❌ {task_name} failed with exception: {e}")
+                print(f"{task_name} failed with exception: {e}")
     
     return successful_tasks, failed_tasks, failed_task_details
 

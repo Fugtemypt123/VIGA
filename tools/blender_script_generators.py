@@ -1,11 +1,22 @@
+"""Blender Script Generators.
+
+Generates Python scripts for Blender operations used by investigator and
+exec_blender tools. Contains reusable script generation methods for scene
+inspection, rendering, and camera manipulation.
 """
-Blender script generators for investigator and exec_blender tools.
-Contains all _generate_xxx_script methods to avoid code duplication.
-"""
+
+from typing import List
 
 
 def generate_scene_info_script(output_path: str) -> str:
-    """Generate script to get scene information with bounding boxes"""
+    """Generate script to extract scene information with bounding boxes.
+
+    Args:
+        output_path: Path where the JSON scene info will be saved.
+
+    Returns:
+        Blender Python script as a string.
+    """
     return f'''import bpy
 import json
 import sys
@@ -89,8 +100,16 @@ print("Scene info extracted successfully")
 
 
 def generate_render_script() -> str:
-    """Generate script to render current scene once into RENDER_DIR/output.png"""
-    return '''import bpy, os
+    """Generate script to render the current scene.
+
+    Renders the scene to RENDER_DIR/output.png using Cycles engine
+    at 512x512 resolution.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return '''import bpy
+import os
 
 render_dir = os.environ.get("RENDER_DIR", "/tmp")
 
@@ -109,9 +128,22 @@ print("Render completed to", bpy.context.scene.render.filepath)
 
 
 def generate_camera_focus_script(object_name: str, base_path: str) -> str:
-    """Generate script to focus camera on object"""
-    return f'''import bpy, os
+    """Generate script to focus camera on a specific object.
+
+    Creates a track-to constraint to point the camera at the target object,
+    renders the scene, and saves camera info to JSON.
+
+    Args:
+        object_name: Name of the Blender object to focus on.
+        base_path: Base path for saving camera info JSON files.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return f'''import bpy
+import json
 import math
+import os
 
 # Get target object
 target_obj = bpy.data.objects.get('{object_name}')
@@ -177,9 +209,23 @@ print("Camera focused on object and rendered")
 '''
 
 
-def generate_camera_set_script(location: list, rotation_euler: list, base_path: str) -> str:
-    """Generate script to set camera position and rotation"""
-    return f'''import bpy, os
+def generate_camera_set_script(location: List[float], rotation_euler: List[float], base_path: str) -> str:
+    """Generate script to set camera position and rotation.
+
+    Sets the camera to a specific location and rotation, renders the scene,
+    and saves camera info to JSON.
+
+    Args:
+        location: Camera location as [x, y, z] coordinates.
+        rotation_euler: Camera rotation as [rx, ry, rz] Euler angles.
+        base_path: Base path for saving camera info JSON files.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return f'''import bpy
+import json
+import os
 
 # Get camera
 camera = bpy.context.scene.camera
@@ -217,9 +263,23 @@ print("Camera set to location and rotation and rendered")
 '''
 
 
-def generate_visibility_script(show_objects: list, hide_objects: list, base_path: str) -> str:
-    """Generate script to set object visibility and render once"""
-    return f'''import bpy, os
+def generate_visibility_script(show_objects: List[str], hide_objects: List[str], base_path: str) -> str:
+    """Generate script to set object visibility and render.
+
+    Sets visibility for specified objects, renders the scene, and saves
+    camera info to JSON.
+
+    Args:
+        show_objects: List of object names to make visible.
+        hide_objects: List of object names to hide.
+        base_path: Base path for saving camera info JSON files.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return f'''import bpy
+import json
+import os
 
 show_list = {show_objects}
 hide_list = {hide_objects}
@@ -255,9 +315,25 @@ print("Visibility updated and rendered: show", show_list, ", hide", hide_list)
 
 
 def generate_camera_move_script(target_obj_name: str, radius: float, theta: float, phi: float, base_path: str) -> str:
-    """Generate script to move camera around target object"""
-    return f'''import bpy, os
+    """Generate script to move camera around a target object.
+
+    Positions the camera in spherical coordinates relative to the target
+    object, renders the scene, and saves camera info to JSON.
+
+    Args:
+        target_obj_name: Name of the object to orbit around.
+        radius: Distance from the target object.
+        theta: Azimuth angle in radians.
+        phi: Elevation angle in radians.
+        base_path: Base path for saving camera info JSON files.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return f'''import bpy
+import json
 import math
+import os
 
 # Get target object
 target_obj = bpy.data.objects.get('{target_obj_name}')
@@ -303,8 +379,21 @@ print("Camera moved to position and rendered")
 
 
 def generate_keyframe_script(frame_number: int, base_path: str) -> str:
-    """Generate script to set frame number"""
-    return f'''import bpy, os
+    """Generate script to set the current frame and render.
+
+    Sets the timeline to a specific frame number, renders the scene,
+    and saves camera info to JSON.
+
+    Args:
+        frame_number: Target frame number to set.
+        base_path: Base path for saving camera info JSON files.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return f'''import bpy
+import json
+import os
 
 scene = bpy.context.scene
 current_frame = scene.frame_current
@@ -334,10 +423,24 @@ print("Changed to frame", target_frame, "(was", current_frame, ") and rendered")
 '''
 
 
-def generate_viewpoint_script(object_names: list, base_path: str) -> str:
-    """Generate script to initialize viewpoints around objects"""
-    return f'''import bpy, os
+def generate_viewpoint_script(object_names: List[str], base_path: str) -> str:
+    """Generate script to initialize viewpoints around objects.
+
+    Creates four viewpoints around the bounding box of specified objects,
+    renders from each viewpoint, and saves camera info to JSON.
+
+    Args:
+        object_names: List of object names to observe. If empty, observes
+            all mesh objects except Ground and Plane.
+        base_path: Base path for saving camera info JSON files.
+
+    Returns:
+        Blender Python script as a string.
+    """
+    return f'''import bpy
+import json
 import math
+import os
 from mathutils import Vector
 
 object_names = {object_names}

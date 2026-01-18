@@ -1,3 +1,7 @@
+"""Image Helper Functions for AutoPresent Slide Generation.
+
+Provides Google search and DALL-E image generation functions for slides.
+"""
 from SlidesLib import GoogleSearch, Dalle3
 
 def google_search_screenshot(question: str, save_path: str = "screenshot.png") -> str:

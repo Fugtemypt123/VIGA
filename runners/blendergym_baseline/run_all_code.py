@@ -1,3 +1,7 @@
+"""Batch Renderer for BlenderGym Baseline.
+
+Runs Blender rendering for all geometry tasks in the baseline directory.
+"""
 import os
 import subprocess
 

@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PIL import Image
-import openai
 from tqdm import tqdm
 import tempfile
 
@@ -560,9 +559,9 @@ def run_iterative_alchemy(task_config: Dict, args) -> Dict:
                     'render_dir': render_dir,
                     'index': i
                 })
-                print(f"    ✓ Candidate {i+1} executed successfully")
+                print(f"    Candidate {i+1} executed successfully")
             else:
-                print(f"    ✗ Candidate {i+1} failed: {error_msg}")
+                print(f"    Candidate {i+1} failed: {error_msg}")
         
         if len(candidate_results) == 0:
             print(f"No candidates executed successfully for round {round_num}, using previous code")
@@ -732,10 +731,10 @@ def main():
                 
                 if result.get("success", False):
                     results["summary"]["successful_tasks"] += 1
-                    print(f"✅ {result['task_name']} completed successfully")
+                    print(f"{result['task_name']} completed successfully")
                 else:
                     results["summary"]["failed_tasks"] += 1
-                    print(f"❌ {result['task_name']} failed: {result.get('error', 'Unknown error')}")
+                    print(f"{result['task_name']} failed: {result.get('error', 'Unknown error')}")
                     
             except Exception as e:
                 results["summary"]["failed_tasks"] += 1
@@ -745,7 +744,7 @@ def main():
                     "success": False
                 }
                 results["tasks"].append(error_result)
-                print(f"❌ {task_config['task_name']} failed with exception: {e}")
+                print(f"{task_config['task_name']} failed with exception: {e}")
     
     end_time = time.time()
     results["summary"]["execution_time"] = end_time - start_time

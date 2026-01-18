@@ -1,8 +1,15 @@
+"""vLLM OpenAI-compatible Server Launcher.
+
+Command-line tool to launch a local OpenAI-compatible server using vLLM
+for serving models like Qwen2-VL-7B-Instruct.
+"""
+
 import argparse
 import os
 import shlex
 import subprocess
 import sys
+from typing import List
 
 
 def build_command(
@@ -14,7 +21,22 @@ def build_command(
     gpu_memory_utilization: float,
     max_model_len: int,
     additional_args: str,
-):
+) -> List[str]:
+    """Build the vLLM server command.
+
+    Args:
+        host: Host address to bind the server.
+        port: Port number for the server.
+        model: HuggingFace model ID or local path.
+        served_model_name: Name exposed to OpenAI clients.
+        tensor_parallel_size: Number of GPUs for tensor parallelism.
+        gpu_memory_utilization: Fraction of GPU memory to use.
+        max_model_len: Maximum model context length.
+        additional_args: Extra arguments passed to vLLM server.
+
+    Returns:
+        Command list for subprocess execution.
+    """
     base_cmd = [
         sys.executable,
         "-m",
@@ -45,7 +67,12 @@ def build_command(
     return base_cmd
 
 
-def main():
+def main() -> None:
+    """Launch the vLLM OpenAI-compatible server.
+
+    Parses command-line arguments and starts the vLLM server as a subprocess,
+    handling graceful shutdown on keyboard interrupt.
+    """
     parser = argparse.ArgumentParser(
         description="Launch a local OpenAI-compatible server for Qwen2-VL-7B-Instruct via vLLM"
     )
@@ -79,7 +106,7 @@ def main():
         host=args.host,
         port=args.port,
         model=args.model,
-        served_model_name=args["served_model_name"] if isinstance(args, dict) else args.served_model_name,
+        served_model_name=args.served_model_name,
         tensor_parallel_size=args.tensor_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
         max_model_len=args.max_model_len,
@@ -101,5 +128,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

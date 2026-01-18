@@ -169,20 +169,20 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         result = subprocess.run(cmd)  # no timeout
         
         if result.returncode == 0:
-            print(f"✅ Static scene task {task_name} completed successfully")
+            print(f"Static scene task {task_name} completed successfully")
             return task_name, True, None
         else:
             error_msg = f"Task failed with return code {result.returncode}: {result.stderr}"
-            print(f"❌ Static scene task {task_name} failed: {error_msg}")
+            print(f"Static scene task {task_name} failed: {error_msg}")
             return task_name, False, error_msg
-            
+
     except subprocess.TimeoutExpired:
         error_msg = f"Task timed out after 1 hour"
-        print(f"⏰ Static scene task {task_name} timed out")
+        print(f"Static scene task {task_name} timed out")
         return task_name, False, error_msg
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
-        print(f"💥 Static scene task {task_name} failed with exception: {error_msg}")
+        print(f"Static scene task {task_name} failed with exception: {error_msg}")
         return task_name, False, error_msg
 
 

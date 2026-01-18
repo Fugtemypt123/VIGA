@@ -1,3 +1,7 @@
+"""Basic Helper Functions for AutoPresent Slide Generation.
+
+Provides text, title, bullet point, and image manipulation functions for PowerPoint slides.
+"""
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE

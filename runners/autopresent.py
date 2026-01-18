@@ -67,7 +67,7 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
                 failure_reason = "verifier_thoughts not found"
             
             if failed:
-                print(f"❌ Found failed task: {task_name} - {failure_reason}")
+                print(f"Found failed task: {task_name} - {failure_reason}")
                 # Try to reconstruct task config from task name
                 # Task name format is typically like "business/slide_1", "design/slide_2", etc.
                 slides_part = task_name
@@ -245,14 +245,14 @@ def run_tasks_parallel(tasks: List[Dict], args, max_workers: int = 10) -> tuple:
                 task_name, success, error_msg = future.result()
                 if success:
                     successful_tasks += 1
-                    print(f"✅ {task_name} completed successfully")
+                    print(f"{task_name} completed successfully")
                 else:
                     failed_tasks += 1
                     failed_task_details.append({
                         "task_name": task_name,
                         "error": error_msg
                     })
-                    print(f"❌ {task_name} failed: {error_msg}")
+                    print(f"{task_name} failed: {error_msg}")
             except Exception as e:
                 failed_tasks += 1
                 task_name = task_config['resource_dir'].split('/')[-1]
@@ -260,7 +260,7 @@ def run_tasks_parallel(tasks: List[Dict], args, max_workers: int = 10) -> tuple:
                     "task_name": task_name,
                     "error": str(e)
                 })
-                print(f"❌ {task_name} failed with exception: {e}")
+                print(f"{task_name} failed with exception: {e}")
     
     return successful_tasks, failed_tasks, failed_task_details
 

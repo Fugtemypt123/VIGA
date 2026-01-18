@@ -1,52 +1,77 @@
-import os
+"""Generator Agent for code synthesis in the VIGA system.
+
+The Generator Agent is responsible for iteratively generating and refining code
+based on visual targets, using tool calls to execute and evaluate the generated code.
+"""
+
 import json
+import os
+from typing import Any, Dict, List, Optional
+
 from openai import OpenAI
-from typing import Dict, Any
+
+from agents.prompt_builder import PromptBuilder
 from agents.tool_client import ExternalToolClient
 from agents.verifier import VerifierAgent
-from agents.prompt_builder import PromptBuilder
 from utils.common import get_image_base64, get_model_response, tournament_select_best
 
 class GeneratorAgent:
-    def __init__(self, args, verifier: VerifierAgent):
+    """Agent responsible for generating and refining code based on visual targets.
+
+    The Generator Agent iteratively produces code, executes it, and refines based
+    on feedback from the Verifier Agent. It uses MCP tools for code execution
+    and scene manipulation.
+
+    Attributes:
+        config: Configuration dictionary containing model settings and paths.
+        memory: Conversation memory for the agent.
+        verifier: The Verifier Agent instance for feedback.
+        tool_client: Client for calling external MCP tools.
+    """
+
+    def __init__(self, args: Dict[str, Any], verifier: VerifierAgent) -> None:
+        """Initialize the Generator Agent.
+
+        Args:
+            args: Configuration dictionary with keys like 'model', 'api_key',
+                  'generator_tools', 'max_rounds', etc.
+            verifier: Verifier agent instance for analyzing generated outputs.
+        """
         self.config = args
-        self.memory = []
-        self.init_plan = None
+        self.memory: List[Dict[str, Any]] = []
+        self.init_plan: Optional[str] = None
         self.verifier = verifier
-        
+
         # Initialize chat args
-        self.init_chat_args = {}
+        self.init_chat_args: Dict[str, Any] = {}
         if 'gpt' in self.config.get("model") and not self.config.get("no_tools"):
             self.init_chat_args['parallel_tool_calls'] = False
-            
+
         # Initialize tool client
         self.tool_client = ExternalToolClient(self.config.get("generator_tools"), self.config)
-        
+
         # Initialize OpenAI client
-        client_kwargs = {"api_key": self.config.get("api_key"), 'base_url': self.config.get("api_base_url") or os.getenv("OPENAI_BASE_URL") or 'https://api.openai.com/v1'}
+        client_kwargs = {
+            "api_key": self.config.get("api_key"),
+            "base_url": self.config.get("api_base_url") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        }
         self.client = OpenAI(**client_kwargs)
-        
+
         # Initialize system prompt
         self.prompt_builder = PromptBuilder(self.client, self.config)
         self.system_prompt = self.prompt_builder.build_prompt("generator", "system")
         self.memory.extend(self.system_prompt)
 
-    async def run(self) -> Dict[str, Any]:
-        """
-        Generate code based on current memory and optional feedback.
-        Now enforces tool calling and returns verifier flag.
-        
-        Args:
-            verifier: Verifier agent instance
-            
-        Returns:
-            Dict containing the generated code, metadata, and verifier flag
+    async def run(self) -> None:
+        """Run the generator agent loop to produce and refine code.
+
+        Iteratively generates code, executes it via tools, and incorporates
+        feedback from the verifier until completion or max rounds reached.
         """
         print("\n=== Running generator agent ===\n")
 
-        # 如果 generator 的工具集合中包含 sam_init.py，对应的 MCP server，
-        # 则在对话正式开始前默认调用一次 sam-init 的 reconstruct_full_scene，
-        # 以便预先重建初始 3D 场景。
+        # If sam_init.py is in the tool servers, auto-call reconstruct_full_scene
+        # to initialize the 3D scene before the conversation begins.
         try:
             if any("sam_init.py" in server for server in self.tool_client.tool_servers):
                 print("=== Auto-calling sam_init.reconstruct_full_scene to initialize scene ===")
@@ -133,8 +158,13 @@ class GeneratorAgent:
         
         print("\n=== Finish generator process ===\n")
     
-    def _update_memory(self, message: Dict):
-        """Update the memory with the new message"""
+    def _update_memory(self, message: Dict[str, Any]) -> None:
+        """Update the conversation memory with the new assistant and tool messages.
+
+        Args:
+            message: Dictionary containing 'assistant' (the model response) and
+                     'user' (the tool response with text, images, and optional verifier result).
+        """
         # Add tool calling
         assistant_content = message['assistant'].content
         if not self.config.get("no_tools"):
@@ -196,8 +226,8 @@ class GeneratorAgent:
             except Exception as e:
                 print(f"Error adding downloaded assets: {e}")
     
-    def _save_memory(self):
-        """Save the memory to the file"""
+    def _save_memory(self) -> None:
+        """Save the conversation memory to a JSON file in the output directory."""
         output_file = self.config.get("output_dir") + "/generator_memory.json"
         with open(output_file, "w") as f:
             json.dump(self.memory, f, indent=4, ensure_ascii=False)

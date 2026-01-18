@@ -33,3 +33,7 @@ utils/sam3
 utils/sam3d
 utils/sam
 utils/blender
+
+# Claude Code files
+CLAUDE.md
+REFACTOR_TODO.md

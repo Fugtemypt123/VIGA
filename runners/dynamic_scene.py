@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
-import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.common import get_model_info, get_meshy_info
@@ -172,20 +171,20 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         result = subprocess.run(cmd)  # no timeout
         
         if result.returncode == 0:
-            print(f"✅ Dynamic scene task {task_name} completed successfully")
+            print(f"Dynamic scene task {task_name} completed successfully")
             return task_name, True, None
         else:
             error_msg = f"Task failed with return code {result.returncode}: {result.stderr}"
-            print(f"❌ Dynamic scene task {task_name} failed: {error_msg}")
+            print(f"Dynamic scene task {task_name} failed: {error_msg}")
             return task_name, False, error_msg
             
     except subprocess.TimeoutExpired:
         error_msg = f"Task timed out after 1 hour"
-        print(f"⏰ Dynamic scene task {task_name} timed out")
+        print(f"Dynamic scene task {task_name} timed out")
         return task_name, False, error_msg
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
-        print(f"💥 Dynamic scene task {task_name} failed with exception: {error_msg}")
+        print(f"Dynamic scene task {task_name} failed with exception: {error_msg}")
         return task_name, False, error_msg
 
 

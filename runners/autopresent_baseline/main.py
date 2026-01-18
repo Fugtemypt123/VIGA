@@ -1,7 +1,12 @@
+"""AutoPresent Baseline Runner.
+
+Runs baseline slide generation using LLM-generated Python code.
+"""
 import os
 import argparse
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Tuple
 
 example_dict = {
     "sufficient": {
@@ -18,7 +23,16 @@ example_dict = {
     },
 }
 
-def run_slide_command(slide_command, pptx_path):
+def run_slide_command(slide_command: list, pptx_path: str) -> Tuple[bool, str]:
+    """Run a slide generation command.
+
+    Args:
+        slide_command: Command list to execute.
+        pptx_path: Path to the output PPTX file.
+
+    Returns:
+        Tuple of (success, error_message).
+    """
     try:
         subprocess.run(slide_command, check=True)
         return True, ""
@@ -28,7 +42,8 @@ def run_slide_command(slide_command, pptx_path):
         return False, str(e)
 
 
-def main():
+def main() -> None:
+    """Run the baseline slide generation pipeline."""
     command = []
     if args.setting != "sufficient":
         command.append("--no_image")
@@ -106,14 +121,14 @@ def main():
 
             if success:
                 successful += 1
-                print(f"✅ Created slide deck for {task['pptx_path']}")
+                print(f"Created slide deck for {task['pptx_path']}")
             else:
                 failed.append({
                     "slide": slide_label,
                     "pptx_path": task['pptx_path'],
                     "error": error_msg,
                 })
-                print(f"❌ Failed to create slide deck for {task['pptx_path']}: {error_msg}")
+                print(f"Failed to create slide deck for {task['pptx_path']}: {error_msg}")
 
     print("\nExecution summary")
     print("=================")

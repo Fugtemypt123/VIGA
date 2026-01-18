@@ -1,25 +1,26 @@
-import os, sys, json, subprocess, shutil
+"""SAM Scene Initialization MCP Server.
+
+This module provides an MCP server for scene reconstruction using SAM (Segment
+Anything Model) and SAM-3D. It detects objects in images, reconstructs them
+in 3D, and imports them into Blender scenes.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import traceback
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 from mcp.server.fastmcp import FastMCP
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.path import path_to_cmd
 
-# tool_configs for agent (only the function w/ @mcp.tool)
-# For initialized tools, agent is not able to call them during the conversation
-tool_configs = [
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "reconstruct_full_scene",
-    #         "description": "Reconstruct a complete 3D scene from an input image by detecting all objects with SAM and reconstructing each with SAM-3D. Outputs a .blend file containing all reconstructed objects.",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {},
-    #             "required": []
-    #         }
-    #     }
-    # }
-]
+# Tool configurations for the agent (empty as tools are auto-discovered)
+tool_configs: List[Dict[str, object]] = []
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SAM_WORKER = os.path.join(os.path.dirname(__file__), "sam_worker.py")
@@ -27,8 +28,16 @@ SAM3D_WORKER = os.path.join(os.path.dirname(__file__), "sam3d_worker.py")
 IMPORT_SCRIPT = os.path.join(os.path.dirname(__file__), "import_glbs_to_blend.py")
 
 mcp = FastMCP("sam-init")
-_target_image = _output_dir = _sam3_cfg = _blender_command = _blender_file = None
-_log_file = None  # Log file handle
+
+# Global state variables
+_target_image: Optional[str] = None
+_output_dir: Optional[str] = None
+_sam3_cfg: Optional[str] = None
+_blender_command: Optional[str] = None
+_blender_file: Optional[str] = None
+_log_file: Optional[object] = None
+_sam_env_bin: Optional[str] = None
+_sam3d_env_bin: Optional[str] = None
 
 # Safely get paths to avoid uncaught KeyError exceptions
 try:
@@ -36,14 +45,10 @@ try:
     _sam3d_env_bin = path_to_cmd.get("tools/sam3d_worker.py")
 except Exception as e:
     print(f"[SAM_INIT] Error initializing paths: {e}", file=sys.stderr)
-    _sam_env_bin = None
-    _sam3d_env_bin = None
 
 
-def log(message: str):
-    """
-    Output to both stderr and log file
-    """
+def log(message: str) -> None:
+    """Output to both stderr and log file."""
     # Output to stderr (for real-time viewing)
     print(message, file=sys.stderr)
     # Output to log file (for later viewing)
@@ -55,9 +60,9 @@ def log(message: str):
             pass  # If log file write fails, don't affect the main process
 
 
-def get_conda_prefix_from_python_path(python_path: str) -> str:
-    """
-    Infer CONDA_PREFIX from Python executable path
+def get_conda_prefix_from_python_path(python_path: str) -> Optional[str]:
+    """Infer CONDA_PREFIX from Python executable path.
+
     Example: /path/to/envs/env_name/bin/python -> /path/to/envs/env_name
     """
     if not python_path:
@@ -91,11 +96,8 @@ def get_conda_prefix_from_python_path(python_path: str) -> str:
     return None
 
 
-def prepare_env_with_conda_prefix(python_path: str) -> dict:
-    """
-    Prepare environment variable dictionary, ensuring CONDA_PREFIX is included
-    Always infer CONDA_PREFIX from Python path, as subprocess may run in a different conda environment
-    """
+def prepare_env_with_conda_prefix(python_path: str) -> Dict[str, str]:
+    """Prepare environment variable dictionary with CONDA_PREFIX."""
     env = os.environ.copy()
 
     # Always infer CONDA_PREFIX from Python path to ensure subprocess uses the correct environment
@@ -114,7 +116,8 @@ def prepare_env_with_conda_prefix(python_path: str) -> dict:
 
 
 @mcp.tool()
-def initialize(args: dict) -> dict:
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize SAM scene reconstruction with configuration."""
     global _target_image, _output_dir, _sam3_cfg, _blender_command, _sam_env_bin, _blender_file, _log_file
     try:
         _target_image = args["target_image_path"]
@@ -149,16 +152,18 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": {"text": [error_msg]}}
 
 
-def process_single_object(args_tuple):
-    """
-    Process 3D reconstruction task for a single object (for parallel processing)
+def process_single_object(
+    args_tuple: Tuple[int, object, str, str, str, str, str, str, str, str]
+) -> Tuple[bool, Optional[str], Optional[Dict[str, object]], Optional[str]]:
+    """Process 3D reconstruction task for a single object.
 
     Args:
-        args_tuple: (idx, mask, object_name, _target_image, _output_dir, _sam3_cfg,
-                     _blender_command, _sam3d_env_bin, ROOT, SAM3D_WORKER)
+        args_tuple: Tuple containing (idx, mask, object_name, target_image,
+                    output_dir, sam3_cfg, blender_command, sam3d_env_bin,
+                    ROOT, SAM3D_WORKER).
 
     Returns:
-        tuple: (success: bool, glb_path: str or None, object_transform: dict or None, error_msg: str or None)
+        Tuple of (success, glb_path, object_transform, error_msg).
     """
     idx, mask, object_name, _target_image, _output_dir, _sam3_cfg, _blender_command, _sam3d_env_bin, ROOT, SAM3D_WORKER = args_tuple
     
@@ -268,12 +273,13 @@ def process_single_object(args_tuple):
 
 
 @mcp.tool()
-def reconstruct_full_scene() -> dict:
-    """
-    Reconstruct complete 3D scene from input image
-    1. Use SAM to detect all objects
-    2. Use SAM-3D to reconstruct each object
-    3. Import all objects into Blender and save as .blend file
+def reconstruct_full_scene() -> Dict[str, object]:
+    """Reconstruct complete 3D scene from input image.
+
+    Steps:
+        1. Use SAM to detect all objects
+        2. Use SAM-3D to reconstruct each object
+        3. Import all objects into Blender and save as .blend file
     """
     global _target_image, _output_dir, _sam3_cfg, _blender_command, _sam_env_bin, _sam3d_env_bin, _blender_file
     
@@ -440,14 +446,14 @@ def reconstruct_full_scene() -> dict:
         log(f"[SAM_INIT] Process failed: {error_msg}")
         return {"status": "error", "output": {"text": [f"Process failed: {error_msg}"]}}
     except Exception as e:
-        import traceback
         error_msg = f"Error: {str(e)}"
         log(f"[SAM_INIT] {error_msg}")
         log(f"[SAM_INIT] Traceback: {traceback.format_exc()}")
         return {"status": "error", "output": {"text": [error_msg]}}
 
 
-def main():
+def main() -> None:
+    """Run MCP server or execute test mode."""
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         task = sys.argv[2]
         initialize(
@@ -465,6 +471,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# python tools/sam_init.py --test
-# utils/infinigen/blender/blender -b -P /mnt/data/users/shaofengyin/AgenticVerifier/tools/import_glbs_to_blend.py -- /mnt/data/users/shaofengyin/AgenticVerifier/output/test/sam_init/object_transforms.json /mnt/data/users/shaofengyin/AgenticVerifier/output/test/sam_init/scene.blend

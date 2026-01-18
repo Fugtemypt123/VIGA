@@ -1,19 +1,27 @@
-# blender_executor_server.py
-import os
-import subprocess
+"""Blender Executor MCP Server for executing Blender Python scripts.
+
+This module provides an MCP server that manages Blender script execution,
+rendering, and scene manipulation. It supports tool calls from the Generator
+agent to execute code, get scene information, and undo operations.
+"""
+
 import base64
 import io
-import shutil
-from typing import Optional
-from pathlib import Path
-from PIL import Image
-import logging
-from typing import Tuple, Dict
-from mcp.server.fastmcp import FastMCP
 import json
+import logging
+import os
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+from mcp.server.fastmcp import FastMCP
+from PIL import Image
+
 from blender_script_generators import generate_scene_info_script
 
-execute_and_evaluate_tool = {
+# Tool configuration dictionaries for the Generator agent
+execute_and_evaluate_tool: Dict[str, object] = {
     "type": "function",
     "function": {
         "name": "execute_and_evaluate",
@@ -39,7 +47,7 @@ execute_and_evaluate_tool = {
     }
 }
 
-get_scene_info_tool = {
+get_scene_info_tool: Dict[str, object] = {
     "type": "function",
     "function": {
         "name": "get_scene_info",
@@ -52,7 +60,7 @@ get_scene_info_tool = {
     }
 }
 
-undo_last_step_tool = {
+undo_last_step_tool: Dict[str, object] = {
     "type": "function",
     "function": {
         "name": "undo_last_step",
@@ -68,30 +76,70 @@ undo_last_step_tool = {
 mcp = FastMCP("blender-executor")
 
 # Global executor instance
-_executor = None
+_executor: Optional["Executor"] = None
 
 class Executor:
-    def __init__(self,
-                 blender_command: str,
-                 blender_file: str,
-                 blender_script: str,
-                 script_save: str,
-                 render_save: str,
-                 blender_save: Optional[str] = None,
-                 gpu_devices: Optional[str] = None):
+    """Manages Blender script execution and rendering.
+
+    Handles the lifecycle of Blender script execution including file management,
+    subprocess invocation, and result collection.
+
+    Attributes:
+        blender_command: Path to the Blender executable.
+        blender_file: Path to the .blend file to operate on.
+        blender_script: Path to the wrapper script that executes user code.
+        script_path: Directory to save generated scripts.
+        render_path: Directory to save rendered images.
+        blender_save: Optional path to save the Blender state after execution.
+        gpu_devices: Comma-separated GPU device IDs (e.g., "0,1").
+        count: Counter for executed scripts.
+    """
+
+    def __init__(
+        self,
+        blender_command: str,
+        blender_file: str,
+        blender_script: str,
+        script_save: str,
+        render_save: str,
+        blender_save: Optional[str] = None,
+        gpu_devices: Optional[str] = None
+    ) -> None:
+        """Initialize the Blender executor.
+
+        Args:
+            blender_command: Path to Blender executable.
+            blender_file: Path to .blend file.
+            blender_script: Path to wrapper script.
+            script_save: Directory to save scripts.
+            render_save: Directory to save renders.
+            blender_save: Optional path to save Blender state.
+            gpu_devices: Optional GPU device IDs.
+        """
         self.blender_command = blender_command
         self.blender_file = blender_file
         self.blender_script = blender_script
         self.script_path = Path(script_save)
         self.render_path = Path(render_save)
         self.blender_save = blender_save
-        self.gpu_devices = gpu_devices  # e.g.: "0,1" or "0"
+        self.gpu_devices = gpu_devices
         self.count = 0
 
         self.script_path.mkdir(parents=True, exist_ok=True)
         self.render_path.mkdir(parents=True, exist_ok=True)
 
-    def _execute_blender(self, script_path: str, render_path: str = '') -> Tuple[bool, str, str]:
+    def _execute_blender(
+        self, script_path: str, render_path: str = ''
+    ) -> Tuple[bool, List[str], str, str]:
+        """Execute a Blender script in background mode.
+
+        Args:
+            script_path: Path to the Python script to execute.
+            render_path: Directory to save rendered images.
+
+        Returns:
+            Tuple of (success, image_paths, stdout, stderr).
+        """
         cmd = [
             self.blender_command,
             "--background", self.blender_file,
@@ -125,21 +173,31 @@ class Executor:
             return False, [], e.stdout, e.stderr
 
     def _encode_image(self, img_path: str) -> str:
+        """Encode an image file to base64 string."""
         img = Image.open(img_path)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode()
 
     def _parse_code(self, full_code: str) -> str:
+        """Strip markdown code fences from code if present."""
         if full_code.startswith("```python") and full_code.endswith("```"):
             return full_code[len("```python"):-len("```")]
         return full_code
 
     def _generate_scene_info_script(self) -> str:
-        """Generate script to get scene information"""
+        """Generate a script to extract scene information."""
         return generate_scene_info_script(str(self.render_path.parent / "tmp" / "scene_info.json"))
 
-    def execute(self, code: str) -> Dict:
+    def execute(self, code: str) -> Dict[str, object]:
+        """Execute Blender code and return results.
+
+        Args:
+            code: Python code to execute in Blender.
+
+        Returns:
+            Dictionary with status and output (text, images, or errors).
+        """
         self.count += 1
         code_file = self.script_path / f"{self.count}.py"
         render_file = self.render_path / f"{self.count}"
@@ -168,8 +226,8 @@ class Executor:
                 shutil.copy(self.blender_save, render_file / "state.blend")
             return {"status": "success", "output": {"image": imgs, "text": [f"Render from camera {x}" for x in range(len(imgs))], 'require_verifier': True}}
 
-    def get_scene_info(self) -> Dict:
-        """Get scene information by executing a script"""
+    def get_scene_info(self) -> Dict[str, object]:
+        """Get scene information by executing a Blender script."""
         try:
             # Create tmp directory if it doesn't exist
             tmp_dir = self.render_path.parent / "tmp"
@@ -204,22 +262,12 @@ class Executor:
 
 
 @mcp.tool()
-def initialize(args: dict) -> dict:
-    """
-    Initialize Blender executor and set all necessary parameters.
-    
+def initialize(args: Dict[str, object]) -> Dict[str, object]:
+    """Initialize Blender executor and set all necessary parameters.
+
     Args:
-        args: Dictionary containing the following keys:
-            - blender_command: Blender executable file path
-            - blender_file: Blender file path
-            - blender_script: Blender script path
-            - script_save: Script save directory
-            - render_save: Render result save directory
-            - blender_save: Blender file save path (optional)
-            - gpu_devices: GPU device ID, such as "0" or "0,1" (optional)
-            - meshy_api_key: Meshy API key (optional)
-            - va_api_key: VA API key (optional)
-            - target_image_path: Target image path (optional)
+        args: Dictionary containing configuration keys including blender_command,
+              blender_file, blender_script, output_dir, blender_save, gpu_devices.
     """
     global _executor
     try:
@@ -241,11 +289,8 @@ def initialize(args: dict) -> dict:
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def execute_and_evaluate(thought: str = '', code_diff: str = '', code: str = '') -> dict:
-    """
-    Execute the passed Blender Python script code and return base64 encoded rendered image.
-    Need to call initialize_executor first for initialization.
-    """
+def execute_and_evaluate(thought: str = '', code_diff: str = '', code: str = '') -> Dict[str, object]:
+    """Execute Blender Python script and return rendered image."""
     global _executor
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
@@ -256,10 +301,8 @@ def execute_and_evaluate(thought: str = '', code_diff: str = '', code: str = '')
         return {"status": "error", "output": {"text": [str(e)]}}
 
 @mcp.tool()
-def undo_last_step() -> dict:
-    """
-    Undo the last step.
-    """
+def undo_last_step() -> Dict[str, object]:
+    """Undo the last executed step by reverting to previous state."""
     global _executor
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
@@ -277,11 +320,8 @@ def undo_last_step() -> dict:
     return {"status": "success", "output": {"text": ["Last step undone successfully"]}}
 
 @mcp.tool()
-def get_scene_info() -> dict:
-    """
-    Get the scene information including objects, materials, lights, and cameras.
-    Need to call initialize_executor first for initialization.
-    """
+def get_scene_info() -> Dict[str, object]:
+    """Get scene information including objects, materials, lights, and cameras."""
     global _executor
     if _executor is None:
         return {"status": "error", "output": {"text": ["Executor not initialized. Call initialize_executor first."]}}
@@ -291,8 +331,8 @@ def get_scene_info() -> dict:
     except Exception as e:
         return {"status": "error", "output": {"text": [str(e)]}}
     
-def main():
-    # If running this script directly, execute test
+def main() -> None:
+    """Run MCP server or execute test mode."""
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         print("Running blender-executor tools test...")
@@ -433,54 +473,3 @@ print("Scene ready: press Play to watch the ball roll down the slope.")"""
 
 if __name__ == "__main__":
     main()
-
-
-# static code:
-# import bpy
-# import math
-
-# # Scene objects
-# bpy.ops.mesh.primitive_plane_add(size=4, location=(0,0,0))
-# bpy.ops.mesh.primitive_cube_add(size=1, location=(0,0,1))
-
-# # **Add a light** (otherwise it will be dark)
-# bpy.ops.object.light_add(type='SUN', location=(5,5,10))
-# sun = bpy.context.active_object
-# sun.data.energy = 3.0
-
-# # Can also add some environment light (optional)
-# bpy.context.scene.world.use_nodes = True
-# bg = bpy.context.scene.world.node_tree.nodes['Background']
-# bg.inputs[1].default_value = 1.0   # Intensity
-
-# # First check if there are matching files in local assets directory
-# if os.path.exists(assets_dir):
-#     for asset_file in os.listdir(assets_dir):
-#         # Fuzzy matching: remove spaces from object_name and asset_file, convert to lowercase, check if they contain each other
-#         new_object_name = object_name.replace(" ", "")
-#         new_asset_file = asset_file.replace(" ", "")
-#         new_asset_file = new_asset_file.split(".")[0]
-#         if new_object_name.lower() in new_asset_file.lower() or new_asset_file.lower() in new_object_name.lower():
-#             if asset_file.endswith('.glb') or asset_file.endswith('.obj'):
-#                 generate_result = {
-#                     'status': 'success',
-#                     'message': 'Local asset found',
-#                     'object_name': object_name,
-#                     'local_path': os.path.join(assets_dir, asset_file),
-#                     'save_dir': save_dir
-#                 }
-#                 break
-#         elif os.path.isdir(os.path.join(assets_dir, asset_file)):
-#             for asset_file_ in os.listdir(os.path.join(assets_dir, asset_file)):
-#                 if object_name.lower() in asset_file_.lower() or asset_file_.lower() in object_name.lower():
-#                     if asset_file_.endswith('.glb') or asset_file_.endswith('.obj'):
-#                         generate_result = {
-#                             'status': 'success',
-#                             'message': 'Local asset found',
-#                             'object_name': object_name,
-#                             'local_path': os.path.join(assets_dir, asset_file, asset_file_),
-#                             'save_dir': save_dir
-#                         }
-#                         break
-#             if generate_result is not None:
-#                 break

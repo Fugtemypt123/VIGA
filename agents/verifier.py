@@ -1,29 +1,61 @@
-import os
+"""Verifier Agent for analyzing generated scenes in the VIGA system.
+
+The Verifier Agent analyzes rendered scenes from multiple viewpoints,
+comparing them against target images and providing structured feedback
+for the Generator Agent to refine its output.
+"""
+
 import json
-from typing import Dict, Any
+import os
+from typing import Any, Dict, List, Optional
+
 from openai import OpenAI
-from agents.tool_client import ExternalToolClient
+
 from agents.prompt_builder import PromptBuilder
+from agents.tool_client import ExternalToolClient
 from utils.common import get_image_base64, get_model_response
 
+
 class VerifierAgent:
-    def __init__(self, args):
+    """Agent responsible for analyzing and verifying generated scenes.
+
+    The Verifier Agent examines rendered outputs from the Generator,
+    comparing them against targets using camera manipulation tools
+    and providing actionable feedback for refinement.
+
+    Attributes:
+        config: Configuration dictionary containing model settings and paths.
+        memory: Working conversation memory (may be cleared between rounds).
+        saved_memory: Persistent conversation memory for logging.
+        tool_client: Client for calling external MCP tools.
+    """
+
+    def __init__(self, args: Dict[str, Any]) -> None:
+        """Initialize the Verifier Agent.
+
+        Args:
+            args: Configuration dictionary with keys like 'model', 'api_key',
+                  'verifier_tools', 'max_rounds', 'clear_memory', etc.
+        """
         self.config = args
-        self.memory = []
-        self.saved_memory = []
-        
+        self.memory: List[Dict[str, Any]] = []
+        self.saved_memory: List[Dict[str, Any]] = []
+
         # Initialize chat args
-        self.init_chat_args = {}
+        self.init_chat_args: Dict[str, Any] = {}
         if 'gpt' in self.config.get("model") and not self.config.get("no_tools"):
             self.init_chat_args['parallel_tool_calls'] = False
-            
+
         # Initialize tool client
         self.tool_client = ExternalToolClient(self.config.get("verifier_tools"), self.config)
-        
+
         # Initialize OpenAI client
-        client_kwargs = {"api_key": self.config.get("api_key"), 'base_url': self.config.get("api_base_url") or os.getenv("OPENAI_BASE_URL") or 'https://api.openai.com/v1'}
+        client_kwargs = {
+            "api_key": self.config.get("api_key"),
+            "base_url": self.config.get("api_base_url") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        }
         self.client = OpenAI(**client_kwargs)
-        
+
         # Initialize system prompt
         self.prompt_builder = PromptBuilder(self.client, self.config)
         self.system_prompt = self.prompt_builder.build_prompt("verifier", "system")
@@ -31,9 +63,17 @@ class VerifierAgent:
         self.saved_memory.extend(self.system_prompt)
         
     async def run(self, user_message: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Verify the generated scene using CoT reasoning and fixed camera positions.
-        Only called when generator uses execute_and_evaluate tool.
+        """Verify the generated scene and provide feedback.
+
+        Analyzes the rendered output using chain-of-thought reasoning and
+        camera manipulation tools to compare against the target.
+
+        Args:
+            user_message: Dictionary containing 'argument' (generator's inputs),
+                          'execution' (tool execution results), and optionally 'init_plan'.
+
+        Returns:
+            Dictionary with 'text' containing feedback for the generator.
         """
         print("\n=== Running verifier agent ===\n")
         
@@ -119,8 +159,13 @@ class VerifierAgent:
         else:
             return {"text": ["No valid response, please observe the output image and adjust your code accordingly."]}
     
-    def _update_memory(self, message: Dict):
-        """Update the memory with the new message"""
+    def _update_memory(self, message: Dict[str, Any]) -> None:
+        """Update both working and saved memory with assistant and tool messages.
+
+        Args:
+            message: Dictionary containing 'assistant' (the model response) and
+                     'user' (the tool response with text and optional images).
+        """
         # Add tool calling
         assistant_content = message['assistant'].content
         if not self.config.get("no_tools"):
@@ -160,11 +205,12 @@ class VerifierAgent:
             self.memory.append({"role": "user", "content": user_response})
             self.saved_memory.append({"role": "user", "content": user_response})
 
-    def _save_memory(self):
-        """Save the memory to the file"""
+    def _save_memory(self) -> None:
+        """Save the persistent memory to a JSON file in the output directory."""
         output_file = self.config.get("output_dir") + "/verifier_memory.json"
         with open(output_file, "w") as f:
             json.dump(self.saved_memory, f, indent=4, ensure_ascii=False)
-            
-    async def cleanup(self):
+
+    async def cleanup(self) -> None:
+        """Clean up external connections."""
         await self.tool_client.cleanup()

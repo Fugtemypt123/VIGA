@@ -1,3 +1,7 @@
+"""Combined Helper Functions for AutoPresent Slide Generation.
+
+Provides all slide manipulation functions including text, images, and AI generation.
+"""
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE

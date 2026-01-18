@@ -1,9 +1,24 @@
-import os, sys, argparse, json
-from PIL import Image
+"""SAM3D Multi-Object Worker for Batch 3D Reconstruction.
+
+This script processes multiple segmentation masks from a single image,
+reconstructs 3D meshes for each object using SAM3D, and combines them
+into a Blender scene.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from typing import List, Optional
+
 import numpy as np
 import torch
+from PIL import Image
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(os.path.join(ROOT, "utils", "sam3d", "notebook"))
 sys.path.append(os.path.join(ROOT, "utils", "sam3d"))
 
@@ -15,18 +30,19 @@ if "CONDA_PREFIX" not in os.environ:
 from inference import Inference, load_image, load_mask, make_scene
 
 
-def main():
+def main() -> None:
+    """Process multiple masks and create a combined Blender scene."""
     p = argparse.ArgumentParser()
-    p.add_argument("--image", required=True)
-    p.add_argument("--masks", required=True, nargs='+', help="One or more mask .npy file paths")
-    p.add_argument("--config", required=True)
+    p.add_argument("--image", required=True, help="Path to input image")
+    p.add_argument("--masks", required=True, nargs='+', help="One or more mask npy file paths")
+    p.add_argument("--config", required=True, help="Path to SAM3D config file")
     p.add_argument("--blend", required=True, help="Output .blend file path")
     p.add_argument("--object-names", nargs='+', help="Optional object names corresponding to masks")
     args = p.parse_args()
 
     inference = Inference(args.config, compile=False)
     image = load_image(args.image)
-    
+
     # Process all masks
     outputs = []
     for idx, mask_path in enumerate(args.masks):
@@ -34,19 +50,19 @@ def main():
         mask = mask > 0
         output = inference(image, mask, seed=42)
         outputs.append(output)
-    
+
     # Combine all outputs into a scene using make_scene (for Gaussian Splatting)
     scene_gs = make_scene(*outputs)
     scene_gs.save_ply(args.blend.replace('.blend', '.ply'))
-    
+
     # Export each object's GLB and then import into Blender
-    import tempfile
-    import subprocess
-    
     temp_dir = tempfile.mkdtemp()
-    glb_paths = []
-    object_names = args.object_names if args.object_names else [f"object_{i}" for i in range(len(outputs))]
-    
+    glb_paths: List[str] = []
+    object_names: List[str] = (
+        args.object_names if args.object_names
+        else [f"object_{i}" for i in range(len(outputs))]
+    )
+
     # Export GLB for each output
     for idx, output in enumerate(outputs):
         glb = output.get("glb")
@@ -55,11 +71,11 @@ def main():
             os.makedirs(os.path.dirname(glb_path), exist_ok=True)
             glb.export(glb_path)
             glb_paths.append(glb_path)
-    
+
     if not glb_paths:
         print(json.dumps({"status": "error", "message": "No GLB files generated"}), file=sys.stderr)
         sys.exit(1)
-    
+
     # Create Blender import script
     blend_path_escaped = args.blend.replace("\\", "\\\\").replace('"', '\\"')
     blender_script = f"""
@@ -88,12 +104,12 @@ for idx, glb_path in enumerate(glb_paths):
 os.makedirs(os.path.dirname(r"{blend_path_escaped}"), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=r"{blend_path_escaped}")
 """
-    
+
     # Write script to temp file
     script_path = os.path.join(temp_dir, "import_to_blend.py")
     with open(script_path, 'w') as f:
         f.write(blender_script)
-    
+
     # Get Blender command from environment or use default
     blender_cmd = os.environ.get("BLENDER_CMD", "blender")
     result = subprocess.run(
@@ -102,18 +118,17 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{blend_path_escaped}")
         capture_output=True,
         text=True
     )
-    
+
     # Clean up temp files
-    import shutil
     shutil.rmtree(temp_dir)
-    
+
     if result.returncode != 0:
         print(json.dumps({
             "status": "error",
             "message": f"Blender import failed: {result.stderr}"
         }), file=sys.stderr)
         sys.exit(1)
-    
+
     # Output result
     print(
         json.dumps(
@@ -128,8 +143,3 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{blend_path_escaped}")
 
 if __name__ == "__main__":
     main()
-
-
-# python tools/sam3d_worker.py --image data/static_scene/christmas1/target.png --mask output/test/sam3/snowman_mask.npy --config utils/sam3d/checkpoints/hf/pipeline.yaml --glb output/test/sam3/snowman.glb
-
-# python tools/sam3d_worker.py --image data/static_scene/blackhouse/target.jpeg --mask output/static_scene/20251205_030616/blackhouse/house_mask.npy --config utils/sam3d/checkpoints/hf/pipeline.yaml --glb output/static_scene/20251205_030616/blackhouse/house.glb

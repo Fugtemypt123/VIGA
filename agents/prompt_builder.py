@@ -1,35 +1,76 @@
+"""Prompt Builder for constructing agent prompts in the VIGA system.
 
-    
-import os
+This module provides utilities for building system and user prompts
+for the Generator and Verifier agents, handling image encoding
+and memory management.
+"""
+
 import json
-from typing import Dict, List, Optional
+import os
+from typing import Any, Dict, List, Optional
+
 from openai import OpenAI
+
 from prompts import prompt_manager
 from utils.common import get_image_base64
 
+
 class PromptBuilder:
-    """Helper class for building system prompts for generator and verifier agents."""
-    
-    def __init__(self, client: OpenAI, config: Dict):
+    """Helper class for building system and user prompts for agents.
+
+    Handles prompt construction including image encoding, resource loading,
+    and memory sliding window management for both Generator and Verifier agents.
+
+    Attributes:
+        client: OpenAI client instance.
+        config: Configuration dictionary with mode, paths, and settings.
+    """
+
+    def __init__(self, client: OpenAI, config: Dict[str, Any]) -> None:
+        """Initialize the prompt builder.
+
+        Args:
+            client: OpenAI client for API calls.
+            config: Configuration dictionary with mode and path settings.
+        """
         self.client = client
         self.config = config
-    
-    def build_prompt(self, agent_type: str, prompt_type: str, prompts: dict = None) -> List[Dict]:
-        """Generic method to build generator prompts based on mode and config."""
-        # Get system prompt only (format/hints embedded in system)
+
+    def build_prompt(
+        self,
+        agent_type: str,
+        prompt_type: str,
+        prompts: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Build a prompt for an agent based on type and mode.
+
+        Args:
+            agent_type: Either 'generator' or 'verifier'.
+            prompt_type: Either 'system' or 'user'.
+            prompts: Optional pre-built prompts dict. If None, fetches from prompt_manager.
+
+        Returns:
+            List of message dictionaries ready for the chat API.
+
+        Raises:
+            NotImplementedError: If prompt_type is not 'system' or 'user'.
+        """
         if not prompts:
             prompts = prompt_manager.get_all_prompts(self.config | {'agent_type': agent_type})
-        
-        # Build the prompt based on mode
+
         if prompt_type == "system":
             return self._build_system_prompt(prompts, agent_type)
         elif prompt_type == "user":
             return self._build_user_prompt(prompts)
         else:
-            raise NotImplementedError(f"Mode {self.config.get('mode')} not implemented")
-        
-    def _build_system_prompt(self, prompts: Dict, agent_type: str) -> List[Dict]:
-        """Build generator prompt for static_scene mode using prompt manager."""
+            raise NotImplementedError(f"Prompt type '{prompt_type}' not implemented")
+
+    def _build_system_prompt(
+        self,
+        prompts: Dict[str, Any],
+        agent_type: str
+    ) -> List[Dict[str, Any]]:
+        """Build the system prompt with initial/target images and resources."""
         content = []
         
         if self.config.get("init_code_path") and agent_type == "generator":
@@ -78,8 +119,9 @@ class PromptBuilder:
             content.append({"type": "text", "text": f"Please specify the output slide path as output.pptx in the code."})
             
         return [{"role": "system", "content": prompts.get('system', '')}, {"role": "user", "content": content}]
-    
-    def _build_user_prompt(self, prompts: Dict) -> List[Dict]:
+
+    def _build_user_prompt(self, prompts: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Build a user prompt from execution results for the verifier."""
         content = []
         if prompts.get('init_plan'):
             content.append({"type": "text", "text": f"Initial plan: {prompts.get('init_plan')}"})
@@ -93,19 +135,32 @@ class PromptBuilder:
             for text in prompts['execution']['text']:
                 content.append({"type": "text", "text": text})
         return [{"role": "user", "content": content}]
-    
-    def build_memory(self, memory: List[Dict]) -> List[Dict]:
+
+    def build_memory(self, memory: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Build a truncated memory using sliding window for context management.
+
+        Applies a sliding window to limit memory length while preserving system
+        prompts and handling undo operations appropriately.
+
+        Args:
+            memory: Full conversation memory list.
+
+        Returns:
+            Truncated memory list respecting the configured memory_length.
+        """
         system_memory = memory[:2]
         reverse_memory = memory[2:][::-1]
         chat_memory = []
         i = 0
         while i < len(reverse_memory):
             if reverse_memory[i]['role'] == 'tool' and reverse_memory[i]['name'] == 'undo-last-step':
-                # If role == user, skip 2+3=5 steps
-                if reverse_memory[i+2]['role'] == 'user':
+                # Skip the undo operation and its related messages
+                # If role == user exists, skip 2+3=5 steps, otherwise skip 4 steps
+                if i + 2 < len(reverse_memory) and reverse_memory[i+2]['role'] == 'user':
                     i += 5
                 else:
                     i += 4
+                continue  # Re-check the new position from the top of the loop
             if i >= len(reverse_memory):
                 break
             chat_memory.append(reverse_memory[i])

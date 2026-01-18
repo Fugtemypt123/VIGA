@@ -16,7 +16,6 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.common import get_model_info
@@ -150,14 +149,14 @@ def run_tasks_parallel(tasks: List[Dict], args, max_workers: int = 8) -> tuple:
                 case_id, ok, error_msg = future.result()
                 if ok:
                     successful += 1
-                    print(f"✅ {case_id} completed successfully")
+                    print(f"{case_id} completed successfully")
                 else:
                     failed += 1
                     failed_details.append({
                         "case_id": case_id,
                         "error": error_msg
                     })
-                    print(f"❌ {case_id} failed: {error_msg}")
+                    print(f"{case_id} failed: {error_msg}")
             except Exception as e:
                 failed += 1
                 case_id = task_config["case_id"]
@@ -165,7 +164,7 @@ def run_tasks_parallel(tasks: List[Dict], args, max_workers: int = 8) -> tuple:
                     "case_id": case_id,
                     "error": str(e)
                 })
-                print(f"❌ {case_id} failed with exception: {e}")
+                print(f"{case_id} failed with exception: {e}")
 
     return successful, failed, failed_details
 

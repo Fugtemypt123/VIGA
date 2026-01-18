@@ -1,3 +1,7 @@
+"""Create Slide Script for AutoPresent Baseline.
+
+Generates a single PowerPoint slide using LLM-generated Python code.
+"""
 import os
 import argparse
 import subprocess
@@ -25,7 +29,8 @@ IMAGE_INSTRUCTION_DICT = {
     "no_image": "If you need to add images, you will need to generate or search for images yourself.",
 }
 
-def main():
+def main() -> None:
+    """Generate a slide using LLM and execute the generated code."""
     # system message
     messages = [{"role": "system", "content": [{"type": "text", "text": SYSTEM_MESSAGE}]}]
 
