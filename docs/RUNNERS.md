@@ -138,32 +138,6 @@ python runners/autopresent.py \
 | `--generator-tools` | Generator tools | tools/exec_slides.py,tools/generator_base.py |
 | `--verifier-tools` | Verifier tools | tools/verifier_base.py |
 
-## Design2Code Runner
-
-Generate HTML/CSS from design images:
-
-```bash
-python runners/design2code.py \
-    --dataset-path data/design2code/Design2Code-HARD \
-    --model gpt-4o \
-    --max-workers 8
-```
-
-### Arguments
-
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--dataset-path` | Path to Design2Code dataset | data/design2code/Design2Code-HARD |
-| `--case-id` | Specific case ID | None |
-| `--max-rounds` | Maximum interaction rounds | 10 |
-| `--model` | Vision model | gpt-4o |
-| `--memory-length` | Memory length | 12 |
-| `--max-workers` | Parallel workers | 8 |
-| `--sequential` | Run sequentially | False |
-| `--browser-command` | Browser for screenshots | google-chrome |
-| `--generator-tools` | Generator tools | tools/exec_html.py,tools/generator_base.py |
-| `--verifier-tools` | Verifier tools | tools/verifier_base.py |
-
 ## Main Entry Point
 
 For running individual tasks, use the main entry point:
@@ -176,7 +150,7 @@ python main.py --mode <mode> --model <model> [options]
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `--mode` | Mode: blendergym, blenderstudio, static_scene, dynamic_scene, autopresent, design2code | Required |
+| `--mode` | Mode: blendergym, blenderstudio, static_scene, dynamic_scene, autopresent | Required |
 | `--model` | Vision model (gpt-4o, claude-sonnet-4, gemini-2.5-pro, etc.) | gpt-4o |
 | `--api-key` | API key for the model | From env |
 | `--api-base-url` | API base URL | From env |

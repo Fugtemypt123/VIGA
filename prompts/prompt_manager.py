@@ -123,7 +123,7 @@ class PromptManager:
                 elif isinstance(agent_hints, str):
                     return agent_hints
             else:
-                # Handle mode-level hints (for autopresent, design2code)
+                # Handle mode-level hints (for autopresent)
                 if isinstance(hints, str):
                     return hints
         elif isinstance(hints, str):

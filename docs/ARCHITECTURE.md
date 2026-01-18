@@ -69,8 +69,7 @@ AgenticVerifier/
 │   ├── blenderstudio.py    # BlenderStudio runner
 │   ├── static_scene.py     # Static scene runner
 │   ├── dynamic_scene.py    # Dynamic scene runner
-│   ├── autopresent.py      # AutoPresent runner
-│   └── design2code.py      # Design2Code runner
+│   └── autopresent.py      # AutoPresent runner
 ├── tools/                  # Skill library (MCP tool servers)
 │   ├── exec_blender.py     # execute_code: Blender execution & rendering
 │   ├── exec_slides.py      # execute_code: PowerPoint generation

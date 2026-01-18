@@ -196,9 +196,6 @@ python runners/static_scene.py --dataset-path data/static_scene --task all --mod
 
 # AutoPresent
 python runners/autopresent.py --dataset-path data/autopresent/examples --task all --model gpt-4o
-
-# Design2Code
-python runners/design2code.py --dataset-path data/design2code/Design2Code-HARD --model gpt-4o
 ```
 
 See [docs/RUNNERS.md](docs/RUNNERS.md) for detailed runner documentation.

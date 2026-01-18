@@ -131,7 +131,6 @@ echo "  - blenderstudio: Multi-step 3D graphics editing"\n\
 echo "  - static_scene: Single-view 3D scene reconstruction"\n\
 echo "  - dynamic_scene: 4D dynamic scene reconstruction"\n\
 echo "  - autopresent: 2D slide/document layout synthesis"\n\
-echo "  - design2code: 2D layout synthesis from design images"\n\
 echo ""\n\
 echo "For help: python main.py --help"\n\
 echo "================================="\n\
