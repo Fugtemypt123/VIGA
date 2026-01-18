@@ -12,7 +12,7 @@ import subprocess
 import asyncio
 import signal
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -147,7 +147,7 @@ def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[s
     
     return tasks
 
-def run_autopresent_task(task_config: Dict, args) -> tuple:
+def run_autopresent_task(task_config: Dict, args) -> Tuple[str, bool, str]:
     """
     Run a single AutoPresent task using main.py
     

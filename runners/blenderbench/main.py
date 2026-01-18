@@ -8,7 +8,7 @@ import sys
 import time
 import argparse
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 
@@ -86,7 +86,7 @@ def load_blenderstudio_dataset(base_path: str, task_name: str, test_id: Optional
     
     return tasks
 
-def run_blenderstudio_task(task_config: Dict, args) -> tuple:
+def run_blenderstudio_task(task_config: Dict, args) -> Tuple[str, bool, str]:
     """
     Run a single BlenderGym task using main.py
     
