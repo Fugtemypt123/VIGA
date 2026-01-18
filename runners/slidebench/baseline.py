@@ -10,16 +10,16 @@ from typing import Tuple
 
 example_dict = {
     "sufficient": {
-        0: "runners/autopresent_baseline/prompt/example_full_pptx.txt",
-        1: "runners/autopresent_baseline/prompt/example_full_wlib.txt",
+        0: "runners/slidebench/prompt/example_full_pptx.txt",
+        1: "runners/slidebench/prompt/example_full_wlib.txt",
     },
     "visual": {
-        0: "runners/autopresent_baseline/prompt/example_noimg_pptx.txt",
-        1: "runners/autopresent_baseline/prompt/example_noimg_wlib.txt",
+        0: "runners/slidebench/prompt/example_noimg_pptx.txt",
+        1: "runners/slidebench/prompt/example_noimg_wlib.txt",
     },
     "creative": {
-        0: "runners/autopresent_baseline/prompt/example_hl_pptx.txt",
-        1: "runners/autopresent_baseline/prompt/example_hl_wlib.txt",
+        0: "runners/slidebench/prompt/example_hl_pptx.txt",
+        1: "runners/slidebench/prompt/example_hl_wlib.txt",
     },
 }
 
@@ -54,9 +54,9 @@ def main() -> None:
         
     if args.use_library:
         if args.setting == "sufficient":
-            command.extend(["--library_path", "runners/autopresent_baseline/library/library_basic.txt"])
+            command.extend(["--library_path", "runners/slidebench/library/library_basic.txt"])
         else:
-            command.extend(["--library_path", "runners/autopresent_baseline/library/library.txt"])
+            command.extend(["--library_path", "runners/slidebench/library/library.txt"])
     
     # Remove example path for seed-prompt test
     # command.extend(["--example_path", example_dict[args.setting][int(args.use_library)]])
@@ -84,7 +84,7 @@ def main() -> None:
                 print(f"Creating slide deck: {pptx_path}")
 
             slide_command = [
-                "python", "runners/autopresent_baseline/create_slide.py",
+                "python", "runners/slidebench/create_slide.py",
                 "--example_dir", f"data/autopresent/examples/{slide_name}/{page_dir}",
                 "--model_name", args.model_name
             ] + command

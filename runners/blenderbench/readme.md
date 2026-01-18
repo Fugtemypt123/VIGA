@@ -1,1 +1,1 @@
-First run `blendergym_baseline.py`, then run `adjust_penalty_scores.py`
+First run `baseline.py`, then run `adjust_penalty_scores.py`

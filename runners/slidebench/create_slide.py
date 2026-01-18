@@ -86,7 +86,7 @@ def main() -> None:
         with open(code_output_path, 'w') as fw: fw.write(code)
         
         env = os.environ.copy()
-        env['PYTHONPATH'] = f"runners/autopresent_baseline/:{env.get('PYTHONPATH', '')}"
+        env['PYTHONPATH'] = f"runners/slidebench/:{env.get('PYTHONPATH', '')}"
 
         script_name = code_output_path.rstrip(".py").replace('/', '.')
         try:
