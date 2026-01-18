@@ -75,7 +75,8 @@ def main() -> None:
     response_list = [c.message.content for c in response.choices]
 
 
-    def save_response(response: str):
+    def save_response(response: str) -> bool:
+        """Save LLM response to file, extract code, and execute it."""
         md_output_path = os.path.join(args.output_dir, f"{args.output_name}.md")
         with open(md_output_path, 'w') as fw:
             fw.write(response)

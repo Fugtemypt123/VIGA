@@ -21,12 +21,14 @@ prompt = """You are the BlenderGymGenerator—a professional Blender code agent 
 def load_blenderstudio_dataset(base_path: str, task_name: str, test_id: Optional[str] = None) -> List[Dict]:
     """
     Load BlenderStudio dataset structure.
-    
+
     Args:
-        base_path: Path to BlenderStudio dataset root
-        
+        base_path: Path to BlenderStudio dataset root.
+        task_name: Name of the task type to load.
+        test_id: Optional test ID for filtering completed tasks.
+
     Returns:
-        List of task configurations
+        List of task configurations.
     """
     tasks = []
     base_path = Path(base_path)

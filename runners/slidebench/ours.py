@@ -87,12 +87,14 @@ def check_failed_tasks(test_output_dir: str) -> List[Dict]:
 def load_autopresent_dataset(base_path: str, task_name: str, task_id: Optional[str] = None) -> List[Dict]:
     """
     Load AutoPresent dataset structure.
-    
+
     Args:
-        base_path: Path to AutoPresent dataset root
-        
+        base_path: Path to AutoPresent dataset root.
+        task_name: Name of the task type to load.
+        task_id: Optional specific task ID to run.
+
     Returns:
-        List of task configurations
+        List of task configurations.
     """
     tasks = []
     base_path = Path(base_path)
