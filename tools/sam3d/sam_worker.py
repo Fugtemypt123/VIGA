@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(ROOT)
 sys.path.append(os.path.join(ROOT, "utils", "sam"))
 sys.path.append(os.path.join(ROOT, "utils"))

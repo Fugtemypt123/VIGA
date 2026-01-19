@@ -11,7 +11,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(os.path.join(ROOT, "utils", "sam3"))
 
 from sam3.model.sam3_image_processor import Sam3Processor
