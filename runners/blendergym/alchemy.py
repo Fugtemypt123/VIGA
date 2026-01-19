@@ -154,12 +154,6 @@ def load_blendergym_dataset(base_path: str, task_name: str, test_id: Optional[st
             for task_dir in current_task_path.glob(f"{task}*"):
                 scores_path = task_dir / "renders/10"
                 if scores_path.exists():
-                    # exist_score = False
-                    # with open(scores_path, 'r') as f:
-                    #     scores = json.load(f)
-                    #     if any(score != {} for score in scores.values()):
-                    #         exist_score = True
-                    # if exist_score:
                     current_task_dirs.append(os.path.basename(task_dir))
     
     task_dirs: List[Tuple[Path, str]] = []

@@ -69,8 +69,6 @@ def main() -> None:
     response = client.chat.completions.create(
         model=args.model_name,
         messages=messages,
-        # max_tokens=args.max_tokens,
-        # n=args.num_samples,
     )
     response_list = [c.message.content for c in response.choices]
 

@@ -1,20 +1,35 @@
 #!/usr/bin/env python3
-"""
-Main entry for dual-agent interactive framework (generator/verifier).
+"""Main entry for dual-agent interactive framework (generator/verifier).
+
 Supports 3D (Blender) and 2D (PPTX) modes.
 Uses MCP stdio connections instead of HTTP servers.
 """
 import argparse
-import os
 import asyncio
+import logging
+import os
+
 from agents.generator import GeneratorAgent
 from agents.verifier import VerifierAgent
 
-# ========== Main Dual-Agent Loop ==========
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
-async def main():
+
+async def main() -> None:
+    """Run the dual-agent interactive framework."""
     parser = argparse.ArgumentParser(description="Dual-agent interactive framework")
-    parser.add_argument("--mode", choices=["blendergym", "autopresent", "blenderstudio", "static_scene", "dynamic_scene"], required=True, help="Choose mode: blendergym, autopresent, blenderstudio, static_scene, or dynamic_scene")
+    parser.add_argument(
+        "--mode",
+        choices=["blendergym", "autopresent", "blenderstudio", "static_scene", "dynamic_scene"],
+        required=True,
+        help="Choose mode: blendergym, autopresent, blenderstudio, static_scene, or dynamic_scene",
+    )
     parser.add_argument("--model", default="gpt-4o", help="OpenAI vision model")
     parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key")
     parser.add_argument("--api-base-url", default=os.getenv("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL")
@@ -35,7 +50,7 @@ async def main():
     parser.add_argument("--init-setting", choices=["none", "minimal", "reasonable"], default="none", help="Setting for the static scene task")
     parser.add_argument("--prompt-setting", choices=["none", "procedural", "scene_graph", "get_asset", "init"], default="none", help="Setting for the prompt")
     parser.add_argument("--num-candidates", type=int, default=1, help="Number of candidates for the model")
-    
+
     # Execution parameters
     parser.add_argument("--blender-command", default="utils/blender/infinigen/blender/blender", help="Blender command path")
     parser.add_argument("--blender-file", default=None, help="Blender template file")
@@ -44,42 +59,39 @@ async def main():
     parser.add_argument("--meshy_api_key", default=os.getenv("MESHY_API_KEY"), help="Meshy API key")
     parser.add_argument("--va_api_key", default=os.getenv("VA_API_KEY"), help="VA API key")
     parser.add_argument("--browser-command", default="google-chrome", help="Browser command for HTML screenshots")
-    
+
     # Tool servers
     parser.add_argument("--generator-tools", default="tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
     parser.add_argument("--verifier-tools", default="tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
-    
+
     args = parser.parse_args()
     args = vars(args)
-    
+
     # Init agents
-    print("\n=== Initializing agents ===\n")
+    logger.info("Initializing agents")
     verifier = VerifierAgent(args)
     await verifier.tool_client.connect_servers()
     generator = GeneratorAgent(args, verifier)
-    print("Finish initializing agents...")
+    logger.info("Agents initialized successfully")
     await generator.tool_client.connect_servers()
 
     try:
         # Main loop
-        print("=== Starting dual-agent interaction ===")
+        logger.info("Starting dual-agent interaction")
         await generator.run()
-        print("=== Dual-agent interaction finished ===")
+        logger.info("Dual-agent interaction finished")
     except Exception as e:
-        print(f"Error: {e}\n\n")
+        logger.error("Error during execution: %s", e)
     finally:
         # Cleanup
-        print("=== Cleaning up ===")
+        logger.info("Cleaning up")
         await verifier.cleanup()
         await generator.cleanup()
-        print("=== Cleanup finished ===")
+        logger.info("Cleanup finished")
+
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except Exception as e:
-        print(f"Error: {e}\n\n")
-        
-# 1. iterative example
-# 2. search with a commonsense prior (球不应该是穿透桌子的)
-# 3. video: 三个屏，prompt+代码+图片
+        logger.error("Fatal error: %s", e)

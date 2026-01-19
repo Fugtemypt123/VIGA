@@ -57,13 +57,6 @@ if __name__ == "__main__":
         bpy.context.scene.render.filepath = os.path.join(rendering_dir, 'render1.png')
         bpy.ops.render.render(write_still=True)
 
-    # Render from camera2 (not used in hard tasks)
-    # if 'Camera2' in bpy.data.objects:
-    #     bpy.context.scene.camera = bpy.data.objects['Camera2']
-    #     bpy.context.scene.render.image_settings.file_format = 'PNG'
-    #     bpy.context.scene.render.filepath = os.path.join(rendering_dir, 'render2.png')
-    #     bpy.ops.render.render(write_still=True)
-
     # Save the blend file
     if save_blend:
         # Set the save version to 0

@@ -1,24 +1,21 @@
 """Calculate color similarity of two matched blocks using CIEDE2000."""
-from typing import Optional, Tuple, Union
-
-import numpy
-def patch_asscalar(a):
-    return a.item()
-setattr(numpy, "asscalar", patch_asscalar)
-
 import argparse
+from typing import Tuple
+
 import numpy as np
-from PIL import Image
-from colormath.color_objects import sRGBColor, LabColor
+import pptx
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
+from colormath.color_objects import LabColor, sRGBColor
+from PIL import Image
+from pptx.enum.dml import MSO_COLOR_TYPE, MSO_FILL_TYPE
 
-import pptx
-from pptx.enum.dml import MSO_FILL_TYPE
-from pptx.enum.dml import MSO_COLOR_TYPE
+# Compatibility patch for numpy.asscalar (removed in numpy 1.25+)
+if not hasattr(np, "asscalar"):
+    np.asscalar = lambda a: a.item()
 
 
-def rgb_to_lab(rgb: Tuple[int, int, int]) -> LabColor:
+def rgb_to_lab(rgb: tuple[int, int, int]) -> LabColor:
     """Convert an RGB color to Lab color space.
 
     Args:
@@ -32,7 +29,9 @@ def rgb_to_lab(rgb: Tuple[int, int, int]) -> LabColor:
     return lab_color
 
 
-def color_similarity_ciede2000(rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]) -> float:
+def color_similarity_ciede2000(
+    rgb1: tuple[int, int, int], rgb2: tuple[int, int, int]
+) -> float:
     """Calculate color similarity between two RGB colors using CIEDE2000.
 
     Args:
@@ -53,7 +52,9 @@ def color_similarity_ciede2000(rgb1: Tuple[int, int, int], rgb2: Tuple[int, int,
     return similarity
 
 
-def get_color_similarity(color1: Optional[Tuple], color2: Optional[Tuple]) -> float:
+def get_color_similarity(
+    color1: tuple[int, int, int] | None, color2: tuple[int, int, int] | None
+) -> float:
     """Calculate color similarity between two colors.
 
     Args:
@@ -71,8 +72,8 @@ def get_color_similarity(color1: Optional[Tuple], color2: Optional[Tuple]) -> fl
 
 
 def get_shape_fill_similarity(
-    shape1: Union[bytes, pptx.dml.fill.FillFormat],
-    shape2: Union[bytes, pptx.dml.fill.FillFormat]
+    shape1: bytes | pptx.dml.fill.FillFormat,
+    shape2: bytes | pptx.dml.fill.FillFormat,
 ) -> float:
     """Calculate fill similarity between two shapes.
 
@@ -105,9 +106,10 @@ def get_shape_fill_similarity(
 
 def _test() -> None:
     """Test color similarity calculation."""
+
     def average_color(image_path: str, coordinates: list) -> Tuple[int, ...]:
         """Calculate the average color at specified coordinates."""
-        image_array = np.array(Image.open(image_path).convert('RGB'))
+        image_array = np.array(Image.open(image_path).convert("RGB"))
         colors = [image_array[x, y] for x, y in coordinates]
         avg_color = np.mean(colors, axis=0)
         return tuple(avg_color.astype(int))
