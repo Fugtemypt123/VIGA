@@ -2,5 +2,6 @@
 
 Submodules:
 - blender: Blender execution and script generation
-- segmentation: SAM segmentation workers
+- sam3d: SAM segmentation workers
+- assets: 3D asset generation (Meshy API)
 """
