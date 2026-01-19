@@ -32,7 +32,7 @@ A single self-reflective agent alternates between two roles:
 The agent maintains an evolving contextual memory with plans, code diffs, and render history. This write-run-compare-revise loop is self-correcting and requires no finetuning.
 
 <p align="center">
-    <img src="docs/images/trajectory.png" alt="VIGA Trajectory" width="800">
+    <img src="docs/images/trajectory.png" alt="VIGA Trajectory" width="100%">
 </p>
 
 <br>
