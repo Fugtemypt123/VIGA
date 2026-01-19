@@ -1,4 +1,4 @@
-"""SAM segmentation workers.
+"""SAM3D segmentation workers.
 
 This module provides worker scripts for:
 - sam_worker: SAM segmentation

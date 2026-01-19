@@ -1,6 +1,6 @@
 """SAM Bridge MCP Server for 3D Asset Generation.
 
-This server bridges SAM3 (Segment Anything Model 3) for image segmentation
+This server bridges SAM3 (Segment Anything Model 3) for image sam3d
 and SAM3D for 3D reconstruction, enabling extraction of objects from images
 and converting them into 3D GLB assets.
 """
@@ -47,8 +47,8 @@ tool_configs: List[Dict[str, object]] = [
 ]
 
 ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SAM3_WORKER: str = os.path.join(os.path.dirname(__file__), "segmentation", "sam3_worker.py")
-SAM3D_WORKER: str = os.path.join(os.path.dirname(__file__), "segmentation", "sam3d_worker.py")
+SAM3_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3d", "sam3_worker.py")
+SAM3D_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3d", "sam3d_worker.py")
 
 mcp = FastMCP("sam-bridge")
 
@@ -57,8 +57,8 @@ _target_image: Optional[str] = None
 _output_dir: Optional[str] = None
 _sam3_cfg: Optional[str] = None
 _blender_command: Optional[str] = None
-_sam3_env_bin: str = path_to_cmd["tools/segmentation/sam3_worker.py"]
-_sam3d_env_bin: str = path_to_cmd["tools/segmentation/sam3d_worker.py"]
+_sam3_env_bin: str = path_to_cmd["tools/sam3d/sam3_worker.py"]
+_sam3d_env_bin: str = path_to_cmd["tools/sam3d/sam3d_worker.py"]
 
 
 @mcp.tool()
@@ -67,7 +67,7 @@ def initialize(args: Dict[str, object]) -> Dict[str, object]:
 
     Args:
         args: Configuration dictionary with keys:
-            - target_image_path: Path to the target image for segmentation.
+            - target_image_path: Path to the target image for sam3d.
             - output_dir: Base directory for output files.
             - sam3d_config_path: Optional path to SAM3D config file.
             - blender_command: Optional path to Blender executable.
@@ -113,7 +113,7 @@ def get_better_object(object_name: str) -> Dict[str, object]:
     glb_path = os.path.join(_output_dir, f"{object_name}.glb")
 
     try:
-        # Step 1: Run SAM3 to generate segmentation mask
+        # Step 1: Run SAM3 to generate sam3d mask
         subprocess.run(
             [
                 _sam3_env_bin,
