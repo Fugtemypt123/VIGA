@@ -15,8 +15,8 @@ import torch
 from pytorch3d.transforms import Transform3d, quaternion_to_matrix
 
 ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.append(os.path.join(ROOT, "utils", "sam3d", "notebook"))
-sys.path.append(os.path.join(ROOT, "utils", "sam3d"))
+sys.path.append(os.path.join(ROOT, "utils", "third_party", "sam3d", "notebook"))
+sys.path.append(os.path.join(ROOT, "utils", "third_party", "sam3d"))
 
 from inference import Inference, load_image
 

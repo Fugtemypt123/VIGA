@@ -2,6 +2,11 @@
 
 Provides Google search and DALL-E image generation functions for slides.
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "utils", "third_party", "slides"))
+
 from SlidesLib import GoogleSearch, Dalle3
 
 def google_search_screenshot(question: str, save_path: str = "screenshot.png") -> str:

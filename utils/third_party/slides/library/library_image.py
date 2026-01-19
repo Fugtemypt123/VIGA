@@ -1,4 +1,9 @@
 """Image search and generation helper functions."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from SlidesLib import Dalle3, GoogleSearch
 
 def google_search_screenshot(question: str, save_path: str = "screenshot.png") -> str:

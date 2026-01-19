@@ -355,7 +355,7 @@ python --version  # Should be 3.11 for Blender
 sudo apt-get install -y build-essential cmake
 
 # Try manual installation
-cd utils/infinigen
+cd utils/third_party/infinigen
 bash scripts/install/interactive_blender.sh 2>&1 | tee install.log
 
 # Check install.log for specific errors

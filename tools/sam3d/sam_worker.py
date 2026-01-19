@@ -19,7 +19,7 @@ from PIL import Image
 
 ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(ROOT)
-sys.path.append(os.path.join(ROOT, "utils", "sam"))
+sys.path.append(os.path.join(ROOT, "utils", "third_party", "sam"))
 sys.path.append(os.path.join(ROOT, "utils"))
 
 from common import build_client, get_image_base64
@@ -270,7 +270,7 @@ def main() -> None:
 
     # Set default checkpoint path
     if args.checkpoint is None:
-        args.checkpoint = os.path.join(ROOT, "utils", "sam", "sam_vit_h_4b8939.pth")
+        args.checkpoint = os.path.join(ROOT, "utils", "third_party", "sam", "sam_vit_h_4b8939.pth")
 
     # Load image
     image = cv2.imread(args.image)

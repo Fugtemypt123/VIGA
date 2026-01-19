@@ -131,7 +131,7 @@ def initialize(args: Dict[str, object]) -> Dict[str, object]:
         _log_file = open(log_path, 'w', encoding='utf-8')
         log(f"[SAM_INIT] Initialized. Log file: {log_path}")
         _sam3_cfg = args.get("sam3d_config_path") or os.path.join(
-            ROOT, "utils", "sam3d", "checkpoints", "hf", "pipeline.yaml"
+            ROOT, "utils", "third_party", "sam3d", "checkpoints", "hf", "pipeline.yaml"
         )
         _blender_command = args.get("blender_command") or "utils/third_party/infinigen/blender/blender"
         # Record the passed blender_file parameter for later writing directly to that path during reconstruction

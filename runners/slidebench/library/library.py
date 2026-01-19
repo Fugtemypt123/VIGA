@@ -2,6 +2,11 @@
 
 Provides all slide manipulation functions including text, images, and AI generation.
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "utils", "third_party", "slides"))
+
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE

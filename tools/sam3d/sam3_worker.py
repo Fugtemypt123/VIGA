@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 
 ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.append(os.path.join(ROOT, "utils", "sam3"))
+sys.path.append(os.path.join(ROOT, "utils", "third_party", "sam3"))
 
 from sam3.model.sam3_image_processor import Sam3Processor
 from sam3.model_builder import build_sam3_image_model

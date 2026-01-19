@@ -80,7 +80,7 @@ def initialize(args: Dict[str, object]) -> Dict[str, object]:
     _output_dir = args.get("output_dir") + "/sam"
     os.makedirs(_output_dir, exist_ok=True)
     _sam3_cfg = args.get("sam3d_config_path") or os.path.join(
-        ROOT, "utils", "sam3d", "checkpoints", "hf", "pipeline.yaml"
+        ROOT, "utils", "third_party", "sam3d", "checkpoints", "hf", "pipeline.yaml"
     )
     _blender_command = args.get("blender_command") or "utils/third_party/infinigen/blender/blender"
     return {

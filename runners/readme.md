@@ -170,7 +170,7 @@ python main.py --mode <mode> --model <model> [options]
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `--blender-command` | Path to Blender executable | utils/infinigen/blender/blender |
+| `--blender-command` | Path to Blender executable | utils/third_party/infinigen/blender/blender |
 | `--blender-file` | Blender template file | None |
 | `--blender-script` | Blender execution script | data/blendergym/pipeline_render_script.py |
 | `--gpu-devices` | GPU devices for rendering | From CUDA_VISIBLE_DEVICES |
