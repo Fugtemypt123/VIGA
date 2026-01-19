@@ -159,8 +159,8 @@ rfc3987-syntax==1.1.0
 rpds-py==0.30.0
 ruff-api==0.1.0
 safetensors==0.7.0
-# Editable install with no version control (sam3==0.1.0)
--e /mnt/home/shaofengyin19260817/AgenticVerifier/utils/sam3
+# Editable install for sam3 (install from utils/sam3)
+-e ./utils/sam3
 scikit-image==0.25.2
 scikit-learn==1.7.2
 scipy==1.16.3

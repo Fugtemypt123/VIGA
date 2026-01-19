@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Project specific
+output/
+logs/
+cache/
+*.log
+
+# Data directories (should be mounted as volumes)
+data/*/output/
+data/*/logs/
+
+# Blender temporary files
+*.blend1
+*.blend2
+*.blend3
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Documentation (not needed in container)
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Misc
+*.bak
+*.tmp
+*.temp
+.env
+.env.local
+
+# Large model files (should be downloaded separately)
+*.pth
+*.pt
+*.ckpt
+*.safetensors

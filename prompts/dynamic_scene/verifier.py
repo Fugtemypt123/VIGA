@@ -1,4 +1,4 @@
-# Dynamic Scene Verifier Prompts
+"""Dynamic scene verifier prompts (tool-driven)."""
 
 dynamic_scene_verifier_system = """[Role]
 You are DynamicSceneVerifier — an expert reviewer of 3D dynamic scenes. You will receive:

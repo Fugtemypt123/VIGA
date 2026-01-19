@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  viga:
+    image: <your-dockerhub-username>/viga:latest
+    container_name: viga
+    runtime: nvidia
+    environment:
+      # GPU configuration
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+
+      # API Keys (set these in a .env file or pass directly)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_BASE_URL=${CLAUDE_BASE_URL:-https://api.anthropic.com/v1}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MESHY_API_KEY=${MESHY_API_KEY}
+
+      # Python paths
+      - AGENT_PYTHON=/usr/bin/python3.10
+      - BLENDER_PYTHON=/usr/bin/python3.11
+      - PPTX_PYTHON=/usr/bin/python3.10
+      - WEB_PYTHON=/usr/bin/python3.10
+
+    volumes:
+      # Mount data directories
+      - ./data:/workspace/data
+      - ./output:/workspace/output
+      - ./logs:/workspace/logs
+
+      # Mount configuration files
+      - ./utils/_api_keys.py:/workspace/utils/_api_keys.py
+      - ./utils/_path.py:/workspace/utils/_path.py
+
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Keep container running
+    stdin_open: true
+    tty: true
+
+    # Default command
+    command: /bin/bash
+
+# Optional: separate service for background jobs
+  viga-worker:
+    image: <your-dockerhub-username>/viga:latest
+    container_name: viga-worker
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MESHY_API_KEY=${MESHY_API_KEY}
+    volumes:
+      - ./data:/workspace/data
+      - ./output:/workspace/output
+      - ./logs:/workspace/logs
+      - ./utils/_api_keys.py:/workspace/utils/_api_keys.py
+      - ./utils/_path.py:/workspace/utils/_path.py
+    profiles:
+      - worker
+    command: python runners/blendergym/ours.py --dataset-path data/blendergym --task all --model gpt-4o

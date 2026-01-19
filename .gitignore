@@ -37,3 +37,5 @@ utils/blender
 # Claude Code files
 CLAUDE.md
 REFACTOR_TODO.md
+OPEN_SOURCE_TODO.md
+MODULARIZATION_PLAN.md

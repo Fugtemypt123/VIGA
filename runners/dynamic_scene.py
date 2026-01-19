@@ -13,7 +13,7 @@ import asyncio
 import signal
 import shutil
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -106,7 +106,7 @@ def load_dynamic_scene_dataset(base_path: str, task_name: str, test_id: Optional
     return tasks
 
 
-def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
+def run_dynamic_scene_task(task_config: Dict, args: argparse.Namespace) -> Tuple[str, bool, Optional[str]]:
     """
     Run a single dynamic scene task using main.py
     
@@ -188,8 +188,14 @@ def run_dynamic_scene_task(task_config: Dict, args) -> tuple:
         return task_name, False, error_msg
 
 
-def run_dynamic_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int = 4):
-    """Run dynamic scene tasks in parallel."""
+def run_dynamic_scene_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers: int = 4) -> None:
+    """Run dynamic scene tasks in parallel.
+
+    Args:
+        tasks: List of task configurations.
+        args: Command line arguments.
+        max_workers: Maximum number of parallel workers.
+    """
     print(f"Running {len(tasks)} dynamic scene tasks with {max_workers} workers")
     
     successful_tasks = 0
@@ -222,7 +228,8 @@ def run_dynamic_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int =
     print(f"  Total: {len(tasks)}")
 
 
-def main():
+def main() -> None:
+    """Entry point for the dynamic scene runner."""
     parser = argparse.ArgumentParser(description="Dynamic Scene Runner for AgenticVerifier")
     time_str = time.strftime('%Y%m%d_%H%M%S')
     
@@ -246,8 +253,8 @@ def main():
     parser.add_argument("--blender-save", default=f"data/dynamic_scene/empty_scene.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/blender/exec.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/blender/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # Execution parameters
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum number of parallel workers")

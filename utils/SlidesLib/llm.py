@@ -1,17 +1,22 @@
-from openai import OpenAI
-import requests
+"""LLM wrapper utilities for GPT-4o-mini."""
+from typing import Tuple
 
-class LLM():
-    """Calls the LLM"""
+from openai import OpenAI
+
+
+class LLM:
+    """LLM wrapper class for chat completions."""
+
     @classmethod
-    def __init_llm__(cls):
+    def __init_llm__(cls) -> Tuple[OpenAI, str]:
+        """Initialize OpenAI client and code prompt."""
         client = OpenAI()
         code_prompt = "Directly Generate executable python code for the following request:\n"
         return client, code_prompt
+
     @classmethod
-    def get_answer(cls, question: str):
-        """Calls the LLM by inputing a question, 
-        then get the response of the LLM as the answer"""
+    def get_answer(cls, question: str) -> str:
+        """Get answer from LLM for a question."""
         client, code_prompt = cls.__init_llm__()
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -21,14 +26,10 @@ class LLM():
             ]
         )
         return response.choices[0].message.content
-    
+
     @classmethod
-    def get_code(cls, request:str, examples:str = ""):
-        """ 
-        Calls the LLM to generate code for a request. 
-        request: the task that the model should conduct
-        examples: few-shot code examples for the request
-        """
+    def get_code(cls, request: str, examples: str = "") -> str:
+        """Generate code for a request using LLM."""
         client, code_prompt = cls.__init_llm__()
         code = cls.get_answer(code_prompt + examples + request)
         return code

@@ -88,8 +88,8 @@ python-multipart==0.0.20
 pyzmq @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_pyzmq_1757387023/work
 referencing==0.37.0
 rpds-py==0.30.0
-# Editable install with no version control (segment_anything==1.0)
--e /mnt/home/shaofengyin19260817/AgenticVerifier/utils/sam
+# Editable install for segment_anything (install from utils/sam)
+-e ./utils/sam
 six @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_six_1753199211/work
 sniffio==1.3.1
 sse-starlette==3.0.3

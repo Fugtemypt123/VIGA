@@ -1,16 +1,77 @@
-path_to_cmd = {
-    "tools/exec_blender.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/blender/bin/python",
-    "tools/exec_slides.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/pptx/bin/python",
-    "tools/exec_html.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/chrome/bin/python",
-    "tools/generator_base.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
-    "tools/initialize_plan.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
-    "tools/investigator.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/blender/bin/python",
-    "tools/meshy.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
-    "tools/verifier_base.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
-    "tools/undo.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/agent/bin/python",
-    "tools/sam.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3d-objects/bin/python",
-    "tools/sam_init.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3d-objects/bin/python",
-    "tools/sam_worker.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam/bin/python",
-    "tools/sam3_worker.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3/bin/python",
-    "tools/sam3d_worker.py": "/mnt/home/shaofengyin19260817/anaconda3/envs/sam3d-objects/bin/python",
+"""Tool script to Python environment path mappings.
+
+Configure these paths to point to the appropriate conda environment Python interpreters.
+See requirements/ for the environment setup instructions.
+
+Usage:
+    1. Copy this file to utils/_path.py (which is gitignored)
+    2. Update the CONDA_BASE path to your conda installation
+    3. The tool paths will be automatically resolved
+
+Alternatively, set the VIGA_CONDA_BASE environment variable.
+"""
+import os
+import shutil
+from typing import Dict
+
+# Base path for conda environments
+# Override by setting VIGA_CONDA_BASE environment variable
+CONDA_BASE = os.environ.get(
+    "VIGA_CONDA_BASE",
+    os.path.expanduser("~/anaconda3/envs")  # Default conda envs location
+)
+
+# Environment name to tool script mapping
+ENV_MAPPING: Dict[str, str] = {
+    # Blender tools (Python 3.11)
+    "tools/blender/exec.py": "blender",
+    "tools/blender/investigator.py": "blender",
+    # PPTX tools (Python 3.10)
+    "tools/slides/exec.py": "pptx",
+    # Chrome/HTML tools (Python 3.10)
+    "tools/exec_html.py": "chrome",
+    # Core agent tools (Python 3.10)
+    "tools/generator_base.py": "agent",
+    "tools/initialize_plan.py": "agent",
+    "tools/assets/meshy.py": "agent",
+    "tools/verifier_base.py": "agent",
+    "tools/undo.py": "agent",
+    # SAM segmentation tools
+    "tools/sam3d/bridge.py": "sam3d-objects",
+    "tools/sam3d/init.py": "sam3d-objects",
+    "tools/sam3d/sam_worker.py": "sam",
+    "tools/sam3d/sam3_worker.py": "sam3",
+    "tools/sam3d/sam3d_worker.py": "sam3d-objects",
 }
+
+
+def get_python_path(env_name: str) -> str:
+    """Get Python interpreter path for a conda environment.
+
+    Args:
+        env_name: Name of the conda environment.
+
+    Returns:
+        Path to the Python interpreter.
+    """
+    conda_python = os.path.join(CONDA_BASE, env_name, "bin", "python")
+    if os.path.exists(conda_python):
+        return conda_python
+    # Fallback: try to find python in PATH
+    python_path = shutil.which("python")
+    if python_path:
+        return python_path
+    return "python"
+
+
+# Build the path_to_cmd mapping
+path_to_cmd: Dict[str, str] = {
+    tool: get_python_path(env) for tool, env in ENV_MAPPING.items()
+}
+
+# Try to import user overrides from _path.py (gitignored)
+try:
+    from utils._path import path_to_cmd as user_paths
+    path_to_cmd.update(user_paths)
+except ImportError:
+    pass

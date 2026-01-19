@@ -9,7 +9,7 @@ import time
 import argparse
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import shutil
@@ -20,14 +20,15 @@ from utils.common import get_model_info, get_meshy_info
 def load_static_scene_dataset(base_path: str, task_name: str, setting: str, test_id: Optional[str] = None) -> List[Dict]:
     """
     Load static scene dataset structure.
-    
+
     Args:
-        base_path: Path to static scene dataset root
-        task_name: Task name to load
-        test_id: Optional test ID for filtering
+        base_path: Path to static scene dataset root.
+        task_name: Task name to load.
+        setting: Initialization setting for the task.
+        test_id: Optional test ID for filtering.
 
     Returns:
-        List of task configurations
+        List of task configurations.
     """
     base_path = Path(base_path)
     if not base_path.exists():
@@ -100,7 +101,7 @@ def load_static_scene_dataset(base_path: str, task_name: str, setting: str, test
     return tasks
 
 
-def run_static_scene_task(task_config: Dict, args) -> tuple:
+def run_static_scene_task(task_config: Dict, args: argparse.Namespace) -> Tuple[str, bool, Optional[str]]:
     """
     Run a single static scene task using main.py
     
@@ -186,8 +187,14 @@ def run_static_scene_task(task_config: Dict, args) -> tuple:
         return task_name, False, error_msg
 
 
-def run_static_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int = 4):
-    """Run static scene tasks in parallel."""
+def run_static_scene_tasks_parallel(tasks: List[Dict], args: argparse.Namespace, max_workers: int = 4) -> None:
+    """Run static scene tasks in parallel.
+
+    Args:
+        tasks: List of task configurations.
+        args: Command line arguments.
+        max_workers: Maximum number of parallel workers.
+    """
     print(f"Running {len(tasks)} static scene tasks with {max_workers} workers")
     
     successful_tasks = 0
@@ -220,7 +227,8 @@ def run_static_scene_tasks_parallel(tasks: List[Dict], args, max_workers: int = 
     print(f"  Total: {len(tasks)}")
 
 
-def main():
+def main() -> None:
+    """Entry point for the static scene runner."""
     parser = argparse.ArgumentParser(description="Static Scene Runner for AgenticVerifier")
     time_str = time.strftime('%Y%m%d_%H%M%S')
     
@@ -244,8 +252,8 @@ def main():
     parser.add_argument("--blender-save", default=f"data/static_scene/empty_scene.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/generator_base.py,tools/meshy.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/blender/exec.py,tools/generator_base.py,tools/assets/meshy.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/blender/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # Execution parameters
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum number of parallel workers")

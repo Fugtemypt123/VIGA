@@ -1,7 +1,7 @@
-from .autopresent import *
+"""Prompts module for all agent modes."""
+from .slidebench import *
 from .blendergym import *
-from .blenderstudio import *
-from .design2code import *
+from .blenderbench import *
 from .static_scene import *
 from .dynamic_scene import *
 from .prompt_manager import PromptManager, prompt_manager
@@ -42,12 +42,6 @@ prompts_dict = {
             'verifier': blendergym_verifier_system,
             'generator_no_tools': blendergym_generator_system_no_tools,
             'verifier_no_tools': blendergym_verifier_system_no_tools
-        }
-    },
-    'design2code': {
-        'system': {
-            'generator': design2code_generator_system,
-            'verifier': design2code_verifier_system
         }
     },
     'blenderstudio': {

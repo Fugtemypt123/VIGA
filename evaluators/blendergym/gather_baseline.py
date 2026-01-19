@@ -29,7 +29,8 @@ TASK_SCALE_DICT = {
 }
 
 
-def main():
+def main() -> None:
+    """Gather overall scores for BlenderGym baseline results."""
     parser = argparse.ArgumentParser(description='Evaluate baseline blendergym results')
     parser.add_argument('--model', type=str, default='gpt-4o', help='Model to evaluate (e.g., gpt-4o)')
     args = parser.parse_args()

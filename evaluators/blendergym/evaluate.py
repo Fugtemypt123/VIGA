@@ -233,7 +233,8 @@ def extract_task_type_and_number(task_dir_name):
                 continue
     return None, None
 
-def main():
+def main() -> None:
+    """Run evaluation for BlenderGym results."""
     parser = argparse.ArgumentParser(description='Evaluate AgenticVerifier blendergym results')
     parser.add_argument('test_id', type=str, help='Test ID (e.g., 20250815_150016)')
     parser.add_argument('--output_dir', type=str, default=None, 

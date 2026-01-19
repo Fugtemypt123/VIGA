@@ -1,16 +1,33 @@
-# Call Matplotlib Library to draw graphs (Bar/Plot...)
-import matplotlib.pyplot as plt
-from llm import *
-class Plotting:
-    def bar_plot(self, data: dict, title: str, xlabel: str, ylabel: str, output_path: str = 'bar_plot.png'):
-        """
-        Create a bar plot.
+"""Matplotlib plotting utilities for generating graphs."""
+from typing import Any, Dict
 
-        :param data: Dictionary containing data to plot (keys as labels, values as heights).
-        :param title: Title of the plot.
-        :param xlabel: Label for the X-axis.
-        :param ylabel: Label for the Y-axis.
-        :param output_path: Path to save the plot image.
+import matplotlib.pyplot as plt
+
+from .llm import LLM
+
+
+class Plotting:
+    """Plotting class for creating bar and line plots."""
+
+    def bar_plot(
+        self,
+        data: Dict[str, Any],
+        title: str,
+        xlabel: str,
+        ylabel: str,
+        output_path: str = 'bar_plot.png'
+    ) -> str:
+        """Create a bar plot.
+
+        Args:
+            data: Dictionary containing data to plot (keys as labels, values as heights).
+            title: Title of the plot.
+            xlabel: Label for the X-axis.
+            ylabel: Label for the Y-axis.
+            output_path: Path to save the plot image.
+
+        Returns:
+            Path to the saved plot image.
         """
         labels = list(data.keys())
         heights = list(data.values())
@@ -26,15 +43,25 @@ class Plotting:
 
         return output_path
 
-    def line_plot(self, data: dict, title: str, xlabel: str, ylabel: str, output_path: str = 'line_plot.png'):
-        """
-        Create a line plot.
+    def line_plot(
+        self,
+        data: Dict[str, Any],
+        title: str,
+        xlabel: str,
+        ylabel: str,
+        output_path: str = 'line_plot.png'
+    ) -> str:
+        """Create a line plot.
 
-        :param data: Dictionary containing data to plot (keys as x-values, values as y-values).
-        :param title: Title of the plot.
-        :param xlabel: Label for the X-axis.
-        :param ylabel: Label for the Y-axis.
-        :param output_path: Path to save the plot image.
+        Args:
+            data: Dictionary containing data to plot (keys as x-values, values as y-values).
+            title: Title of the plot.
+            xlabel: Label for the X-axis.
+            ylabel: Label for the Y-axis.
+            output_path: Path to save the plot image.
+
+        Returns:
+            Path to the saved plot image.
         """
         x_values = list(data.keys())
         y_values = list(data.values())
@@ -50,7 +77,15 @@ class Plotting:
         plt.close()
 
         return output_path
-    
-    def get_plot(self, data):
+
+    def get_plot(self, data: Dict[str, Any]) -> str:
+        """Generate a plot based on data (placeholder implementation).
+
+        Args:
+            data: Data to plot.
+
+        Returns:
+            Empty string (not implemented).
+        """
         instruction = ""
-        
+        return instruction

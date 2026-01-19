@@ -216,7 +216,8 @@ def compute_overall_scores(intermediates: Dict[str, Any],
     return scores_across_tasks
 
 
-def main():
+def main() -> None:
+    """Gather overall scores from intermediate evaluation scores."""
     parser = argparse.ArgumentParser(description='Gather overall scores from intermediate scores')
     parser.add_argument('test_id', type=str, help='Test ID (e.g., 20250815_150016)')
     parser.add_argument('--output_file', type=str, default=None, 

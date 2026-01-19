@@ -1,9 +1,7 @@
+"""Blender script for pipeline to execute code and render Camera1-2 views."""
 import bpy
-import random
-import json
 import os
 import sys
-from sys import platform
 
 if __name__ == "__main__":
 

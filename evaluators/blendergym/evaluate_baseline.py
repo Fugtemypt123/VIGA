@@ -192,7 +192,8 @@ def extract_task_type_and_number(task_dir_name):
                 continue
     return None, None
 
-def main():
+def main() -> None:
+    """Run evaluation for BlenderGym baseline results."""
     parser = argparse.ArgumentParser(description='Evaluate baseline blendergym results')
     parser.add_argument('--model', type=str, default='gpt-4o', help='Model to evaluate (e.g., gpt-4o)')
     args = parser.parse_args()

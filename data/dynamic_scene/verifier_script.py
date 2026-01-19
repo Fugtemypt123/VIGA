@@ -1,9 +1,7 @@
+"""Blender script for dynamic scene verifier to execute code and save blend."""
 import bpy
-import random
-import json
 import os
 import sys
-from sys import platform
 
 if __name__ == "__main__":
     code_fpath = sys.argv[6]  # Path to the code file

@@ -1,15 +1,42 @@
-import os
-import json
-from PIL import Image
-import io
+"""Common utility functions for API clients, image encoding, and model response handling."""
 import base64
-from typing import Dict, List, Optional
-from openai import OpenAI
+import io
+import json
+import logging
+import os
 import time
-from utils._api_keys import OPENAI_API_KEY, OPENAI_BASE_URL, CLAUDE_API_KEY, CLAUDE_BASE_URL, GEMINI_API_KEY, GEMINI_BASE_URL, QWEN_BASE_URL, MESHY_API_KEY, VA_API_KEY
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-def get_model_response(client: OpenAI, chat_args: Dict, num_candidates: int):
+from openai import OpenAI
+from PIL import Image
+
+from utils._api_keys import (
+    CLAUDE_API_KEY,
+    CLAUDE_BASE_URL,
+    GEMINI_API_KEY,
+    GEMINI_BASE_URL,
+    MESHY_API_KEY,
+    OPENAI_API_KEY,
+    OPENAI_BASE_URL,
+    QWEN_BASE_URL,
+    VA_API_KEY,
+)
+
+def get_model_response(client: OpenAI, chat_args: Dict, num_candidates: int) -> List[Any]:
+    """Get model responses with retry logic.
+
+    Args:
+        client: OpenAI client instance.
+        chat_args: Chat completion arguments.
+        num_candidates: Number of candidate responses to generate.
+
+    Returns:
+        List of candidate responses.
+
+    Raises:
+        Exception: If all retries fail.
+    """
     # repeat multiple time to avoid network errors
     # select the best candidate from the responses
     candidate_responses = []
@@ -27,7 +54,8 @@ def get_model_response(client: OpenAI, chat_args: Dict, num_candidates: int):
         raise Exception("Failed to get model response")
     return candidate_responses
 
-def build_client(model_name: str):
+def build_client(model_name: str) -> OpenAI:
+    """Build an OpenAI client for the specified model."""
     model_name = model_name.lower()
     if "gpt" in model_name:
         return OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
@@ -40,7 +68,8 @@ def build_client(model_name: str):
     else:
         raise ValueError(f"Invalid model name: {model_name}")
     
-def get_model_info(model_name: str):
+def get_model_info(model_name: str) -> Dict[str, str]:
+    """Get API key and base URL for the specified model."""
     model_name = model_name.lower()
     if "gpt" in model_name:
         return {"api_key": OPENAI_API_KEY, "base_url": OPENAI_BASE_URL}
@@ -53,7 +82,8 @@ def get_model_info(model_name: str):
     else:
         raise ValueError(f"Invalid model name: {model_name}")
     
-def get_meshy_info():
+def get_meshy_info() -> Dict[str, str]:
+    """Get Meshy API key and VA API key."""
     return {"meshy_api_key": MESHY_API_KEY, "va_api_key": VA_API_KEY}
 
 def get_image_base64(image_path: str) -> str:
@@ -120,15 +150,17 @@ def save_thought_process(memory: List[Dict], thought_save: str, current_round: i
         with open(filename, "w") as f:
             json.dump(memory, f, indent=4, ensure_ascii=False)
     except Exception as e:
-        import logging
         logging.error(f"Failed to save thought process: {e}")
         
 def extract_code_pieces(text: str, concat: bool = True) -> list[str]:
     """Extract code pieces from a text string.
+
     Args:
-        text: str, model prediciton text.
-    Rets:
-        code_pieces: list[str], code pieces in the text.
+        text: Model prediction text.
+        concat: Whether to concatenate code pieces.
+
+    Returns:
+        Code pieces found in the text.
     """
     code_pieces = []
     while "```python" in text:

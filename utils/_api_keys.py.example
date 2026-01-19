@@ -1,0 +1,21 @@
+"""API key configuration template.
+
+Copy this file to utils/_api_keys.py and fill in your API keys.
+The _api_keys.py file is gitignored and will not be committed.
+"""
+# OpenAI API configuration
+OPENAI_API_KEY = "your-openai-api-key"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+
+# Anthropic Claude API configuration
+CLAUDE_API_KEY = "your-claude-api-key"
+CLAUDE_BASE_URL = "https://api.anthropic.com/v1"
+
+# Google Gemini API configuration
+GEMINI_API_KEY = "your-gemini-api-key"
+
+# Meshy API for 3D asset generation
+MESHY_API_KEY = "your-meshy-api-key"
+
+# Visual Analysis API (optional)
+VA_API_KEY = "your-va-api-key"

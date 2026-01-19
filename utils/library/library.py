@@ -1,8 +1,9 @@
-from pptx.util import Inches, Pt
+"""PPTX helper functions for slide manipulation and external services."""
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE
-from SlidesLib import LLM
-from SlidesLib import GoogleSearch, Dalle3
+from pptx.util import Inches, Pt
+
+from SlidesLib import Dalle3, GoogleSearch, LLM
 
 
 def add_title(
@@ -17,7 +18,7 @@ def add_title(
         font_size: int, Font size in int (point size), e.g., 44
         font_color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
         background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
-    Rets:
+    Returns:
         slide: Slide object with the title added
     """
     title_shape = slide.shapes.title
@@ -48,7 +49,7 @@ def add_text(
         color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
         background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
         auto_size: bool, True if auto-size the text box, False otherwise
-    Rets:
+    Returns:
         slide: Slide object with the text box added
     """
     # Create the text box shape
@@ -94,7 +95,7 @@ def add_bullet_points(
         font_size: int, Font size in int (point size), e.g., 18
         color: tuple(int,int,int), RGB color, e.g., (0, 0, 0)
         background_color: Optional, tuple(int,int,int), RGB color, e.g., (255, 255, 255)
-    Rets:
+    Returns:
         slide: Slide object with the bullet points added
     """
     left, top, width, height = coords
@@ -126,7 +127,7 @@ def add_image(slide, image_path: str, coords: list[float]):
         slide: Slide object as in pptx library
         image_path: str, Path to the image file
         coords: list(float), [left, top, width, height] in inches
-    Rets:
+    Returns:
         slide: Slide object with the image added
     """
     left, top, width, height = coords
@@ -139,7 +140,7 @@ def set_background_color(slide, color: tuple[int, int, int]):
     Args:
         slide: Slide object as in pptx library
         color: tuple(int,int,int), RGB color, e.g., (255, 255, 255)
-    Rets:
+    Returns:
         modified slide object
     """
     fill = slide.background.fill
@@ -153,7 +154,7 @@ def get_answer(query: str) -> str:
     Calls the LLM by inputing a question, then get the response of the LLM as the answer.
     Args:
         question: str, the question to ask the LLM
-    Rets:
+    Returns:
         str, the answer from the LLM
     """
     return LLM.get_answer("Please answer the following question with natural language: " + query)
@@ -164,7 +165,7 @@ def get_code(query: str) -> str:
     Calls the LLM to generate code for a request. 
     Args:
         query: str, the task that the model should conduct
-    Rets:
+    Returns:
         str, the generated code
     """
     return LLM.get_answer("Please generate code for the following task: " + query)
@@ -190,7 +191,7 @@ def search_image(query: str, save_path: str = "image.png") -> str:
     Args:
         query: str, The query to search for.
         save_path: str, The path to save the downloaded image.
-    Rets:
+    Returns:
         the save_path.
     """
     return GoogleSearch.search_image(query, save_path)
@@ -202,7 +203,7 @@ def generate_image(query: str, save_path: str = "image.png") -> str:
     Args:
         query: str, The text query to generate the image.
         save_path: str, The path to save the generated image.
-    Rets:
+    Returns:
         The path of the saved image
     """
     return Dalle3.generate_image(query, save_path)
