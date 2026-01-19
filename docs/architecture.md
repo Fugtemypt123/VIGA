@@ -18,10 +18,10 @@ VIGA uses a **dual-agent** design where two specialized agents collaborate:
 └─────────────────┘     └────────┬────────┘
          ▲                       │
          │                       ▼
-         │              ┌─────────────────┐
-         └──────────────│    Verifier     │
-            feedback    │ (analyzes diff) │
-                        └─────────────────┘
+         │               ┌─────────────────┐
+         └───────────────│    Verifier     │
+            feedback     │ (analyzes diff) │
+                         └─────────────────┘
 ```
 
 **Generator** writes code to construct or modify the scene.
