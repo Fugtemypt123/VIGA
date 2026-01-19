@@ -86,9 +86,13 @@ python runners/dynamic_scene.py --dataset-path data/dynamic_scene --task all --m
 ## Citation
 
 ```bibtex
-@inproceedings{viga2025,
-  title     = {Vision-as-Inverse-Graphics as a VLM Coding Agent},
-  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-  year      = {2025}
+@misc{yin2026visionasinversegraphicsagentinterleavedmultimodal,
+      title={Vision-as-Inverse-Graphics Agent via Interleaved Multimodal Reasoning}, 
+      author={Shaofeng Yin and Jiaxin Ge and Zora Zhiruo Wang and Xiuyu Li and Michael J. Black and Trevor Darrell and Angjoo Kanazawa and Haiwen Feng},
+      year={2026},
+      eprint={2601.11109},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2601.11109}, 
 }
 ```
