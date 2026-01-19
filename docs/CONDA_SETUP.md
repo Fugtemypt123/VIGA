@@ -227,10 +227,11 @@ conda_prefix = os.environ.get('CONDA_PREFIX', '')
 # Configure paths for different tool environments
 path_to_cmd = {
     # Blender tools (Python 3.11)
-    "tools/exec_blender.py": "/path/to/conda/envs/blender/bin/python",
+    "tools/blender/exec.py": "/path/to/conda/envs/blender/bin/python",
+    "tools/blender/investigator.py": "/path/to/conda/envs/blender/bin/python",
 
     # PPTX tools (Python 3.10)
-    "tools/exec_slides.py": "/path/to/conda/envs/pptx/bin/python",
+    "tools/slides/exec.py": "/path/to/conda/envs/pptx/bin/python",
 
     # Web tools (Python 3.10)
     "tools/exec_html.py": "/path/to/conda/envs/web/bin/python",
@@ -246,8 +247,9 @@ def get_conda_env_python(env_name):
 
 # Alternative: Use helper function
 path_to_cmd = {
-    "tools/exec_blender.py": get_conda_env_python("blender"),
-    "tools/exec_slides.py": get_conda_env_python("pptx"),
+    "tools/blender/exec.py": get_conda_env_python("blender"),
+    "tools/blender/investigator.py": get_conda_env_python("blender"),
+    "tools/slides/exec.py": get_conda_env_python("pptx"),
     "tools/exec_html.py": get_conda_env_python("web"),
 }
 ```

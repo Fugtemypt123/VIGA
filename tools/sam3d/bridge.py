@@ -46,9 +46,9 @@ tool_configs: List[Dict[str, object]] = [
     }
 ]
 
-ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SAM3_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3d", "sam3_worker.py")
-SAM3D_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3d", "sam3d_worker.py")
+ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SAM3_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3_worker.py")
+SAM3D_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3d_worker.py")
 
 mcp = FastMCP("sam-bridge")
 

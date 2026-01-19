@@ -126,8 +126,8 @@ MESHY_API_KEY = "your-meshy-api-key"  # For 3D asset generation
 ```python
 # Configure paths for different tool environments
 path_to_cmd = {
-    "tools/exec_blender.py": "/path/to/blender/env/bin/python",
-    "tools/exec_slides.py": "/path/to/pptx/env/bin/python",
+    "tools/blender/exec.py": "/path/to/blender/env/bin/python",
+    "tools/slides/exec.py": "/path/to/pptx/env/bin/python",
     "tools/exec_html.py": "/path/to/web/env/bin/python",
     # Add other tool paths as needed
 }

@@ -253,8 +253,8 @@ def main() -> None:
     parser.add_argument("--blender-save", default=f"data/dynamic_scene/empty_scene.blend", help="Save blender file")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
-    parser.add_argument("--verifier-tools", default="tools/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/blender/exec.py,tools/generator_base.py,tools/initialize_plan.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--verifier-tools", default="tools/blender/investigator.py,tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")
     
     # Execution parameters
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum number of parallel workers")

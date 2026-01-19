@@ -22,10 +22,10 @@ from utils.path import path_to_cmd
 # Tool configurations for the agent (empty as tools are auto-discovered)
 tool_configs: List[Dict[str, object]] = []
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SAM_WORKER = os.path.join(os.path.dirname(__file__), "sam3d", "sam_worker.py")
-SAM3D_WORKER = os.path.join(os.path.dirname(__file__), "sam3d", "sam3d_worker.py")
-IMPORT_SCRIPT = os.path.join(os.path.dirname(__file__), "blender", "glb_import.py")
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SAM_WORKER = os.path.join(os.path.dirname(__file__), "sam_worker.py")
+SAM3D_WORKER = os.path.join(os.path.dirname(__file__), "sam3d_worker.py")
+IMPORT_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "blender", "glb_import.py")
 
 mcp = FastMCP("sam-init")
 

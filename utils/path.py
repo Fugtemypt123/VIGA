@@ -24,21 +24,21 @@ CONDA_BASE = os.environ.get(
 # Environment name to tool script mapping
 ENV_MAPPING: Dict[str, str] = {
     # Blender tools (Python 3.11)
-    "tools/exec_blender.py": "blender",
-    "tools/investigator.py": "blender",
+    "tools/blender/exec.py": "blender",
+    "tools/blender/investigator.py": "blender",
     # PPTX tools (Python 3.10)
-    "tools/exec_slides.py": "pptx",
+    "tools/slides/exec.py": "pptx",
     # Chrome/HTML tools (Python 3.10)
     "tools/exec_html.py": "chrome",
     # Core agent tools (Python 3.10)
     "tools/generator_base.py": "agent",
     "tools/initialize_plan.py": "agent",
-    "tools/meshy.py": "agent",
+    "tools/assets/meshy.py": "agent",
     "tools/verifier_base.py": "agent",
     "tools/undo.py": "agent",
     # SAM segmentation tools
-    "tools/sam.py": "sam3d-objects",
-    "tools/sam_init.py": "sam3d-objects",
+    "tools/sam3d/bridge.py": "sam3d-objects",
+    "tools/sam3d/init.py": "sam3d-objects",
     "tools/sam3d/sam_worker.py": "sam",
     "tools/sam3d/sam3_worker.py": "sam3",
     "tools/sam3d/sam3d_worker.py": "sam3d-objects",

@@ -286,7 +286,7 @@ def main() -> None:
     parser.add_argument("--memory-length", type=int, default=24, help="Memory length")
     
     # Tool server scripts (comma-separated)
-    parser.add_argument("--generator-tools", default="tools/exec_slides.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
+    parser.add_argument("--generator-tools", default="tools/slides/exec.py,tools/generator_base.py", help="Comma-separated list of generator tool server scripts")
     
     # Verifier tool servers
     parser.add_argument("--verifier-tools", default="tools/verifier_base.py", help="Comma-separated list of verifier tool server scripts")

@@ -29,8 +29,8 @@ python runners/blendergym.py \
 | `--max-workers` | Parallel workers | 8 |
 | `--sequential` | Run sequentially | False |
 | `--no-tools` | Disable tools | False |
-| `--generator-tools` | Generator tool servers | tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py |
-| `--verifier-tools` | Verifier tool servers | tools/verifier_base.py,tools/investigator.py |
+| `--generator-tools` | Generator tool servers | tools/blender/exec.py,tools/generator_base.py,tools/initialize_plan.py |
+| `--verifier-tools` | Verifier tool servers | tools/verifier_base.py,tools/blender/investigator.py |
 
 ## BlenderStudio Runner
 
@@ -82,8 +82,8 @@ python runners/static_scene.py \
 | `--init-setting` | Init setting: none, minimal, reasonable | none |
 | `--max-workers` | Parallel workers | 1 |
 | `--text-only` | Use only text as reference | False |
-| `--generator-tools` | Generator tools | tools/exec_blender.py,tools/generator_base.py,tools/meshy.py,tools/initialize_plan.py |
-| `--verifier-tools` | Verifier tools | tools/investigator.py,tools/verifier_base.py |
+| `--generator-tools` | Generator tools | tools/blender/exec.py,tools/generator_base.py,tools/assets/meshy.py,tools/initialize_plan.py |
+| `--verifier-tools` | Verifier tools | tools/blender/investigator.py,tools/verifier_base.py |
 
 ## Dynamic Scene Runner
 
@@ -108,8 +108,8 @@ python runners/dynamic_scene.py \
 | `--model` | Vision model | gpt-5 |
 | `--prompt-setting` | Prompt setting: none, init | none |
 | `--text-only` | Use only text as reference | False |
-| `--generator-tools` | Generator tools | tools/exec_blender.py,tools/generator_base.py,tools/initialize_plan.py |
-| `--verifier-tools` | Verifier tools | tools/investigator.py,tools/verifier_base.py |
+| `--generator-tools` | Generator tools | tools/blender/exec.py,tools/generator_base.py,tools/initialize_plan.py |
+| `--verifier-tools` | Verifier tools | tools/blender/investigator.py,tools/verifier_base.py |
 
 ## AutoPresent Runner
 
@@ -135,7 +135,7 @@ python runners/autopresent.py \
 | `--model` | Vision model | gpt-4o |
 | `--max-workers` | Parallel workers | 8 |
 | `--sequential` | Run sequentially | False |
-| `--generator-tools` | Generator tools | tools/exec_slides.py,tools/generator_base.py |
+| `--generator-tools` | Generator tools | tools/slides/exec.py,tools/generator_base.py |
 | `--verifier-tools` | Verifier tools | tools/verifier_base.py |
 
 ## Main Entry Point
