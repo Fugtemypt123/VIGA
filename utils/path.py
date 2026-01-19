@@ -39,9 +39,9 @@ ENV_MAPPING: Dict[str, str] = {
     # SAM segmentation tools
     "tools/sam.py": "sam3d-objects",
     "tools/sam_init.py": "sam3d-objects",
-    "tools/sam_worker.py": "sam",
-    "tools/sam3_worker.py": "sam3",
-    "tools/sam3d_worker.py": "sam3d-objects",
+    "tools/segmentation/sam_worker.py": "sam",
+    "tools/segmentation/sam3_worker.py": "sam3",
+    "tools/segmentation/sam3d_worker.py": "sam3d-objects",
 }
 
 

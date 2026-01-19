@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
-from tools.utils.blender_script_generators import (
+from tools.blender.script_generators import (
     generate_scene_info_script,
     generate_render_script,
     generate_camera_focus_script,

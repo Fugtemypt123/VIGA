@@ -47,8 +47,8 @@ tool_configs: List[Dict[str, object]] = [
 ]
 
 ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SAM3_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3_worker.py")
-SAM3D_WORKER: str = os.path.join(os.path.dirname(__file__), "sam3d_worker.py")
+SAM3_WORKER: str = os.path.join(os.path.dirname(__file__), "segmentation", "sam3_worker.py")
+SAM3D_WORKER: str = os.path.join(os.path.dirname(__file__), "segmentation", "sam3d_worker.py")
 
 mcp = FastMCP("sam-bridge")
 
@@ -57,8 +57,8 @@ _target_image: Optional[str] = None
 _output_dir: Optional[str] = None
 _sam3_cfg: Optional[str] = None
 _blender_command: Optional[str] = None
-_sam3_env_bin: str = path_to_cmd["tools/sam3_worker.py"]
-_sam3d_env_bin: str = path_to_cmd["tools/sam3d_worker.py"]
+_sam3_env_bin: str = path_to_cmd["tools/segmentation/sam3_worker.py"]
+_sam3d_env_bin: str = path_to_cmd["tools/segmentation/sam3d_worker.py"]
 
 
 @mcp.tool()

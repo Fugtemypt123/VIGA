@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Tuple
 from mcp.server.fastmcp import FastMCP
 from PIL import Image
 
-from tools.utils.blender_script_generators import generate_scene_info_script
+from tools.blender.script_generators import generate_scene_info_script
 
 # Tool configuration dictionaries for the Generator agent
 execute_and_evaluate_tool: Dict[str, object] = {

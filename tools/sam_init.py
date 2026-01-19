@@ -23,9 +23,9 @@ from utils.path import path_to_cmd
 tool_configs: List[Dict[str, object]] = []
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SAM_WORKER = os.path.join(os.path.dirname(__file__), "sam_worker.py")
-SAM3D_WORKER = os.path.join(os.path.dirname(__file__), "sam3d_worker.py")
-IMPORT_SCRIPT = os.path.join(os.path.dirname(__file__), "import_glbs_to_blend.py")
+SAM_WORKER = os.path.join(os.path.dirname(__file__), "segmentation", "sam_worker.py")
+SAM3D_WORKER = os.path.join(os.path.dirname(__file__), "segmentation", "sam3d_worker.py")
+IMPORT_SCRIPT = os.path.join(os.path.dirname(__file__), "blender", "glb_import.py")
 
 mcp = FastMCP("sam-init")
 
@@ -41,8 +41,8 @@ _sam3d_env_bin: Optional[str] = None
 
 # Safely get paths to avoid uncaught KeyError exceptions
 try:
-    _sam_env_bin = path_to_cmd.get("tools/sam_worker.py")
-    _sam3d_env_bin = path_to_cmd.get("tools/sam3d_worker.py")
+    _sam_env_bin = path_to_cmd.get("tools/segmentation/sam_worker.py")
+    _sam3d_env_bin = path_to_cmd.get("tools/segmentation/sam3d_worker.py")
 except Exception as e:
     print(f"[SAM_INIT] Error initializing paths: {e}", file=sys.stderr)
 
@@ -139,7 +139,7 @@ def initialize(args: Dict[str, object]) -> Dict[str, object]:
 
         # Try to get the python path for sam_worker.py
         # If not configured, use sam3d environment (assuming they might be in the same environment)
-        _sam_env_bin = path_to_cmd.get("tools/sam_worker.py") or _sam3d_env_bin
+        _sam_env_bin = path_to_cmd.get("tools/segmentation/sam_worker.py") or _sam3d_env_bin
         
         log("[SAM_INIT] sam init initialized")
         return {"status": "success", "output": {"text": ["sam init initialized"], "tool_configs": tool_configs}}
