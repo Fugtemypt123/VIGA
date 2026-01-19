@@ -1,3 +1,15 @@
+<div align="center">
+
+## 👷 ⚠️ WARNING ⚠️ 👷
+
+### 🚧 Work In Progress 🚧
+
+**This project is currently under active development.**
+**Unit tests are being implemented, and the build may be unstable.**
+**Please check back later for the v0 release.**
+
+</div>
+
 <h1 align="center">VIGA: Vision-as-Inverse-Graphics Agent via Interleaved Multimodal Reasoning</h1>
 
 <p align="center">
