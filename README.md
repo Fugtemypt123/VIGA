@@ -1,19 +1,27 @@
-<div align="center">
+<h1 align="center">VIGA: Vision-as-Inverse-Graphics Agent via Interleaved Multimodal Reasoning</h1>
 
-# VIGA: Vision-as-Inverse-Graphics Agent via Interleaved Multimodal Reasoning
+<p align="center">
+    <a href="https://fugtemypt123.github.io/VIGA-website/"><img src="https://img.shields.io/badge/Page-Project-blue" alt="Project Page"></a>
+    <a href="https://arxiv.org/abs/2601.11109"><img src="https://img.shields.io/badge/Paper-arXiv-b31b1b" alt="arXiv Paper"></a>
+    <a href="https://huggingface.co/datasets/DietCoke4671/blenderbench"><img src="https://img.shields.io/badge/Benchmark-HuggingFace-yellow" alt="HuggingFace Benchmark"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-green" alt="License"></a>
+</p>
 
-[![Page](https://img.shields.io/badge/Page-Project-blue)](https://fugtemypt123.github.io/VIGA-website/)
-[![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b)](https://arxiv.org/abs/2601.11109)
-[![Benchmark](https://img.shields.io/badge/Benchmark-HuggingFace-yellow)](https://huggingface.co/datasets/DietCoke4671/blenderbench)
-[![License](https://img.shields.io/badge/License-Apache_2.0-green)](LICENSE)
+<p align="center">
+    <img src="docs/images/method_new.png" alt="VIGA Method Overview" width="800">
+</p>
 
-<img src="docs/images/method_new.png" alt="VIGA Method Overview" width="800">
+<p align="center">
+    <a href="#about">About</a> •
+    <a href="#supported-domains">Supported Domains</a> •
+    <a href="#quickstart">Quickstart</a> •
+    <a href="#documentation">Documentation</a> •
+    <a href="#citation">Citation</a>
+</p>
 
-[About](#about) | [Supported Domains](#supported-domains) | [Quickstart](#quickstart) | [Documentation](#documentation) | [Citation](#citation)
+<br>
 
-</div>
-
-## About
+# About
 
 VIGA is an analysis-by-synthesis code agent for programmatic visual reconstruction. It approaches vision-as-inverse-graphics through an iterative loop of generating, rendering, and verifying scenes against target images.
 
@@ -27,7 +35,7 @@ The agent maintains an evolving contextual memory with plans, code diffs, and re
 
 <br>
 
-## Supported Domains
+# Supported Domains
 
 | Mode | Description | Output |
 |------|-------------|--------|
@@ -39,22 +47,22 @@ The agent maintains an evolving contextual memory with plans, code diffs, and re
 
 <br>
 
-## Quickstart
+# Quickstart
 
-### 1. Installation: Setup the environment
+## 1. Installation: Setup the environment
 
-**Prerequisites**
+### Prerequisites
 
 You need [Conda](https://docs.conda.io/en/latest/miniconda.html) installed. For 3D modes, an NVIDIA GPU with CUDA support is recommended.
 
-**Clone repository**
+### Clone repository
 
 ```bash
 git clone https://github.com/Fugtemypt123/VIGA-release.git && cd VIGA-release
 git submodule update --init --recursive
 ```
 
-**Create conda environments**
+### Create conda environments
 
 VIGA requires separate environments for the agent and tools.
 
@@ -74,7 +82,7 @@ pip install -r requirements/requirement_sam3d-objects.txt
 
 See [Requirements](requirements/README.md) for additional options.
 
-**Configure API keys**
+### Configure API keys
 
 ```bash
 cp utils/_api_keys.py.example utils/_api_keys.py
@@ -82,7 +90,7 @@ cp utils/_api_keys.py.example utils/_api_keys.py
 
 Edit `utils/_api_keys.py` and add your `OPENAI_API_KEY` and `MESHY_API_KEY`.
 
-### 2. Usage: Run the agent
+## 2. Usage: Run the agent
 
 ```bash
 conda activate agent
@@ -93,7 +101,7 @@ Custom data: place in `data/dynamic_scene/<your-data-name>` following the format
 
 <br>
 
-## Documentation
+# Documentation
 
 | Doc | Description |
 |-----|-------------|
@@ -103,7 +111,7 @@ Custom data: place in `data/dynamic_scene/<your-data-name>` following the format
 
 <br>
 
-## Citation
+# Citation
 
 You can find a paper writeup of the framework on [arXiv](https://arxiv.org/abs/2601.11109).
 
