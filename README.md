@@ -21,12 +21,6 @@
 
 <p align="center"><img src="docs/images/art_cropped.png" width="33%"><img src="docs/images/render.gif" width="33%"><img src="docs/images/dynamic.gif" width="33%"></p>
 
-<p align="center">
-    <a href="#about">About</a> •
-    <a href="#supported-domains">Supported Domains</a> •
-    <a href="#quickstart">Quickstart</a>
-</p>
-
 <br>
 
 # About
@@ -44,69 +38,3 @@ The agent maintains an evolving contextual memory with plans, code diffs, and re
 <p align="center">
     <img src="docs/images/trajectory.png" alt="VIGA Trajectory" width="100%">
 </p>
-
-<br>
-
-# Supported Domains
-
-| Mode | Description | Output |
-|------|-------------|--------|
-| [BlenderGym](https://github.com/richard-guyunqi/BlenderGym-Open) | Single-step 3D graphics editing | Blender Python |
-| [BlenderBench](https://huggingface.co/datasets/DietCoke4671/blenderbench) | Multi-step 3D graphics editing (Level 1-3) | Blender Python |
-| [SlideBench](https://github.com/para-lost/AutoPresent) | 2D slide/document layout synthesis | PowerPoint |
-| Custom Static Scene | Single-view 3D reconstruction | Blender scene |
-| Custom Dynamic Scene | 4D dynamic scene with physics | Blender animation |
-
-<br>
-
-# Quickstart
-
-## 1. Installation: Setup the environment
-
-### Prerequisites
-
-You need [Conda](https://docs.conda.io/en/latest/miniconda.html) installed. For 3D modes, an NVIDIA GPU with CUDA support is recommended.
-
-### Clone repository
-
-```bash
-git clone https://github.com/Fugtemypt123/VIGA-release.git && cd VIGA-release
-git submodule update --init --recursive
-```
-
-### Create conda environments
-
-VIGA requires separate environments for the agent and tools.
-
-```bash
-conda create -n agent python=3.10 -y && conda activate agent
-pip install -r requirements/requirement_agent.txt
-
-conda create -n blender python=3.11 -y && conda activate blender
-pip install -r requirements/requirement_blender.txt
-
-conda create -n sam python=3.10 -y && conda activate sam
-pip install -r requirements/requirement_sam.txt
-
-conda create -n sam3d python=3.11 -y && conda activate sam3d
-pip install -r requirements/requirement_sam3d-objects.txt
-```
-
-See [Requirements](requirements/README.md) for additional options.
-
-### Configure API keys
-
-```bash
-cp utils/_api_keys.py.example utils/_api_keys.py
-```
-
-Edit `utils/_api_keys.py` and add your `OPENAI_API_KEY` and `MESHY_API_KEY`.
-
-## 2. Usage: Run the agent
-
-```bash
-conda activate agent
-python runners/dynamic_scene.py --task=artist --model=gpt-5
-```
-
-Custom data: place in `data/dynamic_scene/<your-data-name>` following the format in `data/dynamic_scene/artist`.
