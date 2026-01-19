@@ -7,9 +7,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-green" alt="License"></a>
 </p>
 
-<p align="center">
-    <img src="docs/images/method_new.png" alt="VIGA Method Overview" width="800">
-</p>
+<p align="center"><img src="docs/images/art_cropped.png" width="33%"><img src="docs/images/render.gif" width="33%"><img src="docs/images/dynamic.gif" width="33%"></p>
 
 <p align="center">
     <a href="#about">About</a> •
