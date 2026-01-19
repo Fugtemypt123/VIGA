@@ -1,12 +1,13 @@
 """Reference-free slide evaluation using VLM scoring."""
-import os
-import json
-import pptx
-import base64
 import argparse
-from PIL import Image
-from openai import OpenAI
+import base64
+import json
+import os
 import sys
+
+import pptx
+from openai import OpenAI
+from PIL import Image
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.common import get_model_info

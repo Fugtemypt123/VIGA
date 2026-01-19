@@ -1,5 +1,13 @@
-# Render
+# BlenderGym Data
+
+## Render Command
 
 ```bash
-/home/shaofengyin/BlenderGym-Open/infinigen/blender/blender --background /home/shaofengyin/BlenderGym-Open/bench_data/_hard1/blender_file.blend --python /home/shaofengyin/BlenderGym-Open/bench_data/pipeline_render_script.py  -- /home/shaofengyin/BlenderGym-Open/bench_data/_hard1/goal.py test /home/shaofengyin/BlenderGym-Open/blender_file.blend
+# Replace paths with your local installation
+$BLENDER_PATH --background $BLEND_FILE --python data/blendergym/pipeline_render_script.py -- $GOAL_SCRIPT output $OUTPUT_BLEND
+```
+
+Example with default paths:
+```bash
+utils/blender/infinigen/blender/blender --background data/blendergym/task/blender_file.blend --python data/blendergym/pipeline_render_script.py -- data/blendergym/task/goal.py test output.blend
 ```

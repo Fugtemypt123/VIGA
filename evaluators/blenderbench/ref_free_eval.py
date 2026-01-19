@@ -4,14 +4,15 @@ Reference-free evaluation script for AgenticVerifier blendergym results using GP
 This script evaluates the quality of generated images against task descriptions without requiring ground truth images.
 """
 
+import argparse
+import base64
+import json
 import os
 import sys
-import argparse
-import json
-import base64
-from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from openai import OpenAI
+from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils._api_keys import OPENAI_API_KEY

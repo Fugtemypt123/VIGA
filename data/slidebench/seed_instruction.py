@@ -9,11 +9,6 @@ from pptx import Presentation
 openai.api_key = os.environ["OPENAI_API_KEY"]
 client = openai.OpenAI()
 
-
-# INSTRUCTION = """Your task is to write a clear instruction on how to create the provided slide.
-# Make sure you include all necessary information about content, formatting, and other important aspects.
-# Do not over-specify things. Please phrase the instruction using the fewest words possible."""
-
 INSTRUCTION = """Your task is to write a high-level instruction to create the provided slide.
 Do not over-specify things. Please phrase the instruction using the fewest words possible, ideally in one sentence.
 """

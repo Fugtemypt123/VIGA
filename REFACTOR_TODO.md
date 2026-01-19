@@ -13,6 +13,7 @@ This document tracks all code quality issues that need to be fixed for open-sour
 - [x] Phase 7: utils/ ✅ COMPLETED
 - [x] Phase 8: prompts/ ✅ COMPLETED
 - [x] Phase 9: data/ ✅ COMPLETED
+- [x] Phase 10: Open-source preparation ✅ COMPLETED
 
 ---
 
@@ -368,3 +369,47 @@ All files in prompts/ have been refactored to follow the coding standards:
 
 ### Configuration
 - Create `@dataclass` for typed configuration instead of `args: Dict`
+
+---
+
+## Phase 10: Open-source preparation ✅ COMPLETED
+
+### Changes Made:
+
+**Hardcoded Path Removal:**
+- **utils/path.py**: Replaced all 14 hardcoded conda paths with `VIGA_CONDA_BASE` environment variable approach
+- **requirements/requirement_sam.txt**: Changed absolute path to relative `./utils/sam`
+- **requirements/requirement_sam3.txt**: Changed absolute path to relative `./utils/sam3`
+- **requirements/requirement_sam3d-objects.txt**: Changed absolute path to relative `./utils/sam3d`
+- **data/blendergym/README.md**: Updated command examples to use relative/template paths
+- **data/blenderbench/README.md**: Updated command examples to use relative/template paths
+
+**Import Order Fixes:**
+- **evaluators/slidebench/reference_free_eval.py**: Reordered imports (stdlib → third-party → internal)
+- **evaluators/blenderbench/ref_free_eval.py**: Reordered imports (stdlib → third-party → internal)
+- **evaluators/slidebench/metrics/color.py**: Fixed import order and numpy compatibility patch
+
+**Commented-Out Code Cleanup:**
+- **prompts/blendergym/generator.py**: Removed old commented-out prompt template (23 lines)
+- **prompts/static_scene/generator.py**: Removed old commented-out example loading code (30 lines)
+- **data/slidebench/seed_instruction.py**: Removed old commented-out instruction
+- **tools/verifier_base.py**: Removed commented parameter definitions
+- **runners/blendergym/alchemy.py**: Removed commented exist_score check
+- **runners/slidebench/create_slide.py**: Removed commented arguments
+- **data/blendergym/generator_script.py**: Removed commented Blender code
+- **data/blendergym/python_script.py**: Removed commented Blender code
+- **data/static_scene/generator_init_script.py**: Removed commented render code
+
+**Main Entry Point:**
+- **main.py**: Removed Chinese comments, replaced print statements with logging module
+
+**Configuration Templates:**
+- Created **utils/_api_keys.py.example**: Template for API key configuration with proper instructions
+- **utils/SlidesLib/ppt_gen.py**: Added complete type annotations to all 17 methods
+
+### Summary:
+- All paths are now relative or environment-variable based
+- No hardcoded user paths remain in the codebase
+- Import order follows the coding standard consistently
+- All commented-out code has been cleaned up
+- API key configuration template provided for easy setup

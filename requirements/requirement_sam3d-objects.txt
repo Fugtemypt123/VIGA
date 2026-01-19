@@ -336,8 +336,8 @@ safehttpx==0.1.7
 safetensors==0.7.0
 sagemaker==2.242.0
 sagemaker-core==1.0.69
-# Editable install with no version control (sam3d_objects==0.0.1)
--e /mnt/home/shaofengyin19260817/AgenticVerifier/utils/sam3d
+# Editable install for sam3d_objects (install from utils/sam3d)
+-e ./utils/sam3d
 schema==0.7.8
 scikit-image==0.23.1
 scikit-learn==1.7.2
