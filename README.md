@@ -28,9 +28,9 @@ VIGA naturally generalizes across 2D, 3D, and 4D visual tasks through its analys
 
 | Mode | Description | Output |
 |------|-------------|--------|
-| **BlenderGym** | Single-step 3D graphics editing | Blender Python code |
-| **BlenderBench** | Multi-step 3D graphics editing (Level 1-3) | Blender Python code |
-| **SlideBench** | 2D programmatic slide/document layout synthesis | PowerPoint (PPTX) |
+| **[BlenderGym](https://github.com/richard-guyunqi/BlenderGym-Open)** | Single-step 3D graphics editing | Blender Python code |
+| **[BlenderBench](https://huggingface.co/datasets/DietCoke4671/blenderbench)** | Multi-step 3D graphics editing (Level 1-3) | Blender Python code |
+| **[SlideBench](https://github.com/para-lost/AutoPresent)** | 2D programmatic slide/document layout synthesis | PowerPoint (PPTX) |
 | **Custom Static Scene** | Single-view 3D scene reconstruction from scratch | Blender scene (.blend) |
 | **Custom Dynamic Scene** | 4D dynamic scene reconstruction with physics | Blender animation |
 
