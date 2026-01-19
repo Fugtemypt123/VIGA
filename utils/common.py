@@ -165,7 +165,6 @@ def extract_code_pieces(text: str, concat: bool = True) -> list[str]:
     code_pieces = []
     while "```python" in text:
         st_idx = text.index("```python") + 10
-        # end_idx = text.index("```", st_idx)
         if "```" in text[st_idx:]:
             end_idx = text.index("```", st_idx)
         else: 

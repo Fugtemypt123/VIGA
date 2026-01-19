@@ -354,10 +354,6 @@ def main() -> None:
         # Test get_scene_info
         scene_info_res = get_scene_info()
         print("[test:get_scene_info]", json.dumps(scene_info_res, ensure_ascii=False))
-        # code_fpath = 'data/blendergym/geometry20/goal.py'
-        # code = open(code_fpath, "r").read()
-        # exec_res = execute_and_evaluate(thought="", code="")
-        # print("[test:exec_script]", json.dumps(exec_res, ensure_ascii=False))
         raise NotImplementedError
 
         # Note: The new blender file has a default Camera at position around (7,-6,4), facing direction (0,0,0)

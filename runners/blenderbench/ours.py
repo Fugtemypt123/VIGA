@@ -371,12 +371,7 @@ def main() -> None:
             sys.exit(1)
         
         print(f"Found {len(tasks)} tasks")
-        
-        # Filter tasks if specific task specified
-        # if args.task != 'all':
-        #     tasks = [t for t in tasks if t["task_name"] == args.task]
-        #     print(f"Filtered to {len(tasks)} tasks for task: {args.task}")
-        
+
         if not tasks:
             print("No tasks match the specified filters!")
             sys.exit(1)
