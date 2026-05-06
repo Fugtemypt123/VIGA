@@ -384,6 +384,9 @@ def reconstruct_full_scene() -> Dict[str, object]:
         with open(transforms_json_path, 'w') as f:
             json.dump(object_transforms, f, indent=2)
 
+        # Render initial scene preview alongside the .blend so the agent can see it
+        init_render_path = os.path.join(_output_dir, "render1.png")
+
         # Build Blender command
         blender_cmd = [
             _blender_command,
@@ -393,6 +396,7 @@ def reconstruct_full_scene() -> Dict[str, object]:
             "--",
             transforms_json_path,  # Pass position information JSON file path
             blend_path,  # Output .blend file path
+            init_render_path,  # Output initial scene render
         ]
 
         blender_log_path = os.path.join(_output_dir, "blender_import.log")
@@ -416,6 +420,7 @@ def reconstruct_full_scene() -> Dict[str, object]:
             if file.endswith(".blend1"):
                 os.remove(os.path.join(os.path.dirname(_output_dir), file))
         
+        rendered_init = init_render_path if os.path.exists(init_render_path) else None
         return {
             "status": "success",
             "output": {
@@ -426,7 +431,8 @@ def reconstruct_full_scene() -> Dict[str, object]:
                     "blend_path": blend_path,
                     "num_objects": len(glb_paths),
                     "num_masks": len(masks),
-                    "glb_paths": glb_paths
+                    "glb_paths": glb_paths,
+                    "init_render_path": rendered_init,
                 }
             }
         }
