@@ -14,11 +14,11 @@ import bpy
 from mathutils import Euler, Vector
 
 
-def parse_args() -> Tuple[str, str]:
+def parse_args() -> Tuple[str, str, Optional[str]]:
     """Parse command line arguments.
 
     Returns:
-        Tuple of (transforms_json_path, blend_output_path).
+        Tuple of (transforms_json_path, blend_output_path, optional render_path).
 
     Raises:
         SystemExit: If required arguments are not provided.
@@ -26,7 +26,7 @@ def parse_args() -> Tuple[str, str]:
     argv = sys.argv
     if "--" not in argv:
         print("[ERROR] Usage:")
-        print("  blender -b -P import_glbs_to_blend.py -- transforms.json output.blend")
+        print("  blender -b -P import_glbs_to_blend.py -- transforms.json output.blend [render.png]")
         sys.exit(1)
     idx = argv.index("--")
     if len(argv) < idx + 3:
@@ -34,7 +34,8 @@ def parse_args() -> Tuple[str, str]:
         sys.exit(1)
     transforms_json_path = os.path.abspath(argv[idx + 1])
     blend_path = os.path.abspath(argv[idx + 2])
-    return transforms_json_path, blend_path
+    render_path = os.path.abspath(argv[idx + 3]) if len(argv) > idx + 3 else None
+    return transforms_json_path, blend_path, render_path
 
 def clear_scene() -> None:
     """Delete all existing objects in the scene."""
@@ -188,9 +189,26 @@ def save_blend(path: str) -> None:
     print(f"[INFO] Saved: {path}")
 
 
+def render_scene(render_path: str) -> None:
+    """Render the current scene to a PNG file.
+
+    Args:
+        render_path: Output path for the rendered image.
+    """
+    os.makedirs(os.path.dirname(render_path), exist_ok=True)
+    scene = bpy.context.scene
+    cameras = [obj for obj in bpy.data.objects if obj.type == 'CAMERA']
+    if cameras:
+        scene.camera = cameras[0]
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.filepath = render_path
+    bpy.ops.render.render(write_still=True)
+    print(f"[INFO] Rendered initial scene to: {render_path}")
+
+
 def main() -> None:
     """Main entry point for the GLB importer script."""
-    transforms_json_path, blend_path = parse_args()
+    transforms_json_path, blend_path, render_path = parse_args()
     print(f"[INFO] Loading transforms from: {transforms_json_path}")
     print(f"[INFO] Output: {blend_path}")
 
@@ -221,6 +239,13 @@ def main() -> None:
     print(f"[INFO] Successfully imported {success_count}/{len(objects_data)} GLB files")
 
     save_blend(blend_path)
+
+    if render_path:
+        try:
+            render_scene(render_path)
+        except Exception as e:
+            print(f"[WARN] Failed to render initial scene: {e}")
+
     print("[INFO] Done.")
 
 

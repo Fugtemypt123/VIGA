@@ -75,8 +75,19 @@ class GeneratorAgent:
         try:
             if any("init.py" in server for server in self.tool_client.tool_servers):
                 print("=== Auto-calling init.reconstruct_full_scene to initialize scene ===")
-                _ = await self.tool_client.call_tool("reconstruct_full_scene", {})
+                init_result = await self.tool_client.call_tool("reconstruct_full_scene", {})
                 print("=== init.reconstruct_full_scene finished ===")
+
+                init_render_path = (init_result or {}).get("data", {}).get("init_render_path")
+                if init_render_path and os.path.exists(init_render_path):
+                    print(f"=== Attaching SAM3D init render to memory: {init_render_path} ===")
+                    self.memory.append({
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": get_image_base64(init_render_path)}},
+                            {"type": "text", "text": f"Initial image loaded from local path: {init_render_path}. This is a preview of the SAM3D-reconstructed scene the generator starts from. The objects shown above are already imported into the Blender file; manipulate them rather than re-creating them from scratch."},
+                        ],
+                    })
         except Exception as e:
             print(f"Warning: auto init reconstruct_full_scene failed: {e}")
 
